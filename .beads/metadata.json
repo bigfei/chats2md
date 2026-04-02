@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "chats2md",
+  "project_id": "853071a4-c50c-410d-bad6-a8dd21a835e7"
+}
