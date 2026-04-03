@@ -1,0 +1,18 @@
+[project]
+name = "chats2md"
+version = "0.1.0"
+description = "Utilities for exporting ChatGPT conversations."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+list-conversations = "chats2md.cli:main"
+verify-cookie-necessity = "chats2md.verify_cookie:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = true

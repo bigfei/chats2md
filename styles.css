@@ -1,0 +1,59 @@
+.chats2md-modal textarea {
+  min-height: 220px;
+  font-family: var(--font-monospace);
+  resize: vertical;
+}
+
+.chats2md-modal .setting-item-info {
+  flex: 1 1 auto;
+}
+
+.chats2md-modal__status {
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+}
+
+.chats2md-modal__hint {
+  margin-top: 0.5rem;
+  color: var(--text-muted);
+}
+
+.chats2md-modal__summary {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+}
+
+.chats2md-progress-modal .modal-content {
+  min-width: min(720px, 90vw);
+}
+
+.chats2md-progress-modal__counts,
+.chats2md-settings__status {
+  margin: 0.75rem 0 0;
+  color: var(--text-muted);
+}
+
+.chats2md-progress-modal__details {
+  max-height: 220px;
+  margin-top: 1rem;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: var(--background-secondary);
+}
+
+.chats2md-progress-modal__details p {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-small);
+}
+
+.chats2md-progress-modal__details p:last-child {
+  margin-bottom: 0;
+}
+
+.chats2md-settings__textarea {
+  min-height: 260px;
+  font-family: var(--font-monospace);
+}

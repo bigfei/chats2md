@@ -1,0 +1,27 @@
+{
+  "name": "obsidian-chats2md",
+  "version": "0.1.0",
+  "description": "Obsidian plugin for importing full ChatGPT conversation logs into markdown notes.",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "setup:sample-vault": "node scripts/setup-sample-vault.mjs"
+  },
+  "keywords": [
+    "obsidian",
+    "chatgpt",
+    "markdown"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "esbuild": "^0.25.10",
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "obsidian": "latest"
+  }
+}
