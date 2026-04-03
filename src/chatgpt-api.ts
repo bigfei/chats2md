@@ -1,4 +1,5 @@
 import { requestUrl } from "obsidian";
+import { extractConversationListPageInfo, normalizeConversationTimestamp } from "./conversation-utils";
 
 import type {
   ChatGptRequestConfig,
@@ -8,6 +9,9 @@ import type {
 } from "./types";
 
 const BASE_URL = "https://chatgpt.com";
+const DEFAULT_LIST_PAGE_LIMIT = 28;
+const MAX_LIST_PAGE_LIMIT = 100;
+const MAX_LIST_PAGE_REQUESTS = 100;
 const DEFAULT_FIREFOX_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:149.0) Gecko/20100101 Firefox/149.0";
 const RESERVED_HEADER_NAMES = new Set([
   "accept",
@@ -22,6 +26,10 @@ interface SessionPayload {
   cookie?: string;
   expires?: string;
   headers?: Record<string, unknown>;
+  user?: {
+    id?: string;
+    email?: string;
+  };
   account?: {
     id?: string;
   };
@@ -87,10 +95,44 @@ export function buildDefaultUserAgent(pluginVersion: string): string {
   return `${DEFAULT_FIREFOX_USER_AGENT} chats2md/${pluginVersion}`;
 }
 
-function buildListUrl(limit: number): string {
+interface ConversationListPageInfo {
+  limit: number;
+  offset: number;
+  total: number | null;
+}
+
+function clampPageLimit(limit: number): number {
+  if (!Number.isFinite(limit)) {
+    return DEFAULT_LIST_PAGE_LIMIT;
+  }
+
+  return Math.min(MAX_LIST_PAGE_LIMIT, Math.max(1, Math.trunc(limit)));
+}
+
+function readPageInfo(payload: unknown): ConversationListPageInfo {
+  const parsed = extractConversationListPageInfo(payload, DEFAULT_LIST_PAGE_LIMIT) as {
+    limit?: number;
+    offset?: number;
+    total?: number | null;
+  };
+
+  const limit = clampPageLimit(parsed?.limit ?? DEFAULT_LIST_PAGE_LIMIT);
+  const offset = Number.isFinite(parsed?.offset) ? Math.max(0, Math.trunc(parsed.offset ?? 0)) : 0;
+  const total = Number.isFinite(parsed?.total) && (parsed.total ?? -1) >= 0
+    ? Math.trunc(parsed.total ?? 0)
+    : null;
+
+  return {
+    limit,
+    offset,
+    total
+  };
+}
+
+function buildListUrl(limit: number, offset = 0): string {
   const params = new URLSearchParams({
-    offset: "0",
-    limit: String(limit),
+    offset: String(Math.max(0, Math.trunc(offset))),
+    limit: String(clampPageLimit(limit)),
     order: "updated",
     is_archived: "false",
     is_starred: "false"
@@ -156,11 +198,16 @@ function normalizeSummary(item: UnknownRecord): ConversationSummary {
   }
 
   const title = readString(item.title, "Untitled Conversation");
-  const updatedAt = readString(item.update_time ?? item.updated_time);
+  const createdAt = normalizeConversationTimestamp(item.create_time);
+  const updatedAt = normalizeConversationTimestamp(
+    item.update_time ?? item.updated_time,
+    createdAt
+  );
 
   return {
     id,
     title,
+    createdAt,
     updatedAt,
     url: `${BASE_URL}/c/${id}`
   };
@@ -412,7 +459,7 @@ function extractMessagesFromMapping(payload: UnknownRecord): ConversationMessage
 function normalizeConversationDetail(
   payload: unknown,
   conversationId: string,
-  fallback?: Pick<ConversationSummary, "title" | "updatedAt">
+  fallback?: Pick<ConversationSummary, "title" | "createdAt" | "updatedAt">
 ): ConversationDetail {
   const record = toRecord(payload);
 
@@ -421,11 +468,16 @@ function normalizeConversationDetail(
   }
 
   const title = readString(record.title, fallback?.title ?? "Untitled Conversation");
-  const updatedAt = readString(record.update_time ?? record.updated_time, fallback?.updatedAt ?? "");
+  const createdAt = normalizeConversationTimestamp(record.create_time, fallback?.createdAt ?? "");
+  const updatedAt = normalizeConversationTimestamp(
+    record.update_time ?? record.updated_time,
+    fallback?.updatedAt ?? createdAt
+  );
 
   return {
     id: readString(record.conversation_id ?? record.id, conversationId),
     title,
+    createdAt,
     updatedAt,
     url: `${BASE_URL}/c/${conversationId}`,
     messages: extractMessagesFromMapping(record)
@@ -445,6 +497,8 @@ export function parseSessionJson(raw: string, pluginVersion = "0.1.0"): ChatGptR
   const headers = parseCustomHeaders(payload.headers);
   const accessToken = readString(payload.accessToken);
   const accountId = readString(payload.account?.id);
+  const userId = readString(payload.user?.id);
+  const userEmail = readString(payload.user?.email);
   const cookie = readString(payload.cookie, readString(payload.headers?.Cookie ?? payload.headers?.cookie));
 
   if (!accessToken) {
@@ -458,6 +512,8 @@ export function parseSessionJson(raw: string, pluginVersion = "0.1.0"): ChatGptR
   return {
     accessToken,
     accountId,
+    userId,
+    userEmail,
     cookie,
     headers,
     userAgent: buildDefaultUserAgent(pluginVersion),
@@ -466,21 +522,64 @@ export function parseSessionJson(raw: string, pluginVersion = "0.1.0"): ChatGptR
 }
 
 export async function fetchConversationSummaries(
-  config: ChatGptRequestConfig,
-  limit: number
+  config: ChatGptRequestConfig
 ): Promise<ConversationSummary[]> {
-  const payload = await requestJson(buildListUrl(limit), config, {
-    "X-OpenAI-Target-Path": "/backend-api/conversations",
-    "X-OpenAI-Target-Route": "/backend-api/conversations"
-  });
+  const summaries: ConversationSummary[] = [];
+  const seenConversationIds = new Set<string>();
+  let offset = 0;
+  let pageLimit = DEFAULT_LIST_PAGE_LIMIT;
+  let expectedTotal: number | null = null;
 
-  return extractConversationItems(payload).map(normalizeSummary);
+  for (let page = 0; page < MAX_LIST_PAGE_REQUESTS; page += 1) {
+    const payload = await requestJson(buildListUrl(pageLimit, offset), config, {
+      "X-OpenAI-Target-Path": "/backend-api/conversations",
+      "X-OpenAI-Target-Route": "/backend-api/conversations"
+    });
+    const pageInfo = readPageInfo(payload);
+    const pageSummaries = extractConversationItems(payload).map(normalizeSummary);
+
+    for (const summary of pageSummaries) {
+      if (seenConversationIds.has(summary.id)) {
+        continue;
+      }
+
+      seenConversationIds.add(summary.id);
+      summaries.push(summary);
+    }
+
+    if (expectedTotal === null && pageInfo.total !== null) {
+      expectedTotal = pageInfo.total;
+    }
+
+    if (pageSummaries.length === 0) {
+      break;
+    }
+
+    if (expectedTotal !== null && summaries.length >= expectedTotal) {
+      break;
+    }
+
+    const nextOffset = pageInfo.offset + pageInfo.limit;
+
+    if (expectedTotal !== null && nextOffset >= expectedTotal) {
+      break;
+    }
+
+    if (nextOffset <= offset) {
+      offset += pageInfo.limit;
+    } else {
+      offset = nextOffset;
+    }
+    pageLimit = pageInfo.limit;
+  }
+
+  return summaries;
 }
 
 export async function fetchConversationDetail(
   config: ChatGptRequestConfig,
   conversationId: string,
-  fallback?: Pick<ConversationSummary, "title" | "updatedAt">
+  fallback?: Pick<ConversationSummary, "title" | "createdAt" | "updatedAt">
 ): Promise<ConversationDetail> {
   const targetPath = `/backend-api/conversation/${conversationId}`;
   const payload = await requestJson(buildDetailUrl(conversationId), config, {

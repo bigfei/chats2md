@@ -16,7 +16,7 @@ export class ImportProgressModal extends Modal {
   private statusEl!: HTMLElement;
   private countsEl!: HTMLElement;
   private detailEl!: HTMLElement;
-  private progressBarSetting!: Setting;
+  private progressEl!: HTMLProgressElement;
   private closeButton!: HTMLButtonElement;
 
   constructor(app: App) {
@@ -29,17 +29,19 @@ export class ImportProgressModal extends Modal {
     contentEl.addClass("chats2md-modal");
     contentEl.addClass("chats2md-progress-modal");
 
-    this.setTitle("Import ChatGPT conversations");
+    this.setTitle("Sync ChatGPT conversations");
 
     this.statusEl = contentEl.createEl("p", {
       cls: "chats2md-modal__status",
-      text: "Preparing import..."
+      text: "Preparing sync..."
     });
 
-    this.progressBarSetting = new Setting(contentEl).setName("Progress");
-    this.progressBarSetting.addProgressBar((component) => {
-      component.setValue(0);
+    const progressWrapper = contentEl.createDiv({
+      cls: "chats2md-progress-modal__bar"
     });
+    this.progressEl = progressWrapper.createEl("progress");
+    this.progressEl.max = 100;
+    this.progressEl.value = 0;
 
     this.countsEl = contentEl.createEl("p", {
       cls: "chats2md-progress-modal__counts",
@@ -81,14 +83,14 @@ export class ImportProgressModal extends Modal {
     processed: number,
     counts: ImportProgressCounts
   ): void {
-    this.statusEl.setText(`Download ${title} (${index}/${total})`);
+    this.statusEl.setText(`Sync ${title} (${index}/${total})`);
     this.countsEl.setText(formatCounts(counts));
     this.setProgressValue(total === 0 ? 0 : Math.round((processed / total) * 100));
   }
 
   complete(total: number, counts: ImportProgressCounts, failures: ImportFailure[]): void {
     const successCount = total - counts.failed;
-    this.statusEl.setText(`Finished import. ${successCount}/${total} conversations processed.`);
+    this.statusEl.setText(`Finished sync. ${successCount}/${total} conversations processed.`);
     this.countsEl.setText(formatCounts(counts));
     this.setProgressValue(100);
 
@@ -117,10 +119,6 @@ export class ImportProgressModal extends Modal {
   }
 
   private setProgressValue(value: number): void {
-    const progressEl = this.progressBarSetting.controlEl.querySelector("progress");
-
-    if (progressEl instanceof HTMLProgressElement) {
-      progressEl.value = value;
-    }
+    this.progressEl.value = Math.max(0, Math.min(100, value));
   }
 }

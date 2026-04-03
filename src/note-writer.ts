@@ -1,24 +1,15 @@
 import { App, normalizePath, TFile, TFolder } from "obsidian";
+import { getDateBucketFromTimestamp, slugifyConversationTitle } from "./conversation-utils";
 
 import type { ConversationDetail, ConversationUpsertResult } from "./types";
 
 const CONVERSATION_ID_KEY = "chatgpt_conversation_id";
 const CONVERSATION_TITLE_KEY = "chatgpt_title";
 const CONVERSATION_UPDATED_AT_KEY = "chatgpt_updated_at";
+const CONVERSATION_ACCOUNT_ID_KEY = "chatgpt_account_id";
 
 function quoteYaml(value: string): string {
   return JSON.stringify(value);
-}
-
-function slugify(title: string): string {
-  const cleaned = title
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+/g, "")
-    .replace(/-+$/g, "");
-
-  return cleaned || "untitled-conversation";
 }
 
 function getFolderPathFromFile(file: TFile): string {
@@ -58,21 +49,26 @@ async function ensureFolderExists(app: App, folderPath: string): Promise<void> {
 function buildFrontmatter(
   conversation: ConversationDetail,
   importedAt: string,
-  accountId: string,
+  account: { accountId: string; userId: string; userEmail: string },
   pluginVersion: string
 ): string {
-  return [
+  const rows = [
     "---",
     `${CONVERSATION_ID_KEY}: ${quoteYaml(conversation.id)}`,
     `chatgpt_title: ${quoteYaml(conversation.title)}`,
+    `chatgpt_created_at: ${quoteYaml(conversation.createdAt)}`,
     `chatgpt_updated_at: ${quoteYaml(conversation.updatedAt)}`,
     `chatgpt_imported_at: ${quoteYaml(importedAt)}`,
     `chatgpt_url: ${quoteYaml(conversation.url)}`,
-    `chatgpt_account_id: ${quoteYaml(accountId)}`,
+    `${CONVERSATION_ACCOUNT_ID_KEY}: ${quoteYaml(account.accountId)}`,
+    `chatgpt_user_id: ${quoteYaml(account.userId)}`,
+    `chatgpt_user_email: ${quoteYaml(account.userEmail)}`,
     `chats2md_source: ${quoteYaml("backend-api/conversation")}`,
     `chats2md_plugin_version: ${quoteYaml(pluginVersion)}`,
     "---"
-  ].join("\n");
+  ];
+
+  return rows.join("\n");
 }
 
 function buildTranscript(conversation: ConversationDetail): string {
@@ -94,10 +90,10 @@ function buildBody(conversation: ConversationDetail): string {
 function buildNoteContent(
   conversation: ConversationDetail,
   importedAt: string,
-  accountId: string,
+  account: { accountId: string; userId: string; userEmail: string },
   pluginVersion: string
 ): string {
-  return `${buildFrontmatter(conversation, importedAt, accountId, pluginVersion)}\n\n${buildBody(conversation)}\n`;
+  return `${buildFrontmatter(conversation, importedAt, account, pluginVersion)}\n\n${buildBody(conversation)}\n`;
 }
 
 function normalizeTargetFolder(folder: string): string {
@@ -133,14 +129,20 @@ function readFrontmatterString(app: App, file: TFile, key: string): string {
   return typeof value === "string" ? value : "";
 }
 
+function buildConversationKey(accountId: string, conversationId: string): string {
+  return `${accountId}::${conversationId}`;
+}
+
 export function indexConversationNotes(app: App): Map<string, TFile> {
   const notes = new Map<string, TFile>();
 
   for (const file of app.vault.getMarkdownFiles()) {
     const conversationId = readFrontmatterString(app, file, CONVERSATION_ID_KEY);
+    const accountId = readFrontmatterString(app, file, CONVERSATION_ACCOUNT_ID_KEY);
+    const key = buildConversationKey(accountId, conversationId);
 
-    if (conversationId && !notes.has(conversationId)) {
-      notes.set(conversationId, file);
+    if (conversationId && !notes.has(key)) {
+      notes.set(key, file);
     }
   }
 
@@ -152,7 +154,7 @@ export async function upsertConversationNote(
   noteIndex: Map<string, TFile>,
   conversation: ConversationDetail,
   folder: string,
-  accountId: string,
+  account: { accountId: string; userId: string; userEmail: string },
   pluginVersion: string
 ): Promise<ConversationUpsertResult> {
   const normalizedFolder = normalizeTargetFolder(folder);
@@ -163,17 +165,22 @@ export async function upsertConversationNote(
 
   await ensureFolderExists(app, normalizedFolder);
 
-  const fileName = `${slugify(conversation.title)}.md`;
-  const existing = noteIndex.get(conversation.id);
+  const dateFolder = getDateBucketFromTimestamp(conversation.updatedAt);
+  const targetFolder = normalizePath(`${normalizedFolder}/${dateFolder}`);
+  await ensureFolderExists(app, targetFolder);
+
+  const fileName = `${slugifyConversationTitle(conversation.title)}.md`;
+  const noteKey = buildConversationKey(account.accountId, conversation.id);
+  const existing = noteIndex.get(noteKey);
 
   if (!existing) {
-    const desiredPath = await findAvailablePath(app, joinPath(normalizedFolder, fileName));
+    const desiredPath = await findAvailablePath(app, joinPath(targetFolder, fileName));
     const importedAt = new Date().toISOString();
     const createdFile = await app.vault.create(
       desiredPath,
-      buildNoteContent(conversation, importedAt, accountId, pluginVersion)
+      buildNoteContent(conversation, importedAt, account, pluginVersion)
     );
-    noteIndex.set(conversation.id, createdFile);
+    noteIndex.set(noteKey, createdFile);
 
     return {
       action: "created",
@@ -182,7 +189,7 @@ export async function upsertConversationNote(
     };
   }
 
-  const desiredPath = await findAvailablePath(app, joinPath(normalizedFolder, fileName), existing.path);
+  const desiredPath = await findAvailablePath(app, joinPath(targetFolder, fileName), existing.path);
   let moved = false;
 
   if (desiredPath !== existing.path) {
@@ -203,7 +210,7 @@ export async function upsertConversationNote(
   }
 
   const importedAt = new Date().toISOString();
-  await app.vault.modify(existing, buildNoteContent(conversation, importedAt, accountId, pluginVersion));
+  await app.vault.modify(existing, buildNoteContent(conversation, importedAt, account, pluginVersion));
 
   return {
     action: "updated",

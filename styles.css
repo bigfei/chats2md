@@ -33,6 +33,19 @@
   color: var(--text-muted);
 }
 
+.chats2md-progress-modal__bar {
+  margin: 0.5rem 0;
+}
+
+.chats2md-progress-modal__bar progress {
+  width: 100%;
+}
+
+.chats2md-settings__warning {
+  margin: 0.75rem 0 0;
+  color: var(--text-error);
+}
+
 .chats2md-progress-modal__details {
   max-height: 220px;
   margin-top: 1rem;

@@ -1,18 +1,30 @@
+export interface StoredSessionAccount {
+  accountId: string;
+  userId: string;
+  email: string;
+  expiresAt?: string;
+  secretId: string;
+  addedAt: string;
+  updatedAt: string;
+}
+
 export interface Chats2MdSettings {
   defaultFolder: string;
-  defaultLimit: number;
-  sessionJson: string;
+  accounts: StoredSessionAccount[];
+  legacySessionJson: string;
 }
 
 export const DEFAULT_SETTINGS: Chats2MdSettings = {
   defaultFolder: "Imports/ChatGPT",
-  defaultLimit: 28,
-  sessionJson: ""
+  accounts: [],
+  legacySessionJson: ""
 };
 
 export interface ChatGptRequestConfig {
   accessToken: string;
   accountId: string;
+  userId: string;
+  userEmail: string;
   cookie?: string;
   headers: Record<string, string>;
   userAgent: string;
@@ -22,6 +34,7 @@ export interface ChatGptRequestConfig {
 export interface ConversationSummary {
   id: string;
   title: string;
+  createdAt: string;
   updatedAt: string;
   url: string;
 }
@@ -35,14 +48,16 @@ export interface ConversationMessage {
 export interface ConversationDetail {
   id: string;
   title: string;
+  createdAt: string;
   updatedAt: string;
   url: string;
   messages: ConversationMessage[];
 }
 
-export interface ImportModalValues {
+export interface SyncModalValues {
   folder: string;
-  limit: number;
+  scope: "all" | "single";
+  accountId?: string;
 }
 
 export type UpsertAction = "created" | "updated" | "skipped";

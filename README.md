@@ -18,12 +18,12 @@ Build a production bundle:
 npm run build
 ```
 
-The plugin adds an `Import ChatGPT conversations` command and ribbon action.
-Configure the session JSON, default folder, and default conversation limit in
-the plugin settings, then use the ribbon or command to confirm and start an
-import. The importer fetches the conversation list, downloads each full
-conversation log, and upserts notes by `chatgpt_conversation_id`. The session
-JSON must include `accessToken` and `account.id`; `cookie` is optional.
+The plugin adds a `Sync ChatGPT conversations` command and ribbon action.
+Configure account session JSON payloads and default folder in plugin settings.
+Session JSON payloads are stored in Obsidian Secret Storage, and each account entry shows its `user.id`,
+`user.email`, and `account.id`. Start sync from the ribbon/command, choose all
+accounts or one account, and the plugin will fetch full conversation logs and
+upsert notes under date buckets: `<default-folder>/<YYYY-MM-DD>/`.
 
 ## Sample vault
 

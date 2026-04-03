@@ -2,8 +2,8 @@
   "id": "chats2md",
   "name": "Chats2MD",
   "version": "0.1.0",
-  "minAppVersion": "1.5.0",
-  "description": "Import full ChatGPT conversation logs into markdown notes.",
+  "minAppVersion": "1.11.4",
+  "description": "Sync full ChatGPT conversation logs into markdown notes.",
   "author": "OpenAI Codex",
   "isDesktopOnly": false
 }
