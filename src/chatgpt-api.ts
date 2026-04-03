@@ -524,19 +524,21 @@ export function parseSessionJson(raw: string, pluginVersion = "0.1.0"): ChatGptR
 export async function fetchConversationSummaries(
   config: ChatGptRequestConfig
 ): Promise<ConversationSummary[]> {
+  const listPageLimit = 50;
   const summaries: ConversationSummary[] = [];
   const seenConversationIds = new Set<string>();
   let offset = 0;
-  let pageLimit = DEFAULT_LIST_PAGE_LIMIT;
   let expectedTotal: number | null = null;
+  let stableIntervals = 0;
 
   for (let page = 0; page < MAX_LIST_PAGE_REQUESTS; page += 1) {
-    const payload = await requestJson(buildListUrl(pageLimit, offset), config, {
+    const payload = await requestJson(buildListUrl(listPageLimit, offset), config, {
       "X-OpenAI-Target-Path": "/backend-api/conversations",
       "X-OpenAI-Target-Route": "/backend-api/conversations"
     });
     const pageInfo = readPageInfo(payload);
     const pageSummaries = extractConversationItems(payload).map(normalizeSummary);
+    const previousTotal = summaries.length;
 
     for (const summary of pageSummaries) {
       if (seenConversationIds.has(summary.id)) {
@@ -555,22 +557,25 @@ export async function fetchConversationSummaries(
       break;
     }
 
+    if (pageSummaries.length < listPageLimit) {
+      break;
+    }
+
     if (expectedTotal !== null && summaries.length >= expectedTotal) {
       break;
     }
 
-    const nextOffset = pageInfo.offset + pageInfo.limit;
+    if (summaries.length === previousTotal) {
+      stableIntervals += 1;
+    } else {
+      stableIntervals = 0;
+    }
 
-    if (expectedTotal !== null && nextOffset >= expectedTotal) {
+    if (stableIntervals >= 1) {
       break;
     }
 
-    if (nextOffset <= offset) {
-      offset += pageInfo.limit;
-    } else {
-      offset = nextOffset;
-    }
-    pageLimit = pageInfo.limit;
+    offset += listPageLimit;
   }
 
   return summaries;
