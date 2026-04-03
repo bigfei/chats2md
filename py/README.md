@@ -22,6 +22,24 @@ Or run the compatibility wrapper directly:
 python3 list_conversations.py session.json
 ```
 
+## Count total conversations (paginated)
+
+To count all conversations, iterate `/backend-api/conversations` in fixed
+`limit=50` pages:
+
+```bash
+uv run list-conversations session.json --count-total
+```
+
+Or from the repo root:
+
+```bash
+uv --directory py run list-conversations ../session.json --count-total
+```
+
+This mode increments `offset` by 50 for each page and stops when the unique
+conversation total no longer increases over the next 50-item interval.
+
 ## Verify cookie necessity
 
 Probe the conversations list endpoint with and without the `Cookie` header:
