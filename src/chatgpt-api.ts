@@ -337,14 +337,6 @@ function wrapHtmlTagsInBackticks(text: string): string {
   return text.replace(/<[^>]+>/g, (match) => `\`${match}\``);
 }
 
-function indentMarkdown(text: string): string {
-  return text
-    .split("\n")
-    .map((line) => (line.trim() ? `    ${line}` : ""))
-    .join("\n")
-    .trimEnd();
-}
-
 function blockquoteMarkdown(text: string): string {
   return text
     .split("\n")
@@ -626,9 +618,9 @@ function renderMessageMarkdown(
   }
 
   if (role === "user") {
-    body = indentMarkdown(body);
+    body = blockquoteMarkdown(body);
   } else if (role === "tool" && !body.startsWith("```") && !body.endsWith("```")) {
-    body = indentMarkdown(body);
+    body = blockquoteMarkdown(body);
   }
 
   const authorName = readString(author?.name);
