@@ -120,6 +120,26 @@ function stripCitationMarkers(text: string): string {
   return text.replace(/\u3010[^\u3011]*\u3011/g, "");
 }
 
+export function normalizeObsidianMathDelimiters(text: string): string {
+  const withBlockMath = text.replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_match, expression: string) => {
+    const normalizedExpression = expression.trim();
+    return normalizedExpression.length > 0
+      ? `$$\n${normalizedExpression}\n$$`
+      : "$$\n$$";
+  });
+
+  return withBlockMath.replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (_match, expression: string) => {
+    const normalizedExpression = expression.trim();
+    return normalizedExpression.length > 0
+      ? `$${normalizedExpression}$`
+      : "$$";
+  });
+}
+
+function normalizeMessageText(text: string): string {
+  return normalizeObsidianMathDelimiters(stripCitationMarkers(text));
+}
+
 export function buildDefaultUserAgent(pluginVersion: string): string {
   return `${DEFAULT_FIREFOX_USER_AGENT} chats2md/${pluginVersion}`;
 }
@@ -346,7 +366,7 @@ function blockquoteMarkdown(text: string): string {
 
 function collectTextFragments(value: unknown, fragments: string[], seen: WeakSet<object>): void {
   if (typeof value === "string") {
-    const cleaned = stripCitationMarkers(value);
+    const cleaned = normalizeMessageText(value);
     if (cleaned.trim().length > 0) {
       fragments.push(cleaned);
     }
@@ -498,7 +518,7 @@ function extractMetadataPlaceholders(
 
 function renderMultimodalPart(part: unknown, refs: Map<string, ConversationFileReference>): string {
   if (typeof part === "string") {
-    return stripCitationMarkers(part);
+    return normalizeMessageText(part);
   }
 
   const record = toRecord(part);
@@ -522,7 +542,7 @@ function renderMultimodalPart(part: unknown, refs: Map<string, ConversationFileR
     return `Image (${width}x${height})${prompt ? `: ${prompt}` : ""}`;
   }
 
-  return stripCitationMarkers(readString(record.text, readString(record.content_type, "")));
+  return normalizeMessageText(readString(record.text, readString(record.content_type, "")));
 }
 
 function renderThoughts(content: UnknownRecord): string {
@@ -537,7 +557,7 @@ function renderThoughts(content: UnknownRecord): string {
       }
 
       const summary = readString(record.summary, "Thought");
-      const body = stripCitationMarkers(readString(record.content));
+      const body = normalizeMessageText(readString(record.content));
 
       if (!body) {
         return "";
@@ -563,7 +583,7 @@ function renderMessageBody(
 
   switch (contentType) {
     case "text":
-      return stripCitationMarkers(wrapHtmlTagsInBackticks(
+      return normalizeMessageText(wrapHtmlTagsInBackticks(
         Array.isArray(content.parts) ? content.parts.filter((part): part is string => typeof part === "string").join("\n") : ""
       ));
     case "code":
@@ -581,7 +601,7 @@ function renderMessageBody(
       return `\`\`\`\n${summary ? `${summary}\n` : ""}${result}\n\`\`\``;
     }
     case "tether_quote":
-      return stripCitationMarkers(blockquoteMarkdown(
+      return normalizeMessageText(blockquoteMarkdown(
         `${readString(content.title)} (${readString(content.url)})\n\n${readString(content.text)}`
       ));
     case "system_error":
@@ -591,9 +611,9 @@ function renderMessageBody(
     case "thoughts":
       return renderThoughts(content);
     case "reasoning_recap":
-      return stripCitationMarkers(blockquoteMarkdown(readString(content.content)));
+      return normalizeMessageText(blockquoteMarkdown(readString(content.content)));
     case "sonic_webpage":
-      return stripCitationMarkers(`\`\`\`\n${readString(content.title)} (${readString(content.url)})\n\n${readString(content.text)}\n\`\`\``);
+      return normalizeMessageText(`\`\`\`\n${readString(content.title)} (${readString(content.url)})\n\n${readString(content.text)}\n\`\`\``);
     default:
       return extractMessageContent(message);
   }
