@@ -1,6 +1,12 @@
-import { Notice, Plugin } from "obsidian";
+import { Notice, Plugin, TFile, TFolder, normalizePath } from "obsidian";
 
-import { fetchConversationDetail, fetchConversationSummaries, parseSessionJson } from "./chatgpt-api";
+import {
+  fetchConversationDetail,
+  fetchConversationFileDownloadInfo,
+  fetchConversationSummaries,
+  fetchSignedFileContent,
+  parseSessionJson
+} from "./chatgpt-api";
 import { SyncChatGptModal, type SyncExecutionControl, type SyncProgressReporter } from "./import-modal";
 import {
   ensureConversationNotePath,
@@ -14,6 +20,8 @@ import {
   type ChatGptRequestConfig,
   type Chats2MdSettings,
   type ConversationDetail,
+  type ConversationAssetLinkMap,
+  type ConversationFileReference,
   type ConversationSummary,
   type ImportFailure,
   type ImportProgressCounts,
@@ -25,6 +33,23 @@ const DETAIL_FETCH_MAX_ATTEMPTS = 3;
 const ACCOUNT_SYNC_BATCH_SIZE = 30;
 const ACCOUNT_SYNC_BATCH_DELAY_MS = 30000;
 const SECRET_ID_PREFIX = "chats2md-session";
+const ASSET_FOLDER_NAME = "_assets";
+const MAX_ASSET_FILENAME_LENGTH = 120;
+const MIME_TO_EXTENSION: Record<string, string> = {
+  "application/json": ".json",
+  "application/pdf": ".pdf",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+  "application/zip": ".zip",
+  "image/gif": ".gif",
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/svg+xml": ".svg",
+  "image/webp": ".webp",
+  "text/csv": ".csv",
+  "text/html": ".html",
+  "text/plain": ".txt"
+};
 
 interface LegacySettingsPayload extends Partial<Chats2MdSettings> {
   sessionJson?: string;
@@ -93,6 +118,30 @@ function formatActionLabel(action: string): string {
 
 function readString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
+}
+
+function normalizeTargetFolder(folder: string): string {
+  return normalizePath(folder.trim().replace(/^\/+|\/+$/g, ""));
+}
+
+function sanitizePathPart(value: string): string {
+  const sanitized = value
+    .trim()
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_")
+    .replace(/\s+/g, " ")
+    .replace(/^[. ]+|[. ]+$/g, "")
+    .slice(0, MAX_ASSET_FILENAME_LENGTH);
+  return sanitized || "file";
+}
+
+function appendExtensionIfMissing(fileName: string, contentType: string | null): string {
+  if (fileName.includes(".") || !contentType) {
+    return fileName;
+  }
+
+  const normalizedType = (contentType.split(";")[0] ?? "").trim().toLowerCase();
+  const extension = MIME_TO_EXTENSION[normalizedType];
+  return extension ? `${fileName}${extension}` : fileName;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -286,6 +335,164 @@ export default class Chats2MdPlugin extends Plugin {
       .replace(/^-|-$/g, "");
 
     return `${SECRET_ID_PREFIX}-${normalizedPart || "account"}`;
+  }
+
+  private async ensureFolderExists(folderPath: string): Promise<void> {
+    const normalized = normalizePath(folderPath);
+
+    if (!normalized) {
+      return;
+    }
+
+    const parts = normalized.split("/");
+    let current = "";
+
+    for (const part of parts) {
+      current = current.length === 0 ? part : `${current}/${part}`;
+      const existing = this.app.vault.getAbstractFileByPath(current);
+
+      if (!existing) {
+        await this.app.vault.createFolder(current);
+        continue;
+      }
+
+      if (!(existing instanceof TFolder)) {
+        throw new Error(`Asset folder path "${normalized}" conflicts with an existing file.`);
+      }
+    }
+  }
+
+  private readFolderFileNames(folderPath: string): Set<string> {
+    const names = new Set<string>();
+    const folder = this.app.vault.getAbstractFileByPath(folderPath);
+
+    if (!(folder instanceof TFolder)) {
+      return names;
+    }
+
+    for (const child of folder.children) {
+      if (child instanceof TFile) {
+        names.add(child.name);
+      }
+    }
+
+    return names;
+  }
+
+  private nextAvailableFileName(baseName: string, usedNames: Set<string>): string {
+    if (!usedNames.has(baseName)) {
+      usedNames.add(baseName);
+      return baseName;
+    }
+
+    const dotIndex = baseName.lastIndexOf(".");
+    const stem = dotIndex > 0 ? baseName.slice(0, dotIndex) : baseName;
+    const extension = dotIndex > 0 ? baseName.slice(dotIndex) : "";
+    let suffix = 1;
+
+    while (true) {
+      const candidate = `${stem}_${suffix}${extension}`;
+      if (!usedNames.has(candidate)) {
+        usedNames.add(candidate);
+        return candidate;
+      }
+      suffix += 1;
+    }
+  }
+
+  private collectConversationDownloadRefs(
+    references: ConversationFileReference[]
+  ): Array<{ fileId: string; logicalName: string }> {
+    const refsById = new Map<string, { fileId: string; logicalName: string }>();
+
+    for (const reference of references) {
+      if (!refsById.has(reference.fileId)) {
+        refsById.set(reference.fileId, {
+          fileId: reference.fileId,
+          logicalName: reference.logicalName
+        });
+      }
+    }
+
+    return Array.from(refsById.values());
+  }
+
+  private async syncConversationAssets(
+    requestConfig: ChatGptRequestConfig,
+    conversation: ConversationDetail,
+    baseFolder: string,
+    progressModal: SyncProgressReporter,
+    accountLabel: string,
+    conversationIndex: number,
+    totalConversations: number
+  ): Promise<ConversationAssetLinkMap> {
+    const linkMap: ConversationAssetLinkMap = {};
+    const downloadRefs = this.collectConversationDownloadRefs(conversation.fileReferences);
+
+    if (downloadRefs.length === 0) {
+      return linkMap;
+    }
+
+    const normalizedBaseFolder = normalizeTargetFolder(baseFolder);
+    if (!normalizedBaseFolder) {
+      throw new Error("A vault folder is required.");
+    }
+
+    const accountFolder = sanitizePathPart(requestConfig.accountId || "account");
+    const conversationFolder = sanitizePathPart(conversation.id);
+    const assetFolderPath = normalizePath(`${normalizedBaseFolder}/${ASSET_FOLDER_NAME}/${accountFolder}/${conversationFolder}`);
+
+    await this.ensureFolderExists(assetFolderPath);
+    const usedNames = this.readFolderFileNames(assetFolderPath);
+
+    for (const [assetIndex, ref] of downloadRefs.entries()) {
+      const logPrefix = `[${accountLabel}] (${conversationIndex}/${totalConversations})`;
+
+      try {
+        const info = await fetchConversationFileDownloadInfo(requestConfig, ref.fileId);
+        const rawName = sanitizePathPart(info.fileName || ref.logicalName);
+        const withExtension = appendExtensionIfMissing(rawName, null);
+        const preferredFileName = withExtension || sanitizePathPart(ref.logicalName);
+        const preferredPath = normalizePath(`${assetFolderPath}/${preferredFileName}`);
+        const preferredExisting = this.app.vault.getAbstractFileByPath(preferredPath);
+
+        if (preferredExisting instanceof TFile) {
+          linkMap[ref.fileId] = {
+            path: preferredExisting.path,
+            fileName: preferredExisting.name
+          };
+          usedNames.add(preferredExisting.name);
+          continue;
+        }
+
+        const fileContent = await fetchSignedFileContent(requestConfig, info.downloadUrl);
+        const fileNameWithType = appendExtensionIfMissing(preferredFileName, fileContent.contentType);
+        const finalFileName = this.nextAvailableFileName(fileNameWithType, usedNames);
+        const finalPath = normalizePath(`${assetFolderPath}/${finalFileName}`);
+        const existingAtFinalPath = this.app.vault.getAbstractFileByPath(finalPath);
+
+        if (existingAtFinalPath instanceof TFile) {
+          linkMap[ref.fileId] = {
+            path: existingAtFinalPath.path,
+            fileName: existingAtFinalPath.name
+          };
+          continue;
+        }
+
+        const created = await this.app.vault.createBinary(finalPath, fileContent.data);
+        linkMap[ref.fileId] = {
+          path: created.path,
+          fileName: created.name
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        progressModal.log(
+          `${logPrefix} Asset warning (${assetIndex + 1}/${downloadRefs.length}) for file ${ref.fileId}: ${message}`
+        );
+      }
+    }
+
+    return linkMap;
   }
 
   private getSelectedAccounts(values: SyncModalValues): StoredSessionAccount[] {
@@ -617,6 +824,16 @@ export default class Chats2MdPlugin extends Plugin {
                 return;
               }
 
+              const assetLinks = await this.syncConversationAssets(
+                requestConfig,
+                detail,
+                values.folder,
+                progressModal,
+                accountLabel,
+                conversationIndex + 1,
+                summaries.length
+              );
+
               const result = await upsertConversationNote(
                 this.app,
                 noteIndex,
@@ -628,7 +845,8 @@ export default class Chats2MdPlugin extends Plugin {
                   userEmail: requestConfig.userEmail
                 },
                 this.manifest.version,
-                summary.updatedAt
+                summary.updatedAt,
+                assetLinks
               );
 
               counts[result.action] += 1;

@@ -1,7 +1,13 @@
 import { App, normalizePath, TFile, TFolder } from "obsidian";
 import { getDateBucketFromTimestamp, slugifyConversationTitle } from "./conversation-utils";
 
-import type { ConversationDetail, ConversationUpsertResult } from "./types";
+import type {
+  ConversationAssetLinkMap,
+  ConversationDetail,
+  ConversationFileReference,
+  ConversationFileReferenceKind,
+  ConversationUpsertResult
+} from "./types";
 
 const CONVERSATION_ID_KEY = "chatgpt_conversation_id";
 const CONVERSATION_TITLE_KEY = "chatgpt_title";
@@ -18,8 +24,100 @@ function getFolderPathFromFile(file: TFile): string {
   return index === -1 ? "" : file.path.slice(0, index);
 }
 
+function getFolderPathFromFilePath(filePath: string): string {
+  const index = filePath.lastIndexOf("/");
+  return index === -1 ? "" : filePath.slice(0, index);
+}
+
 function joinPath(folder: string, fileName: string): string {
   return normalizePath(`${folder}/${fileName}`);
+}
+
+function toRelativePath(fromFilePath: string, targetPath: string): string {
+  const fromDir = getFolderPathFromFilePath(fromFilePath);
+  const fromParts = fromDir.length > 0 ? fromDir.split("/") : [];
+  const targetParts = targetPath.split("/");
+
+  let shared = 0;
+  while (shared < fromParts.length && shared < targetParts.length && fromParts[shared] === targetParts[shared]) {
+    shared += 1;
+  }
+
+  const upSegments = fromParts.slice(shared).map(() => "..");
+  const downSegments = targetParts.slice(shared);
+  const relativeParts = [...upSegments, ...downSegments];
+
+  return relativeParts.length > 0 ? relativeParts.join("/") : ".";
+}
+
+function encodeMarkdownLinkPath(path: string): string {
+  return path
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+}
+
+function escapeMarkdownLabel(value: string): string {
+  return value.replace(/[\[\]]/g, "\\$&");
+}
+
+function referenceKey(kind: ConversationFileReferenceKind, fileId: string): string {
+  return `${kind}:${fileId}`;
+}
+
+function buildReferenceIndex(conversation: ConversationDetail): Map<string, ConversationFileReference> {
+  const index = new Map<string, ConversationFileReference>();
+
+  for (const reference of conversation.fileReferences) {
+    const key = referenceKey(reference.kind, reference.fileId);
+    if (!index.has(key)) {
+      index.set(key, reference);
+    }
+  }
+
+  return index;
+}
+
+function renderPlaceholderReplacement(
+  reference: ConversationFileReference,
+  notePath: string,
+  assetLinks: ConversationAssetLinkMap
+): string {
+  const resolved = assetLinks[reference.fileId];
+
+  if (!resolved) {
+    return `[missing file: ${reference.fileId}]`;
+  }
+
+  const label = escapeMarkdownLabel(reference.logicalName.trim().length > 0 ? reference.logicalName : reference.fileId);
+  const relativePath = encodeMarkdownLinkPath(toRelativePath(notePath, resolved.path));
+
+  if (reference.kind === "image") {
+    return `![${label}](${relativePath})`;
+  }
+
+  return `[${label}](${relativePath})`;
+}
+
+function injectAssetLinksIntoMarkdown(
+  markdown: string,
+  notePath: string,
+  references: Map<string, ConversationFileReference>,
+  assetLinks: ConversationAssetLinkMap
+): string {
+  let transformed = markdown;
+
+  for (const reference of references.values()) {
+    if (!transformed.includes(reference.placeholder)) {
+      continue;
+    }
+
+    transformed = transformed.split(reference.placeholder).join(
+      renderPlaceholderReplacement(reference, notePath, assetLinks)
+    );
+  }
+
+  return transformed;
 }
 
 async function ensureFolderExists(app: App, folderPath: string): Promise<void> {
@@ -74,19 +172,31 @@ function buildFrontmatter(
   return rows.join("\n");
 }
 
-function buildTranscript(conversation: ConversationDetail): string {
+function buildTranscript(
+  conversation: ConversationDetail,
+  notePath: string,
+  assetLinks: ConversationAssetLinkMap
+): string {
   if (conversation.messages.length === 0) {
     return "_No visible user or assistant messages were available in this conversation._";
   }
 
-  return conversation.messages.map((message) => message.markdown.trim()).join("\n\n");
+  const references = buildReferenceIndex(conversation);
+
+  return conversation.messages
+    .map((message) => injectAssetLinksIntoMarkdown(message.markdown.trim(), notePath, references, assetLinks))
+    .join("\n\n");
 }
 
-function buildBody(conversation: ConversationDetail): string {
+function buildBody(
+  conversation: ConversationDetail,
+  notePath: string,
+  assetLinks: ConversationAssetLinkMap
+): string {
   return [
     `# ${conversation.title}`,
     "",
-    buildTranscript(conversation)
+    buildTranscript(conversation, notePath, assetLinks)
   ].join("\n");
 }
 
@@ -95,9 +205,11 @@ function buildNoteContent(
   listUpdatedAt: string,
   importedAt: string,
   account: { accountId: string; userId: string; userEmail: string },
-  pluginVersion: string
+  pluginVersion: string,
+  notePath: string,
+  assetLinks: ConversationAssetLinkMap
 ): string {
-  return `${buildFrontmatter(conversation, listUpdatedAt, importedAt, account, pluginVersion)}\n\n${buildBody(conversation)}\n`;
+  return `${buildFrontmatter(conversation, listUpdatedAt, importedAt, account, pluginVersion)}\n\n${buildBody(conversation, notePath, assetLinks)}\n`;
 }
 
 function normalizeTargetFolder(folder: string): string {
@@ -241,7 +353,8 @@ export async function upsertConversationNote(
   folder: string,
   account: { accountId: string; userId: string; userEmail: string },
   pluginVersion: string,
-  listUpdatedAt?: string
+  listUpdatedAt?: string,
+  assetLinks: ConversationAssetLinkMap = {}
 ): Promise<ConversationUpsertResult> {
   const normalizedFolder = normalizeTargetFolder(folder);
   const normalizedListUpdatedAt = (listUpdatedAt ?? conversation.updatedAt).trim() || conversation.updatedAt;
@@ -265,7 +378,7 @@ export async function upsertConversationNote(
     const importedAt = new Date().toISOString();
     const createdFile = await app.vault.create(
       desiredPath,
-      buildNoteContent(conversation, normalizedListUpdatedAt, importedAt, account, pluginVersion)
+      buildNoteContent(conversation, normalizedListUpdatedAt, importedAt, account, pluginVersion, desiredPath, assetLinks)
     );
     noteIndex.set(noteKey, createdFile);
 
@@ -300,7 +413,10 @@ export async function upsertConversationNote(
   }
 
   const importedAt = new Date().toISOString();
-  await app.vault.modify(existing, buildNoteContent(conversation, normalizedListUpdatedAt, importedAt, account, pluginVersion));
+  await app.vault.modify(
+    existing,
+    buildNoteContent(conversation, normalizedListUpdatedAt, importedAt, account, pluginVersion, existing.path, assetLinks)
+  );
 
   return {
     action: "updated",

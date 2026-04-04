@@ -1,9 +1,16 @@
 import { requestUrl } from "obsidian";
-import { extractConversationListPageInfo, normalizeConversationTimestamp } from "./conversation-utils";
+import {
+  extractConversationListPageInfo,
+  getNextConversationListOffset,
+  normalizeConversationTimestamp,
+  shouldFetchNextConversationListPage
+} from "./conversation-utils";
 
 import type {
   ChatGptRequestConfig,
   ConversationDetail,
+  ConversationFileReference,
+  ConversationFileReferenceKind,
   ConversationMessage,
   ConversationSummary
 } from "./types";
@@ -12,6 +19,9 @@ const BASE_URL = "https://chatgpt.com";
 const DEFAULT_LIST_PAGE_LIMIT = 28;
 const MAX_LIST_PAGE_LIMIT = 100;
 const MAX_LIST_PAGE_REQUESTS = 100;
+const MAX_RATE_LIMIT_RETRIES = 6;
+const MIN_RATE_LIMIT_BACKOFF_MS = 60000;
+const MAX_RATE_LIMIT_BACKOFF_MS = 600000;
 const DEFAULT_FIREFOX_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:149.0) Gecko/20100101 Firefox/149.0";
 const RESERVED_HEADER_NAMES = new Set([
   "accept",
@@ -36,6 +46,21 @@ interface SessionPayload {
 }
 
 type UnknownRecord = Record<string, unknown>;
+
+interface FileDownloadInfo {
+  downloadUrl: string;
+  fileName: string;
+}
+
+export interface DownloadedFileContent {
+  data: ArrayBuffer;
+  contentType: string | null;
+}
+
+interface MappingExtractionResult {
+  messages: ConversationMessage[];
+  fileReferences: ConversationFileReference[];
+}
 
 function readString(value: unknown, fallback = ""): string {
   return typeof value === "string" && value.trim().length > 0 ? value : fallback;
@@ -91,6 +116,10 @@ function parseCustomHeaders(value: unknown): Record<string, string> {
   return headers;
 }
 
+function stripCitationMarkers(text: string): string {
+  return text.replace(/\u3010[^\u3011]*\u3011/g, "");
+}
+
 export function buildDefaultUserAgent(pluginVersion: string): string {
   return `${DEFAULT_FIREFOX_USER_AGENT} chats2md/${pluginVersion}`;
 }
@@ -109,14 +138,14 @@ function clampPageLimit(limit: number): number {
   return Math.min(MAX_LIST_PAGE_LIMIT, Math.max(1, Math.trunc(limit)));
 }
 
-function readPageInfo(payload: unknown): ConversationListPageInfo {
-  const parsed = extractConversationListPageInfo(payload, DEFAULT_LIST_PAGE_LIMIT) as {
+function readPageInfo(payload: unknown, fallbackLimit = DEFAULT_LIST_PAGE_LIMIT): ConversationListPageInfo {
+  const parsed = extractConversationListPageInfo(payload, fallbackLimit) as {
     limit?: number;
     offset?: number;
     total?: number | null;
   };
 
-  const limit = clampPageLimit(parsed?.limit ?? DEFAULT_LIST_PAGE_LIMIT);
+  const limit = clampPageLimit(parsed?.limit ?? fallbackLimit);
   const offset = Number.isFinite(parsed?.offset) ? Math.max(0, Math.trunc(parsed.offset ?? 0)) : 0;
   const total = Number.isFinite(parsed?.total) && (parsed.total ?? -1) >= 0
     ? Math.trunc(parsed.total ?? 0)
@@ -145,6 +174,10 @@ function buildDetailUrl(conversationId: string): string {
   return `${BASE_URL}/backend-api/conversation/${conversationId}`;
 }
 
+function buildFileDownloadUrl(fileId: string): string {
+  return `${BASE_URL}/backend-api/files/download/${encodeURIComponent(fileId)}`;
+}
+
 function buildHeaders(
   config: ChatGptRequestConfig,
   extraHeaders: Record<string, string>
@@ -168,11 +201,96 @@ function buildHeaders(
   return headers;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function readHeader(headers: unknown, targetName: string): string | null {
+  const headerRecord = toRecord(headers);
+
+  if (!headerRecord) {
+    return null;
+  }
+
+  for (const [name, value] of Object.entries(headerRecord)) {
+    if (name.toLowerCase() !== targetName.toLowerCase()) {
+      continue;
+    }
+
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function parseRetryAfterMs(raw: string | null): number | null {
+  if (!raw) {
+    return null;
+  }
+
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.round(seconds * 1000);
+  }
+
+  const retryDate = Date.parse(raw);
+  if (!Number.isFinite(retryDate)) {
+    return null;
+  }
+
+  return Math.max(0, retryDate - Date.now());
+}
+
+function computeRateLimitDelayMs(attempt: number, retryAfterMs: number | null): number {
+  if (retryAfterMs !== null && retryAfterMs > 0) {
+    return Math.min(MAX_RATE_LIMIT_BACKOFF_MS, Math.max(MIN_RATE_LIMIT_BACKOFF_MS, retryAfterMs));
+  }
+
+  const baseDelay = Math.min(MAX_RATE_LIMIT_BACKOFF_MS, MIN_RATE_LIMIT_BACKOFF_MS * (2 ** attempt));
+  const jitter = Math.round(baseDelay * 0.2 * Math.random());
+  return Math.min(MAX_RATE_LIMIT_BACKOFF_MS, baseDelay + jitter);
+}
+
 async function requestJson(
   url: string,
   config: ChatGptRequestConfig,
   extraHeaders: Record<string, string>
 ): Promise<unknown> {
+  for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
+    const response = await requestUrl({
+      url,
+      method: "GET",
+      headers: buildHeaders(config, extraHeaders)
+    });
+
+    if (response.status < 400) {
+      return response.json;
+    }
+
+    if (response.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
+      const retryAfterMs = parseRetryAfterMs(readHeader(response.headers, "retry-after"));
+      const backoffMs = computeRateLimitDelayMs(attempt, retryAfterMs);
+      await sleep(backoffMs);
+      continue;
+    }
+
+    const bodyText = typeof response.text === "string" && response.text.trim().length > 0
+      ? response.text
+      : JSON.stringify(response.json);
+
+    throw new Error(`ChatGPT request failed with HTTP ${response.status}: ${bodyText}`);
+  }
+
+  throw new Error("ChatGPT request failed after exhausting rate-limit retries.");
+}
+
+async function requestArrayBuffer(
+  url: string,
+  config: ChatGptRequestConfig,
+  extraHeaders: Record<string, string>
+): Promise<DownloadedFileContent> {
   const response = await requestUrl({
     url,
     method: "GET",
@@ -183,11 +301,13 @@ async function requestJson(
     const bodyText = typeof response.text === "string" && response.text.trim().length > 0
       ? response.text
       : JSON.stringify(response.json);
-
-    throw new Error(`ChatGPT request failed with HTTP ${response.status}: ${bodyText}`);
+    throw new Error(`ChatGPT binary request failed with HTTP ${response.status}: ${bodyText}`);
   }
 
-  return response.json;
+  return {
+    data: response.arrayBuffer,
+    contentType: readHeader(response.headers, "content-type")
+  };
 }
 
 function normalizeSummary(item: UnknownRecord): ConversationSummary {
@@ -234,8 +354,9 @@ function blockquoteMarkdown(text: string): string {
 
 function collectTextFragments(value: unknown, fragments: string[], seen: WeakSet<object>): void {
   if (typeof value === "string") {
-    if (value.trim().length > 0) {
-      fragments.push(value);
+    const cleaned = stripCitationMarkers(value);
+    if (cleaned.trim().length > 0) {
+      fragments.push(cleaned);
     }
 
     return;
@@ -287,9 +408,105 @@ function extractMessageContent(message: UnknownRecord): string {
   return fragments.join("\n\n").trim();
 }
 
-function renderMultimodalPart(part: unknown): string {
+function buildFilePlaceholder(kind: ConversationFileReferenceKind, fileId: string): string {
+  return `[[chats2md:${kind}:${fileId}]]`;
+}
+
+function parseAssetPointer(value: unknown): string | null {
+  const pointer = readString(value);
+
+  if (!pointer) {
+    return null;
+  }
+
+  const match = pointer.match(/^(?:file-service|sediment):\/\/(.+)$/);
+  return match?.[1] ?? null;
+}
+
+function defaultLogicalNameForKind(kind: ConversationFileReferenceKind): string {
+  switch (kind) {
+    case "image":
+      return "image.png";
+    case "citation":
+      return "citation";
+    case "attachment":
+    default:
+      return "attachment";
+  }
+}
+
+function registerFileReference(
+  refs: Map<string, ConversationFileReference>,
+  kind: ConversationFileReferenceKind,
+  fileId: string,
+  logicalName: string
+): ConversationFileReference {
+  const key = `${kind}:${fileId}`;
+  const existing = refs.get(key);
+
+  if (existing) {
+    return existing;
+  }
+
+  const normalizedName = logicalName.trim().length > 0 ? logicalName.trim() : defaultLogicalNameForKind(kind);
+  const reference: ConversationFileReference = {
+    fileId,
+    kind,
+    logicalName: normalizedName,
+    placeholder: buildFilePlaceholder(kind, fileId)
+  };
+  refs.set(key, reference);
+  return reference;
+}
+
+function extractMetadataPlaceholders(
+  message: UnknownRecord,
+  refs: Map<string, ConversationFileReference>
+): string[] {
+  const metadata = toRecord(message.metadata);
+  const placeholders: string[] = [];
+  const seen = new Set<string>();
+
+  const attachments = Array.isArray(metadata?.attachments) ? metadata.attachments : [];
+  for (const attachment of attachments) {
+    const record = toRecord(attachment);
+    const fileId = readString(record?.id);
+    if (!fileId) {
+      continue;
+    }
+
+    const reference = registerFileReference(refs, "attachment", fileId, readString(record?.name, "attachment"));
+    if (seen.has(reference.placeholder)) {
+      continue;
+    }
+    seen.add(reference.placeholder);
+    placeholders.push(`Attachment: ${reference.placeholder}`);
+  }
+
+  const citations = Array.isArray(metadata?.citations) ? metadata.citations : [];
+  for (const citation of citations) {
+    const record = toRecord(citation);
+    const citationMetadata = toRecord(record?.metadata);
+    const fileId = readString(citationMetadata?.file_id, readString(record?.file_id));
+    if (!fileId) {
+      continue;
+    }
+
+    const logicalName = readString(citationMetadata?.title, readString(record?.title, "citation"));
+    const reference = registerFileReference(refs, "citation", fileId, logicalName);
+    if (seen.has(reference.placeholder)) {
+      continue;
+    }
+    seen.add(reference.placeholder);
+    placeholders.push(`Citation: ${reference.placeholder}`);
+  }
+
+  return placeholders;
+}
+
+function renderMultimodalPart(part: unknown, refs: Map<string, ConversationFileReference>): string {
   if (typeof part === "string") {
-    return part;
+    return stripCitationMarkers(part);
   }
 
   const record = toRecord(part);
@@ -299,15 +516,21 @@ function renderMultimodalPart(part: unknown): string {
   }
 
   if (readString(record.content_type) === "image_asset_pointer") {
-    const width = readString(record.width, "?");
-    const height = readString(record.height, "?");
+    const fileId = parseAssetPointer(record.asset_pointer);
     const metadata = toRecord(record.metadata);
     const dalle = toRecord(metadata?.dalle);
     const prompt = readString(dalle?.prompt);
+    if (fileId) {
+      const logicalName = prompt ? "dalle_image.png" : "image.png";
+      return registerFileReference(refs, "image", fileId, logicalName).placeholder;
+    }
+
+    const width = readString(record.width, "?");
+    const height = readString(record.height, "?");
     return `Image (${width}x${height})${prompt ? `: ${prompt}` : ""}`;
   }
 
-  return readString(record.text, readString(record.content_type, ""));
+  return stripCitationMarkers(readString(record.text, readString(record.content_type, "")));
 }
 
 function renderThoughts(content: UnknownRecord): string {
@@ -322,7 +545,7 @@ function renderThoughts(content: UnknownRecord): string {
       }
 
       const summary = readString(record.summary, "Thought");
-      const body = readString(record.content);
+      const body = stripCitationMarkers(readString(record.content));
 
       if (!body) {
         return "";
@@ -334,7 +557,10 @@ function renderThoughts(content: UnknownRecord): string {
     .join("\n\n");
 }
 
-function renderMessageBody(message: UnknownRecord): string {
+function renderMessageBody(
+  message: UnknownRecord,
+  refs: Map<string, ConversationFileReference>
+): string {
   const content = toRecord(message.content);
 
   if (!content) {
@@ -345,16 +571,16 @@ function renderMessageBody(message: UnknownRecord): string {
 
   switch (contentType) {
     case "text":
-      return wrapHtmlTagsInBackticks(
+      return stripCitationMarkers(wrapHtmlTagsInBackticks(
         Array.isArray(content.parts) ? content.parts.filter((part): part is string => typeof part === "string").join("\n") : ""
-      );
+      ));
     case "code":
       return `\`\`\`${readString(content.language).replace("unknown", "")}\n${readString(content.text)}\n\`\`\``;
     case "execution_output":
       return `\`\`\`\n${readString(content.text)}\n\`\`\``;
     case "multimodal_text":
       return (Array.isArray(content.parts) ? content.parts : [])
-        .map(renderMultimodalPart)
+        .map((part) => renderMultimodalPart(part, refs))
         .filter((part) => part.length > 0)
         .join("\n\n");
     case "tether_browsing_display": {
@@ -363,9 +589,9 @@ function renderMessageBody(message: UnknownRecord): string {
       return `\`\`\`\n${summary ? `${summary}\n` : ""}${result}\n\`\`\``;
     }
     case "tether_quote":
-      return blockquoteMarkdown(
+      return stripCitationMarkers(blockquoteMarkdown(
         `${readString(content.title)} (${readString(content.url)})\n\n${readString(content.text)}`
-      );
+      ));
     case "system_error":
       return [readString(content.name), readString(content.text)].filter((part) => part.length > 0).join("\n\n");
     case "user_editable_context":
@@ -373,18 +599,27 @@ function renderMessageBody(message: UnknownRecord): string {
     case "thoughts":
       return renderThoughts(content);
     case "reasoning_recap":
-      return blockquoteMarkdown(readString(content.content));
+      return stripCitationMarkers(blockquoteMarkdown(readString(content.content)));
     case "sonic_webpage":
-      return `\`\`\`\n${readString(content.title)} (${readString(content.url)})\n\n${readString(content.text)}\n\`\`\``;
+      return stripCitationMarkers(`\`\`\`\n${readString(content.title)} (${readString(content.url)})\n\n${readString(content.text)}\n\`\`\``);
     default:
       return extractMessageContent(message);
   }
 }
 
-function renderMessageMarkdown(message: UnknownRecord, nodeId: string): string {
+function renderMessageMarkdown(
+  message: UnknownRecord,
+  nodeId: string,
+  refs: Map<string, ConversationFileReference>
+): string {
   const author = toRecord(message.author);
   const role = readString(author?.role, readString(author?.name, "message")).toLowerCase();
-  let body = renderMessageBody(message);
+  let body = renderMessageBody(message, refs);
+  const metadataPlaceholders = extractMetadataPlaceholders(message, refs);
+
+  if (metadataPlaceholders.length > 0) {
+    body = [body, ...metadataPlaceholders].filter((part) => part.trim().length > 0).join("\n\n");
+  }
 
   if (!body.trim()) {
     return "";
@@ -402,7 +637,7 @@ function renderMessageMarkdown(message: UnknownRecord, nodeId: string): string {
   return [heading, "", body.trimEnd()].join("\n");
 }
 
-function extractMessagesFromMapping(payload: UnknownRecord): ConversationMessage[] {
+function extractMessagesFromMapping(payload: UnknownRecord): MappingExtractionResult {
   const mapping = toRecord(payload.mapping);
   const currentNodeId = readString(payload.current_node);
 
@@ -429,6 +664,7 @@ function extractMessagesFromMapping(payload: UnknownRecord): ConversationMessage
   path.reverse();
 
   const messages: ConversationMessage[] = [];
+  const fileReferences = new Map<string, ConversationFileReference>();
 
   for (const nodeId of path) {
     const node = toRecord(mapping[nodeId]);
@@ -440,7 +676,7 @@ function extractMessagesFromMapping(payload: UnknownRecord): ConversationMessage
 
     const author = toRecord(message.author);
     const role = readString(author?.role, readString(author?.name, "message")).toLowerCase();
-    const markdown = renderMessageMarkdown(message, nodeId);
+    const markdown = renderMessageMarkdown(message, nodeId, fileReferences);
 
     if (!markdown) {
       continue;
@@ -453,7 +689,10 @@ function extractMessagesFromMapping(payload: UnknownRecord): ConversationMessage
     });
   }
 
-  return messages;
+  return {
+    messages,
+    fileReferences: Array.from(fileReferences.values())
+  };
 }
 
 function normalizeConversationDetail(
@@ -474,13 +713,16 @@ function normalizeConversationDetail(
     fallback?.updatedAt ?? createdAt
   );
 
+  const mappingData = extractMessagesFromMapping(record);
+
   return {
     id: readString(record.conversation_id ?? record.id, conversationId),
     title,
     createdAt,
     updatedAt,
     url: `${BASE_URL}/c/${conversationId}`,
-    messages: extractMessagesFromMapping(record)
+    messages: mappingData.messages,
+    fileReferences: mappingData.fileReferences
   };
 }
 
@@ -536,7 +778,7 @@ export async function fetchConversationSummaries(
       "X-OpenAI-Target-Path": "/backend-api/conversations",
       "X-OpenAI-Target-Route": "/backend-api/conversations"
     });
-    const pageInfo = readPageInfo(payload);
+    const pageInfo = readPageInfo(payload, listPageLimit);
     const pageSummaries = extractConversationItems(payload).map(normalizeSummary);
     const previousTotal = summaries.length;
 
@@ -549,15 +791,17 @@ export async function fetchConversationSummaries(
       summaries.push(summary);
     }
 
-    if (expectedTotal === null && pageInfo.total !== null) {
-      expectedTotal = pageInfo.total;
+    if (pageInfo.total !== null) {
+      expectedTotal = expectedTotal === null
+        ? pageInfo.total
+        : Math.max(expectedTotal, pageInfo.total);
     }
 
     if (pageSummaries.length === 0) {
       break;
     }
 
-    if (pageSummaries.length < listPageLimit) {
+    if (!shouldFetchNextConversationListPage(pageSummaries.length, pageInfo, listPageLimit)) {
       break;
     }
 
@@ -575,7 +819,7 @@ export async function fetchConversationSummaries(
       break;
     }
 
-    offset += listPageLimit;
+    offset = getNextConversationListOffset(offset, pageInfo, listPageLimit);
   }
 
   return summaries;
@@ -594,4 +838,45 @@ export async function fetchConversationDetail(
   });
 
   return normalizeConversationDetail(payload, conversationId, fallback);
+}
+
+function normalizeFileDownloadInfo(payload: unknown, fileId: string): FileDownloadInfo {
+  const record = toRecord(payload);
+
+  if (!record) {
+    throw new Error(`File download metadata for ${fileId} is not a JSON object.`);
+  }
+
+  const downloadUrl = readString(record.download_url);
+  if (!downloadUrl) {
+    throw new Error(`File download metadata for ${fileId} is missing download_url.`);
+  }
+
+  const fileName = readString(record.file_name);
+  return {
+    downloadUrl,
+    fileName: fileName || fileId
+  };
+}
+
+export async function fetchConversationFileDownloadInfo(
+  config: ChatGptRequestConfig,
+  fileId: string
+): Promise<FileDownloadInfo> {
+  const targetPath = `/backend-api/files/download/${fileId}`;
+  const payload = await requestJson(buildFileDownloadUrl(fileId), config, {
+    "X-OpenAI-Target-Path": targetPath,
+    "X-OpenAI-Target-Route": "/backend-api/files/download/{file_id}"
+  });
+
+  return normalizeFileDownloadInfo(payload, fileId);
+}
+
+export async function fetchSignedFileContent(
+  config: ChatGptRequestConfig,
+  url: string
+): Promise<DownloadedFileContent> {
+  return requestArrayBuffer(url, config, {
+    Accept: "*/*"
+  });
 }

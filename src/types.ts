@@ -45,6 +45,22 @@ export interface ConversationMessage {
   markdown: string;
 }
 
+export type ConversationFileReferenceKind = "image" | "attachment" | "citation";
+
+export interface ConversationFileReference {
+  fileId: string;
+  kind: ConversationFileReferenceKind;
+  logicalName: string;
+  placeholder: string;
+}
+
+export interface ConversationAssetLink {
+  path: string;
+  fileName: string;
+}
+
+export type ConversationAssetLinkMap = Record<string, ConversationAssetLink>;
+
 export interface ConversationDetail {
   id: string;
   title: string;
@@ -52,6 +68,7 @@ export interface ConversationDetail {
   updatedAt: string;
   url: string;
   messages: ConversationMessage[];
+  fileReferences: ConversationFileReference[];
 }
 
 export interface SyncModalValues {
