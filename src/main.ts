@@ -1,4 +1,4 @@
-import { App, Notice, Plugin, TFile, TFolder, normalizePath } from "obsidian";
+import { App, MarkdownView, Notice, Plugin, TFile, TFolder, normalizePath } from "obsidian";
 
 import {
   fetchConversationDetail,
@@ -35,6 +35,13 @@ const ACCOUNT_SYNC_BATCH_DELAY_MS = 30000;
 const SECRET_ID_PREFIX = "chats2md-session";
 const ASSET_FOLDER_NAME = "_assets";
 const MAX_ASSET_FILENAME_LENGTH = 120;
+const CONVERSATION_ID_KEY = "chatgpt_conversation_id";
+const CONVERSATION_TITLE_KEY = "chatgpt_title";
+const CONVERSATION_CREATED_AT_KEY = "chatgpt_created_at";
+const CONVERSATION_UPDATED_AT_KEY = "chatgpt_updated_at";
+const CONVERSATION_LIST_UPDATED_AT_KEY = "chatgpt_list_updated_at";
+const CONVERSATION_ACCOUNT_ID_KEY = "chatgpt_account_id";
+const CONVERSATION_USER_ID_KEY = "chatgpt_user_id";
 const MIME_TO_EXTENSION: Record<string, string> = {
   "application/json": ".json",
   "application/pdf": ".pdf",
@@ -94,6 +101,16 @@ class SyncRunLogger {
 
 interface LegacySettingsPayload extends Partial<Chats2MdSettings> {
   sessionJson?: string;
+}
+
+interface ConversationFrontmatterInfo {
+  conversationId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  listUpdatedAt: string;
+  accountId: string;
+  userId: string;
 }
 
 function createEmptyCounts(): ImportProgressCounts {
@@ -232,6 +249,7 @@ export default class Chats2MdPlugin extends Plugin {
   private legacySessionMigrationWarning: string | null = null;
   private syncStatusBarEl: HTMLElement | null = null;
   private activeSyncModal: SyncChatGptModal | null = null;
+  private markdownSyncActionEls = new WeakMap<MarkdownView, HTMLElement>();
   private syncWorkerActive = false;
   private syncStatusClearTimer: number | null = null;
   private suppressSyncStatusBarUpdates = false;
@@ -261,6 +279,11 @@ export default class Chats2MdPlugin extends Plugin {
         this.activeSyncModal.open();
       }
     });
+
+    this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.refreshMarkdownSyncActions()));
+    this.registerEvent(this.app.workspace.on("file-open", () => this.refreshMarkdownSyncActions()));
+    this.registerEvent(this.app.metadataCache.on("changed", () => this.refreshMarkdownSyncActions()));
+    this.app.workspace.onLayoutReady(() => this.refreshMarkdownSyncActions());
   }
 
   async loadSettings(): Promise<void> {
@@ -621,6 +644,208 @@ export default class Chats2MdPlugin extends Plugin {
 
   private getAccountLabel(account: StoredSessionAccount): string {
     return account.email.trim().length > 0 ? account.email : account.accountId;
+  }
+
+  private readFrontmatterString(file: TFile, key: string): string {
+    const value = this.app.metadataCache.getFileCache(file)?.frontmatter?.[key];
+    return typeof value === "string" ? value.trim() : "";
+  }
+
+  private getConversationFrontmatter(file: TFile): ConversationFrontmatterInfo {
+    return {
+      conversationId: this.readFrontmatterString(file, CONVERSATION_ID_KEY),
+      title: this.readFrontmatterString(file, CONVERSATION_TITLE_KEY),
+      createdAt: this.readFrontmatterString(file, CONVERSATION_CREATED_AT_KEY),
+      updatedAt: this.readFrontmatterString(file, CONVERSATION_UPDATED_AT_KEY),
+      listUpdatedAt: this.readFrontmatterString(file, CONVERSATION_LIST_UPDATED_AT_KEY),
+      accountId: this.readFrontmatterString(file, CONVERSATION_ACCOUNT_ID_KEY),
+      userId: this.readFrontmatterString(file, CONVERSATION_USER_ID_KEY)
+    };
+  }
+
+  private isChats2MdConversationFile(file: TFile | null): boolean {
+    if (!(file instanceof TFile)) {
+      return false;
+    }
+
+    return this.getConversationFrontmatter(file).conversationId.length > 0;
+  }
+
+  private resolveAccountForConversation(frontmatter: ConversationFrontmatterInfo): StoredSessionAccount {
+    const accounts = this.getAccounts();
+
+    if (accounts.length === 0) {
+      throw new Error("No session account is configured in plugin settings.");
+    }
+
+    if (frontmatter.accountId) {
+      const byAccountId = accounts.find((account) => account.accountId === frontmatter.accountId);
+
+      if (byAccountId) {
+        return byAccountId;
+      }
+    }
+
+    if (frontmatter.userId) {
+      const byUserId = accounts.filter((account) => account.userId === frontmatter.userId);
+
+      if (byUserId.length === 1) {
+        const matched = byUserId[0];
+        if (matched) {
+          return matched;
+        }
+      }
+
+      if (byUserId.length > 1) {
+        throw new Error(
+          `Multiple sessions match user_id "${frontmatter.userId}". Re-run full sync to refresh account_id in note frontmatter.`
+        );
+      }
+    }
+
+    if (accounts.length === 1) {
+      const onlyAccount = accounts[0];
+      if (onlyAccount) {
+        return onlyAccount;
+      }
+    }
+
+    if (frontmatter.accountId) {
+      throw new Error(`No session matches account_id "${frontmatter.accountId}" from note frontmatter.`);
+    }
+
+    if (frontmatter.userId) {
+      throw new Error(`No session matches user_id "${frontmatter.userId}" from note frontmatter.`);
+    }
+
+    throw new Error(
+      `Note frontmatter is missing ${CONVERSATION_ACCOUNT_ID_KEY} and ${CONVERSATION_USER_ID_KEY}.`
+    );
+  }
+
+  private refreshMarkdownSyncActions(): void {
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      if (!(leaf.view instanceof MarkdownView)) {
+        return;
+      }
+
+      this.ensureMarkdownSyncAction(leaf.view);
+    });
+  }
+
+  private ensureMarkdownSyncAction(view: MarkdownView): void {
+    let actionEl = this.markdownSyncActionEls.get(view);
+
+    if (!actionEl) {
+      actionEl = view.addAction("refresh-cw", "Sync", () => {
+        void this.forceSyncConversationFromView(view);
+      });
+      actionEl.classList.add("chats2md-note-sync-action");
+      this.markdownSyncActionEls.set(view, actionEl);
+    }
+
+    this.updateMarkdownSyncActionVisibility(view, actionEl);
+  }
+
+  private updateMarkdownSyncActionVisibility(view: MarkdownView, actionEl: HTMLElement): void {
+    actionEl.style.display = this.isChats2MdConversationFile(view.file) ? "" : "none";
+  }
+
+  private async forceSyncConversationFromView(view: MarkdownView): Promise<void> {
+    const file = view.file;
+
+    if (!(file instanceof TFile)) {
+      new Notice("Open a markdown note before forcing sync.");
+      return;
+    }
+
+    await this.forceSyncConversationNote(file);
+    this.refreshMarkdownSyncActions();
+  }
+
+  private async forceSyncConversationNote(file: TFile): Promise<void> {
+    if (this.syncWorkerActive) {
+      new Notice("A sync job is already running. Wait for it to finish.");
+      return;
+    }
+
+    const frontmatter = this.getConversationFrontmatter(file);
+    if (!frontmatter.conversationId) {
+      new Notice("Current note is not a chats2md conversation.");
+      return;
+    }
+
+    let account: StoredSessionAccount;
+
+    try {
+      account = this.resolveAccountForConversation(frontmatter);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      new Notice(message);
+      return;
+    }
+
+    let requestConfig: ChatGptRequestConfig;
+
+    try {
+      requestConfig = this.getRequestConfig(account);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      new Notice(message);
+      return;
+    }
+
+    const accountLabel = this.getAccountLabel(account);
+    const fallbackSummary = {
+      id: frontmatter.conversationId,
+      title: frontmatter.title || file.basename || "Untitled Conversation",
+      createdAt: frontmatter.createdAt || frontmatter.updatedAt || "",
+      updatedAt: frontmatter.updatedAt || frontmatter.createdAt || ""
+    };
+
+    this.syncWorkerActive = true;
+    this.suppressSyncStatusBarUpdates = false;
+    this.setSyncStatusBar(`ChatGPT sync: forcing ${fallbackSummary.title}`, true);
+
+    try {
+      const detail = await fetchConversationDetail(requestConfig, frontmatter.conversationId, fallbackSummary);
+      const assetLinks = await this.syncConversationAssets(
+        requestConfig,
+        detail,
+        this.settings.defaultFolder,
+        null,
+        accountLabel,
+        1,
+        1
+      );
+      const noteIndex = indexConversationNotes(this.app);
+      const result = await upsertConversationNote(
+        this.app,
+        noteIndex,
+        detail,
+        this.settings.defaultFolder,
+        {
+          accountId: requestConfig.accountId,
+          userId: requestConfig.userId,
+          userEmail: requestConfig.userEmail
+        },
+        this.manifest.version,
+        frontmatter.listUpdatedAt || detail.updatedAt,
+        assetLinks,
+        true
+      );
+      const actionLabel = `${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}`;
+      this.setSyncStatusBar(`ChatGPT sync: ${actionLabel.toLowerCase()} "${detail.title}"`, false);
+      this.clearSyncStatusBar(6000);
+      new Notice(`Chats2MD ${actionLabel}: ${detail.title}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.setSyncStatusBar(`ChatGPT sync failed: ${message}`, false);
+      this.clearSyncStatusBar(10000);
+      new Notice(`Chats2MD force sync failed: ${message}`);
+    } finally {
+      this.syncWorkerActive = false;
+    }
   }
 
   private buildSyncStatusText(processed: number, total: number, phase: string): string {
