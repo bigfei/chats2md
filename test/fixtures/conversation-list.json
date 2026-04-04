@@ -1,1 +1,1043 @@
-{"items":[{"id":"69ce90f2-56b0-8322-a51c-7e217a775f59","title":"运放电路分析","create_time":"2026-04-02T15:53:34.838318Z","update_time":"2026-04-03T09:46:18.198042Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":[],"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c87afb-f8ec-83a1-80e6-bda8eaea6bae","title":"Git Repo Change Summarizer","create_time":"2026-03-29T01:06:40.831804Z","update_time":"2026-03-31T05:30:45.601223Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69ca702b-32b0-8321-a925-6eaede9937b4","title":"OpenRouter app name setup","create_time":"2026-03-30T12:44:43.593582Z","update_time":"2026-03-30T12:45:14.120888Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c68021-2de4-8321-b2b7-7125b0096cf2","title":"SVN Doc Summarizer Prompt","create_time":"2026-03-27T13:04:10.011094Z","update_time":"2026-03-29T01:06:00.459640Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c751d9-5830-8322-89d4-8b8b827c0a2b","title":"YAML Front Matter","create_time":"2026-03-28T03:58:26.011922Z","update_time":"2026-03-28T03:58:30.722987Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c663d3-f06c-8323-b150-06a3ad56f39a","title":"OpenRouter free model limits","create_time":"2026-03-27T11:02:45.884557Z","update_time":"2026-03-27T11:03:17.896479Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":[],"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c659f3-a824-8321-bb50-0166313e651f","title":"EOD Batch Time Estimate","create_time":"2026-03-27T10:22:33.855481Z","update_time":"2026-03-27T10:32:27.544926Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c5e124-a274-8320-87ea-9511690cddb9","title":"Who are you","create_time":"2026-03-27T01:45:11.157314Z","update_time":"2026-03-27T01:45:15.308354Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c59490-5f9c-8324-afb9-ec8d80088d57","title":"Daily Life Recording Devices","create_time":"2026-03-26T20:19:59.857871Z","update_time":"2026-03-26T22:04:32.124866Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c5965e-af00-8323-84a4-2ff50edf73eb","title":"Android AI Backend Switch","create_time":"2026-03-26T20:26:07.971200Z","update_time":"2026-03-26T20:28:51.210014Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":[],"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c5210b-fe68-8324-a34f-fd9aee17f503","title":"Markdown Extraction Libraries","create_time":"2026-03-26T12:05:38.597841Z","update_time":"2026-03-26T12:21:40.743666Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c3b00e-f3ac-8321-bd3b-7f699029a859","title":"Logout flow analysis","create_time":"2026-03-25T09:51:32.984691Z","update_time":"2026-03-25T11:05:59.219668Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c3b43e-edb4-8322-b06a-ab620cbed136","title":"ISO8601 ms Support","create_time":"2026-03-25T10:09:08.761507Z","update_time":"2026-03-25T10:09:36.975790Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c3a980-75b0-8323-9251-77306ef7cfa9","title":"Google Workspace Pricing","create_time":"2026-03-25T09:23:13.583459Z","update_time":"2026-03-25T09:23:47.067433Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c12122-469c-8320-9845-5847ddc2f90a","title":"Google Logout Documentation","create_time":"2026-03-23T11:16:52.448209Z","update_time":"2026-03-25T07:56:40.192406Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":[],"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c35489-67e8-8322-be84-8f1960989820","title":"PostgreSQL connection limit","create_time":"2026-03-25T03:20:46.102025Z","update_time":"2026-03-25T03:29:04.577481Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":[],"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c353d3-7e9c-839c-9f5e-3cc11b5636d4","title":"大厂黑话接龙","create_time":"2026-03-25T03:17:51.073464Z","update_time":"2026-03-25T03:19:37.843846Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c23035-e8c8-839f-b923-e3ca4bb746a9","title":"DeviceOAuth Implementation in GWS","create_time":"2026-03-24T06:33:29.969597Z","update_time":"2026-03-24T07:30:19.370841Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c11314-7f04-8321-bd15-dd1ddad555e3","title":"SQL Decimal Error Fix","create_time":"2026-03-23T10:17:24.321843Z","update_time":"2026-03-23T10:19:08.819336Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69c1011f-ed68-8320-b341-e4998398aad1","title":"ATM Registration Error","create_time":"2026-03-23T09:00:20.291202Z","update_time":"2026-03-23T09:05:30.051225Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69bfb1a9-eb80-839c-ba9e-2fb341f1286f","title":"Codex Long-Term Task Support","create_time":"2026-03-22T09:09:33.474396Z","update_time":"2026-03-22T09:09:56.783838Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69bd6057-2f98-8324-a4bb-84c575de0651","title":"QuickCLI Usage Explanation","create_time":"2026-03-20T14:57:29.408221Z","update_time":"2026-03-20T14:59:26.512182Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69bc03a2-8a38-8321-9249-cf050ecb333b","title":"JSON Diff Analysis","create_time":"2026-03-19T14:10:46.818014Z","update_time":"2026-03-20T09:00:24.847317Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69bc0a2f-dc14-8324-84df-7fd0e72d2d5c","title":"New chat","create_time":"2026-03-19T14:37:52.812086Z","update_time":"2026-03-19T14:38:34.556673Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69bbcf83-3418-8324-9c05-0e781dc756f7","title":"GaussDB Data Sharding Query","create_time":"2026-03-19T10:27:43.995919Z","update_time":"2026-03-19T10:30:30.797015Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69bbb859-6948-8320-b6a5-3ca7c4703f59","title":"Tech Error Fix and UML","create_time":"2026-03-19T08:48:46.168032Z","update_time":"2026-03-19T08:50:17.230665Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69b53d4c-8ef8-8321-9da6-24427860ef4b","title":"Email Template Creation","create_time":"2026-03-14T10:49:54.775538Z","update_time":"2026-03-19T02:16:02.489433Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false},{"id":"69ba24a0-fbdc-8320-aa06-cb27b19a3923","title":"Kubernetes WebSocket Error","create_time":"2026-03-18T04:06:03.830174Z","update_time":"2026-03-18T04:06:36.307603Z","pinned_time":null,"mapping":null,"current_node":null,"conversation_template_id":null,"gizmo_id":null,"is_archived":false,"is_starred":null,"is_temporary_chat":false,"is_do_not_remember":false,"memory_scope":"global_enabled","context_scopes":null,"context_scopes_v2":{"context_scopes":[{"is_siloed":false,"scope_namespace":"global","sub_scope":null,"key":null,"key_timestamp":null,"key_scoped_access_claim":null}]},"workspace_id":"b415c030-3ade-4e6e-9c24-f06178719f9d","async_status":null,"safe_urls":[],"blocked_urls":[],"conversation_origin":null,"snippet":null,"sugar_item_id":null,"sugar_item_visible":false}],"total":29,"limit":28,"offset":0}
+{
+  "items": [
+    {
+      "id": "69ce90f2-56b0-8322-a51c-7e217a775f59",
+      "title": "运放电路分析",
+      "create_time": "2026-04-02T15:53:34.838318Z",
+      "update_time": "2026-04-03T09:46:18.198042Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": [],
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c87afb-f8ec-83a1-80e6-bda8eaea6bae",
+      "title": "Git Repo Change Summarizer",
+      "create_time": "2026-03-29T01:06:40.831804Z",
+      "update_time": "2026-03-31T05:30:45.601223Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69ca702b-32b0-8321-a925-6eaede9937b4",
+      "title": "OpenRouter app name setup",
+      "create_time": "2026-03-30T12:44:43.593582Z",
+      "update_time": "2026-03-30T12:45:14.120888Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c68021-2de4-8321-b2b7-7125b0096cf2",
+      "title": "SVN Doc Summarizer Prompt",
+      "create_time": "2026-03-27T13:04:10.011094Z",
+      "update_time": "2026-03-29T01:06:00.459640Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c751d9-5830-8322-89d4-8b8b827c0a2b",
+      "title": "YAML Front Matter",
+      "create_time": "2026-03-28T03:58:26.011922Z",
+      "update_time": "2026-03-28T03:58:30.722987Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c663d3-f06c-8323-b150-06a3ad56f39a",
+      "title": "OpenRouter free model limits",
+      "create_time": "2026-03-27T11:02:45.884557Z",
+      "update_time": "2026-03-27T11:03:17.896479Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": [],
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c659f3-a824-8321-bb50-0166313e651f",
+      "title": "EOD Batch Time Estimate",
+      "create_time": "2026-03-27T10:22:33.855481Z",
+      "update_time": "2026-03-27T10:32:27.544926Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c5e124-a274-8320-87ea-9511690cddb9",
+      "title": "Who are you",
+      "create_time": "2026-03-27T01:45:11.157314Z",
+      "update_time": "2026-03-27T01:45:15.308354Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c59490-5f9c-8324-afb9-ec8d80088d57",
+      "title": "Daily Life Recording Devices",
+      "create_time": "2026-03-26T20:19:59.857871Z",
+      "update_time": "2026-03-26T22:04:32.124866Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c5965e-af00-8323-84a4-2ff50edf73eb",
+      "title": "Android AI Backend Switch",
+      "create_time": "2026-03-26T20:26:07.971200Z",
+      "update_time": "2026-03-26T20:28:51.210014Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": [],
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c5210b-fe68-8324-a34f-fd9aee17f503",
+      "title": "Markdown Extraction Libraries",
+      "create_time": "2026-03-26T12:05:38.597841Z",
+      "update_time": "2026-03-26T12:21:40.743666Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c3b00e-f3ac-8321-bd3b-7f699029a859",
+      "title": "Logout flow analysis",
+      "create_time": "2026-03-25T09:51:32.984691Z",
+      "update_time": "2026-03-25T11:05:59.219668Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c3b43e-edb4-8322-b06a-ab620cbed136",
+      "title": "ISO8601 ms Support",
+      "create_time": "2026-03-25T10:09:08.761507Z",
+      "update_time": "2026-03-25T10:09:36.975790Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c3a980-75b0-8323-9251-77306ef7cfa9",
+      "title": "Google Workspace Pricing",
+      "create_time": "2026-03-25T09:23:13.583459Z",
+      "update_time": "2026-03-25T09:23:47.067433Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c12122-469c-8320-9845-5847ddc2f90a",
+      "title": "Google Logout Documentation",
+      "create_time": "2026-03-23T11:16:52.448209Z",
+      "update_time": "2026-03-25T07:56:40.192406Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": [],
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c35489-67e8-8322-be84-8f1960989820",
+      "title": "PostgreSQL connection limit",
+      "create_time": "2026-03-25T03:20:46.102025Z",
+      "update_time": "2026-03-25T03:29:04.577481Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": [],
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c353d3-7e9c-839c-9f5e-3cc11b5636d4",
+      "title": "大厂黑话接龙",
+      "create_time": "2026-03-25T03:17:51.073464Z",
+      "update_time": "2026-03-25T03:19:37.843846Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c23035-e8c8-839f-b923-e3ca4bb746a9",
+      "title": "DeviceOAuth Implementation in GWS",
+      "create_time": "2026-03-24T06:33:29.969597Z",
+      "update_time": "2026-03-24T07:30:19.370841Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c11314-7f04-8321-bd15-dd1ddad555e3",
+      "title": "SQL Decimal Error Fix",
+      "create_time": "2026-03-23T10:17:24.321843Z",
+      "update_time": "2026-03-23T10:19:08.819336Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69c1011f-ed68-8320-b341-e4998398aad1",
+      "title": "ATM Registration Error",
+      "create_time": "2026-03-23T09:00:20.291202Z",
+      "update_time": "2026-03-23T09:05:30.051225Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69bfb1a9-eb80-839c-ba9e-2fb341f1286f",
+      "title": "Codex Long-Term Task Support",
+      "create_time": "2026-03-22T09:09:33.474396Z",
+      "update_time": "2026-03-22T09:09:56.783838Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69bd6057-2f98-8324-a4bb-84c575de0651",
+      "title": "QuickCLI Usage Explanation",
+      "create_time": "2026-03-20T14:57:29.408221Z",
+      "update_time": "2026-03-20T14:59:26.512182Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69bc03a2-8a38-8321-9249-cf050ecb333b",
+      "title": "JSON Diff Analysis",
+      "create_time": "2026-03-19T14:10:46.818014Z",
+      "update_time": "2026-03-20T09:00:24.847317Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69bc0a2f-dc14-8324-84df-7fd0e72d2d5c",
+      "title": "New chat",
+      "create_time": "2026-03-19T14:37:52.812086Z",
+      "update_time": "2026-03-19T14:38:34.556673Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69bbcf83-3418-8324-9c05-0e781dc756f7",
+      "title": "GaussDB Data Sharding Query",
+      "create_time": "2026-03-19T10:27:43.995919Z",
+      "update_time": "2026-03-19T10:30:30.797015Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69bbb859-6948-8320-b6a5-3ca7c4703f59",
+      "title": "Tech Error Fix and UML",
+      "create_time": "2026-03-19T08:48:46.168032Z",
+      "update_time": "2026-03-19T08:50:17.230665Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69b53d4c-8ef8-8321-9da6-24427860ef4b",
+      "title": "Email Template Creation",
+      "create_time": "2026-03-14T10:49:54.775538Z",
+      "update_time": "2026-03-19T02:16:02.489433Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    },
+    {
+      "id": "69ba24a0-fbdc-8320-aa06-cb27b19a3923",
+      "title": "Kubernetes WebSocket Error",
+      "create_time": "2026-03-18T04:06:03.830174Z",
+      "update_time": "2026-03-18T04:06:36.307603Z",
+      "pinned_time": null,
+      "mapping": null,
+      "current_node": null,
+      "conversation_template_id": null,
+      "gizmo_id": null,
+      "is_archived": false,
+      "is_starred": null,
+      "is_temporary_chat": false,
+      "is_do_not_remember": false,
+      "memory_scope": "global_enabled",
+      "context_scopes": null,
+      "context_scopes_v2": {
+        "context_scopes": [
+          {
+            "is_siloed": false,
+            "scope_namespace": "global",
+            "sub_scope": null,
+            "key": null,
+            "key_timestamp": null,
+            "key_scoped_access_claim": null
+          }
+        ]
+      },
+      "workspace_id": "b415c030-3ade-4e6e-9c24-f06178719f9d",
+      "async_status": null,
+      "safe_urls": [],
+      "blocked_urls": [],
+      "conversation_origin": null,
+      "snippet": null,
+      "sugar_item_id": null,
+      "sugar_item_visible": false
+    }
+  ],
+  "total": 29,
+  "limit": 28,
+  "offset": 0
+}

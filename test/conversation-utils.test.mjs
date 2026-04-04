@@ -6,8 +6,10 @@ import { fileURLToPath } from "node:url";
 
 import {
   extractConversationListPageInfo,
+  getNextConversationListOffset,
   getDateBucketFromTimestamp,
   normalizeConversationTimestamp,
+  shouldFetchNextConversationListPage,
   slugifyConversationTitle
 } from "../src/conversation-utils.js";
 
@@ -47,4 +49,15 @@ test("extractConversationListPageInfo reads response limit metadata", () => {
   assert.equal(pageInfo.limit, 28);
   assert.equal(pageInfo.offset, 0);
   assert.equal(pageInfo.total, 29);
+});
+
+test("conversation list pagination follows API limit metadata", () => {
+  const pageInfo = extractConversationListPageInfo({
+    limit: 28,
+    offset: 56,
+    total: 120
+  }, 50);
+
+  assert.equal(shouldFetchNextConversationListPage(28, pageInfo, 50), true);
+  assert.equal(getNextConversationListOffset(56, pageInfo, 50), 84);
 });

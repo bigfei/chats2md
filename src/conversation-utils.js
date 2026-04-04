@@ -86,3 +86,26 @@ export function extractConversationListPageInfo(payload, fallbackLimit = 100) {
     total
   };
 }
+
+export function shouldFetchNextConversationListPage(pageItemCount, pageInfo, fallbackLimit = 100) {
+  const parsedItemCount = toNonNegativeInteger(pageItemCount);
+
+  if (parsedItemCount === null || parsedItemCount === 0) {
+    return false;
+  }
+
+  const metadata = extractConversationListPageInfo(pageInfo, fallbackLimit);
+  return parsedItemCount >= metadata.limit;
+}
+
+export function getNextConversationListOffset(currentOffset, pageInfo, fallbackLimit = 100) {
+  const metadata = extractConversationListPageInfo(pageInfo, fallbackLimit);
+  const normalizedCurrentOffset = Math.max(0, Math.trunc(toNumber(currentOffset) ?? 0));
+  const nextFromResponse = metadata.offset + metadata.limit;
+
+  if (nextFromResponse > normalizedCurrentOffset) {
+    return nextFromResponse;
+  }
+
+  return normalizedCurrentOffset + metadata.limit;
+}
