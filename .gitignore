@@ -5,6 +5,7 @@ node_modules/
 main.js
 *.map
 sample-vault/
+release/
 
 # Beads / Dolt files (added by bd init)
 .dolt/

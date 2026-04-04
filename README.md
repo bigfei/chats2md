@@ -18,6 +18,12 @@ Build a production bundle:
 npm run build
 ```
 
+This now also creates an installable zip at:
+`release/chats2md-<version>.zip`
+
+The zip contains `chats2md/main.js`, `chats2md/manifest.json`, and
+`chats2md/styles.css` for manual installation.
+
 The plugin adds a `Sync ChatGPT conversations` command and ribbon action.
 Configure account session JSON payloads and default folder in plugin settings.
 Session JSON payloads are stored in Obsidian Secret Storage, and each account entry shows its `user.id`,
