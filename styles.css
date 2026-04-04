@@ -54,12 +54,17 @@
   border-radius: 8px;
   padding: 0.75rem;
   background: var(--background-secondary);
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
 }
 
 .chats2md-progress-modal__details p {
   margin: 0 0 0.5rem;
   font-family: var(--font-monospace);
   font-size: var(--font-ui-small);
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .chats2md-progress-modal__details p:last-child {
@@ -69,4 +74,8 @@
 .chats2md-settings__textarea {
   min-height: 260px;
   font-family: var(--font-monospace);
+}
+
+.chats2md-sync-statusbar {
+  cursor: pointer;
 }

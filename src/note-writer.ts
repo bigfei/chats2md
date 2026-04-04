@@ -6,6 +6,7 @@ import type { ConversationDetail, ConversationUpsertResult } from "./types";
 const CONVERSATION_ID_KEY = "chatgpt_conversation_id";
 const CONVERSATION_TITLE_KEY = "chatgpt_title";
 const CONVERSATION_UPDATED_AT_KEY = "chatgpt_updated_at";
+const CONVERSATION_LIST_UPDATED_AT_KEY = "chatgpt_list_updated_at";
 const CONVERSATION_ACCOUNT_ID_KEY = "chatgpt_account_id";
 
 function quoteYaml(value: string): string {
@@ -48,6 +49,7 @@ async function ensureFolderExists(app: App, folderPath: string): Promise<void> {
 
 function buildFrontmatter(
   conversation: ConversationDetail,
+  listUpdatedAt: string,
   importedAt: string,
   account: { accountId: string; userId: string; userEmail: string },
   pluginVersion: string
@@ -58,6 +60,7 @@ function buildFrontmatter(
     `chatgpt_title: ${quoteYaml(conversation.title)}`,
     `chatgpt_created_at: ${quoteYaml(conversation.createdAt)}`,
     `chatgpt_updated_at: ${quoteYaml(conversation.updatedAt)}`,
+    `${CONVERSATION_LIST_UPDATED_AT_KEY}: ${quoteYaml(listUpdatedAt)}`,
     `chatgpt_imported_at: ${quoteYaml(importedAt)}`,
     `chatgpt_url: ${quoteYaml(conversation.url)}`,
     `${CONVERSATION_ACCOUNT_ID_KEY}: ${quoteYaml(account.accountId)}`,
@@ -89,11 +92,12 @@ function buildBody(conversation: ConversationDetail): string {
 
 function buildNoteContent(
   conversation: ConversationDetail,
+  listUpdatedAt: string,
   importedAt: string,
   account: { accountId: string; userId: string; userEmail: string },
   pluginVersion: string
 ): string {
-  return `${buildFrontmatter(conversation, importedAt, account, pluginVersion)}\n\n${buildBody(conversation)}\n`;
+  return `${buildFrontmatter(conversation, listUpdatedAt, importedAt, account, pluginVersion)}\n\n${buildBody(conversation)}\n`;
 }
 
 function normalizeTargetFolder(folder: string): string {
@@ -133,6 +137,35 @@ function buildConversationKey(accountId: string, conversationId: string): string
   return `${accountId}::${conversationId}`;
 }
 
+export function getIndexedConversationSyncMetadata(
+  app: App,
+  noteIndex: Map<string, TFile>,
+  accountId: string,
+  conversationId: string
+): { updatedAt: string | null; listUpdatedAt: string | null; title: string | null } {
+  const noteKey = buildConversationKey(accountId, conversationId);
+  const legacyKey = buildConversationKey("", conversationId);
+  const existing = noteIndex.get(noteKey) ?? noteIndex.get(legacyKey);
+
+  if (!existing) {
+    return {
+      updatedAt: null,
+      listUpdatedAt: null,
+      title: null
+    };
+  }
+
+  const updatedAt = readFrontmatterString(app, existing, CONVERSATION_UPDATED_AT_KEY).trim();
+  const listUpdatedAt = readFrontmatterString(app, existing, CONVERSATION_LIST_UPDATED_AT_KEY).trim();
+  const title = readFrontmatterString(app, existing, CONVERSATION_TITLE_KEY).trim();
+
+  return {
+    updatedAt: updatedAt.length > 0 ? updatedAt : null,
+    listUpdatedAt: listUpdatedAt.length > 0 ? listUpdatedAt : null,
+    title: title.length > 0 ? title : null
+  };
+}
+
 export function indexConversationNotes(app: App): Map<string, TFile> {
   const notes = new Map<string, TFile>();
 
@@ -149,15 +182,69 @@ export function indexConversationNotes(app: App): Map<string, TFile> {
   return notes;
 }
 
+export async function ensureConversationNotePath(
+  app: App,
+  noteIndex: Map<string, TFile>,
+  conversation: { id: string; title: string; updatedAt: string },
+  folder: string,
+  accountId: string
+): Promise<{ moved: boolean; filePath: string | null }> {
+  const noteKey = buildConversationKey(accountId, conversation.id);
+  const legacyKey = buildConversationKey("", conversation.id);
+  const existing = noteIndex.get(noteKey) ?? noteIndex.get(legacyKey);
+
+  if (!existing) {
+    return {
+      moved: false,
+      filePath: null
+    };
+  }
+
+  if (!noteIndex.has(noteKey)) {
+    noteIndex.set(noteKey, existing);
+  }
+
+  const normalizedFolder = normalizeTargetFolder(folder);
+
+  if (normalizedFolder.length === 0) {
+    throw new Error("A vault folder is required.");
+  }
+
+  await ensureFolderExists(app, normalizedFolder);
+
+  const dateFolder = getDateBucketFromTimestamp(conversation.updatedAt);
+  const targetFolder = normalizePath(`${normalizedFolder}/${dateFolder}`);
+  await ensureFolderExists(app, targetFolder);
+
+  const fileName = `${slugifyConversationTitle(conversation.title)}.md`;
+  const desiredPath = await findAvailablePath(app, joinPath(targetFolder, fileName), existing.path);
+
+  if (desiredPath === existing.path) {
+    return {
+      moved: false,
+      filePath: existing.path
+    };
+  }
+
+  await app.fileManager.renameFile(existing, desiredPath);
+
+  return {
+    moved: true,
+    filePath: desiredPath
+  };
+}
+
 export async function upsertConversationNote(
   app: App,
   noteIndex: Map<string, TFile>,
   conversation: ConversationDetail,
   folder: string,
   account: { accountId: string; userId: string; userEmail: string },
-  pluginVersion: string
+  pluginVersion: string,
+  listUpdatedAt?: string
 ): Promise<ConversationUpsertResult> {
   const normalizedFolder = normalizeTargetFolder(folder);
+  const normalizedListUpdatedAt = (listUpdatedAt ?? conversation.updatedAt).trim() || conversation.updatedAt;
 
   if (normalizedFolder.length === 0) {
     throw new Error("A vault folder is required.");
@@ -178,7 +265,7 @@ export async function upsertConversationNote(
     const importedAt = new Date().toISOString();
     const createdFile = await app.vault.create(
       desiredPath,
-      buildNoteContent(conversation, importedAt, account, pluginVersion)
+      buildNoteContent(conversation, normalizedListUpdatedAt, importedAt, account, pluginVersion)
     );
     noteIndex.set(noteKey, createdFile);
 
@@ -199,7 +286,10 @@ export async function upsertConversationNote(
 
   const existingUpdatedAt = readFrontmatterString(app, existing, CONVERSATION_UPDATED_AT_KEY);
   const existingTitle = readFrontmatterString(app, existing, CONVERSATION_TITLE_KEY);
-  const shouldRewrite = existingUpdatedAt !== conversation.updatedAt || existingTitle !== conversation.title;
+  const existingListUpdatedAt = readFrontmatterString(app, existing, CONVERSATION_LIST_UPDATED_AT_KEY);
+  const shouldRewrite = existingUpdatedAt !== conversation.updatedAt
+    || existingTitle !== conversation.title
+    || existingListUpdatedAt !== normalizedListUpdatedAt;
 
   if (!shouldRewrite) {
     return {
@@ -210,7 +300,7 @@ export async function upsertConversationNote(
   }
 
   const importedAt = new Date().toISOString();
-  await app.vault.modify(existing, buildNoteContent(conversation, importedAt, account, pluginVersion));
+  await app.vault.modify(existing, buildNoteContent(conversation, normalizedListUpdatedAt, importedAt, account, pluginVersion));
 
   return {
     action: "updated",
