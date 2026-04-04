@@ -1,0 +1,450 @@
+import { App, Notice } from "obsidian";
+
+import { fetchConversationDetail, fetchConversationSummaries } from "./chatgpt-api";
+import type { SyncExecutionControl, SyncProgressReporter } from "./import-modal";
+import {
+  ACCOUNT_SYNC_BATCH_DELAY_MS,
+  ACCOUNT_SYNC_BATCH_SIZE,
+  DETAIL_FETCH_MAX_ATTEMPTS,
+  createEmptyCounts,
+  formatActionLabel,
+  hasMatchingUpdatedAt,
+  sleep,
+  summarizeCounts,
+  type SyncRunLogger
+} from "./main-helpers";
+import {
+  ensureConversationNotePath,
+  getIndexedConversationSyncMetadata,
+  indexConversationNotes,
+  upsertConversationNote
+} from "./note-writer";
+import type {
+  ChatGptRequestConfig,
+  ConversationAssetLinkMap,
+  ConversationDetail,
+  ConversationSummary,
+  ImportFailure,
+  ImportProgressCounts,
+  StoredSessionAccount,
+  SyncModalValues
+} from "./types";
+
+export interface FullSyncContext {
+  app: App;
+  manifestVersion: string;
+  createSyncRunLogger(progressModal: SyncProgressReporter): Promise<SyncRunLogger>;
+  getSelectedAccounts(values: SyncModalValues): StoredSessionAccount[];
+  getRequestConfig(account: StoredSessionAccount): ChatGptRequestConfig;
+  getAccountLabel(account: StoredSessionAccount): string;
+  syncConversationAssets(
+    requestConfig: ChatGptRequestConfig,
+    conversation: ConversationDetail,
+    baseFolder: string,
+    logger: SyncRunLogger | null,
+    accountLabel: string,
+    conversationIndex: number,
+    totalConversations: number
+  ): Promise<ConversationAssetLinkMap>;
+  buildSyncStatusText(processed: number, total: number, phase: string): string;
+  setSyncStatusBar(text: string, active?: boolean): void;
+  clearSyncStatusBar(delayMs?: number): void;
+}
+
+export async function runFullSync(
+  context: FullSyncContext,
+  values: SyncModalValues,
+  progressModal: SyncProgressReporter,
+  control: SyncExecutionControl
+): Promise<void> {
+  const counts = createEmptyCounts();
+  const failures: ImportFailure[] = [];
+  let processedConversations = 0;
+  let totalConversations = 0;
+  const forceRefresh = values.forceRefresh === true;
+  let syncLogger: SyncRunLogger | null = null;
+  const logInfo = (message: string): void => {
+    if (syncLogger) {
+      syncLogger.info(message);
+      return;
+    }
+
+    progressModal.log(message);
+  };
+  const logWarn = (message: string): void => {
+    if (syncLogger) {
+      syncLogger.warn(message);
+      return;
+    }
+
+    progressModal.log(`Warning: ${message}`);
+  };
+  const logError = (message: string): void => {
+    if (syncLogger) {
+      syncLogger.error(message);
+      return;
+    }
+
+    progressModal.log(`Error: ${message}`);
+  };
+
+  try {
+    try {
+      syncLogger = await context.createSyncRunLogger(progressModal);
+      syncLogger.info(`Sync log file: ${syncLogger.filePath}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      progressModal.log(`Sync log file unavailable: ${message}`);
+    }
+
+    if (!(await ensureSyncCanContinue(control, progressModal, counts))) {
+      return;
+    }
+
+    const selectedAccounts = context.getSelectedAccounts(values);
+    const noteIndex = indexConversationNotes(context.app);
+    logInfo(`Starting sync for ${selectedAccounts.length} account(s).`);
+    logInfo(`Force refresh is ${forceRefresh ? "enabled" : "disabled"}.`);
+    context.setSyncStatusBar(context.buildSyncStatusText(processedConversations, totalConversations, "starting"), true);
+
+    for (const [accountIndex, account] of selectedAccounts.entries()) {
+      if (!(await ensureSyncCanContinue(control, progressModal, counts))) {
+        return;
+      }
+
+      const accountLabel = context.getAccountLabel(account);
+      progressModal.setPreparing(`Syncing ${accountLabel} (${accountIndex + 1}/${selectedAccounts.length}): fetching conversation list...`);
+      logInfo(`[${accountIndex + 1}/${selectedAccounts.length}] Fetching conversation list for ${accountLabel}.`);
+      context.setSyncStatusBar(
+        context.buildSyncStatusText(
+          processedConversations,
+          totalConversations,
+          `fetching list for ${accountLabel} (${accountIndex + 1}/${selectedAccounts.length})`
+        ),
+        true
+      );
+
+      let requestConfig: ChatGptRequestConfig;
+
+      try {
+        requestConfig = context.getRequestConfig(account);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        counts.failed += 1;
+        failures.push({
+          id: account.accountId,
+          title: accountLabel,
+          message,
+          attempts: 1
+        });
+        logError(`[${accountLabel}] Failed to load session: ${message}`);
+        continue;
+      }
+
+      let summaries: ConversationSummary[] = [];
+
+      try {
+        if (!(await ensureSyncCanContinue(control, progressModal, counts))) {
+          return;
+        }
+
+        summaries = await fetchConversationSummaries(requestConfig);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        counts.failed += 1;
+        failures.push({
+          id: account.accountId,
+          title: accountLabel,
+          message,
+          attempts: 1
+        });
+        logError(`[${accountLabel}] Failed to fetch conversation list: ${message}`);
+        continue;
+      }
+
+      logInfo(`[${accountLabel}] Found ${summaries.length} conversation(s).`);
+      if (summaries.length === 0) {
+        continue;
+      }
+
+      totalConversations += summaries.length;
+      context.setSyncStatusBar(
+        context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
+        true
+      );
+      let processedForAccount = 0;
+      let detailApiCallsSinceWait = 0;
+
+      for (const [conversationIndex, summary] of summaries.entries()) {
+        if (!(await ensureSyncCanContinue(control, progressModal, counts))) {
+          return;
+        }
+
+        const displayTitle = `${accountLabel}: ${summary.title}`;
+
+        progressModal.setProgress(displayTitle, conversationIndex + 1, summaries.length, conversationIndex, counts);
+        logInfo(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Processing "${summary.title}".`);
+
+        const existingSyncMetadata = getIndexedConversationSyncMetadata(
+          context.app,
+          noteIndex,
+          requestConfig.accountId,
+          summary.id
+        );
+
+        const localListUpdatedAt = existingSyncMetadata.listUpdatedAt ?? existingSyncMetadata.updatedAt;
+        const hasMatchingTitle = (existingSyncMetadata.title ?? "") === summary.title;
+
+        if (!forceRefresh && hasMatchingTitle && hasMatchingUpdatedAt(localListUpdatedAt, summary.updatedAt)) {
+          try {
+            const renameResult = await ensureConversationNotePath(
+              context.app,
+              noteIndex,
+              {
+                id: summary.id,
+                title: summary.title,
+                updatedAt: summary.updatedAt
+              },
+              values.folder,
+              requestConfig.accountId
+            );
+
+            counts.skipped += 1;
+            if (renameResult.moved) {
+              counts.moved += 1;
+            }
+
+            logInfo(
+              `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Skipped (up-to-date)${renameResult.moved ? " + moved" : ""}: "${summary.title}".`
+            );
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            counts.failed += 1;
+            failures.push({
+              id: `${account.accountId}/${summary.id}`,
+              title: `${accountLabel}: ${summary.title}`,
+              message,
+              attempts: 1
+            });
+            logError(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed while reconciling note path: "${summary.title}" - ${message}`);
+          }
+        } else {
+          const mismatchReasons: string[] = [];
+          if (forceRefresh) {
+            mismatchReasons.push("force refresh enabled");
+          }
+          if (!hasMatchingTitle) {
+            mismatchReasons.push("title changed");
+          }
+
+          if (!hasMatchingUpdatedAt(localListUpdatedAt, summary.updatedAt)) {
+            mismatchReasons.push("updated_at changed");
+          }
+
+          logInfo(
+            `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Calling /conversation/${summary.id} for "${summary.title}" (${mismatchReasons.join(", ")}).`
+          );
+
+          try {
+            const detail = await fetchConversationDetailWithRetries(
+              requestConfig,
+              summary,
+              conversationIndex + 1,
+              summaries.length,
+              progressModal,
+              displayTitle,
+              control,
+              syncLogger,
+              () => {
+                detailApiCallsSinceWait += 1;
+              }
+            );
+            if (!detail) {
+              return;
+            }
+
+            if (!(await ensureSyncCanContinue(control, progressModal, counts))) {
+              return;
+            }
+
+            const assetLinks = await context.syncConversationAssets(
+              requestConfig,
+              detail,
+              values.folder,
+              syncLogger,
+              accountLabel,
+              conversationIndex + 1,
+              summaries.length
+            );
+
+            const result = await upsertConversationNote(
+              context.app,
+              noteIndex,
+              detail,
+              values.folder,
+              {
+                accountId: requestConfig.accountId,
+                userId: requestConfig.userId,
+                userEmail: requestConfig.userEmail
+              },
+              context.manifestVersion,
+              summary.updatedAt,
+              assetLinks,
+              forceRefresh
+            );
+
+            counts[result.action] += 1;
+
+            if (result.moved) {
+              counts.moved += 1;
+            }
+            logInfo(
+              `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) ${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}: "${summary.title}".`
+            );
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            counts.failed += 1;
+            failures.push({
+              id: `${account.accountId}/${summary.id}`,
+              title: `${accountLabel}: ${summary.title}`,
+              message,
+              attempts: DETAIL_FETCH_MAX_ATTEMPTS
+            });
+            logError(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed: "${summary.title}" - ${message}`);
+          }
+        }
+
+        processedConversations += 1;
+        processedForAccount += 1;
+
+        progressModal.setProgress(
+          displayTitle,
+          conversationIndex + 1,
+          summaries.length,
+          conversationIndex + 1,
+          counts
+        );
+        context.setSyncStatusBar(
+          context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
+          true
+        );
+
+        const hasRemainingInAccount = processedForAccount < summaries.length;
+        while (hasRemainingInAccount && detailApiCallsSinceWait >= ACCOUNT_SYNC_BATCH_SIZE) {
+          logInfo(
+            `[${accountLabel}] Called /conversation/{id} ${ACCOUNT_SYNC_BATCH_SIZE} times. Waiting 30s before next batch.`
+          );
+          context.setSyncStatusBar(
+            context.buildSyncStatusText(
+              processedConversations,
+              totalConversations,
+              `waiting 30s before next ${accountLabel} batch`
+            ),
+            true
+          );
+
+          let remainingDelayMs = ACCOUNT_SYNC_BATCH_DELAY_MS;
+          while (remainingDelayMs > 0) {
+            if (!(await ensureSyncCanContinue(control, progressModal, counts))) {
+              return;
+            }
+
+            const stepDelay = Math.min(1000, remainingDelayMs);
+            await sleep(stepDelay);
+            remainingDelayMs -= stepDelay;
+          }
+
+          context.setSyncStatusBar(
+            context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
+            true
+          );
+
+          detailApiCallsSinceWait -= ACCOUNT_SYNC_BATCH_SIZE;
+        }
+      }
+    }
+
+    logInfo("Sync complete.");
+    progressModal.complete(totalConversations, counts, failures);
+    new Notice(summarizeCounts(totalConversations, counts));
+    context.setSyncStatusBar(context.buildSyncStatusText(processedConversations, totalConversations, "complete"), false);
+    context.clearSyncStatusBar(8000);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    progressModal.fail(message, counts);
+    logError(`Sync failed: ${message}`);
+    new Notice(message);
+    context.setSyncStatusBar(`ChatGPT sync failed: ${message}`, false);
+    context.clearSyncStatusBar(10000);
+  } finally {
+    if (syncLogger) {
+      await syncLogger.flush();
+    }
+  }
+}
+
+async function fetchConversationDetailWithRetries(
+  requestConfig: ChatGptRequestConfig,
+  summary: { id: string; title: string; createdAt: string; updatedAt: string },
+  index: number,
+  total: number,
+  progressModal: SyncProgressReporter,
+  displayTitle: string,
+  control: SyncExecutionControl,
+  logger: SyncRunLogger | null,
+  onRequest?: () => void
+): Promise<ConversationDetail | null> {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= DETAIL_FETCH_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      await control.waitIfPaused();
+
+      if (control.shouldStop()) {
+        return null;
+      }
+
+      onRequest?.();
+      return await fetchConversationDetail(requestConfig, summary.id, summary);
+    } catch (error) {
+      lastError = error;
+
+      if (control.shouldStop()) {
+        return null;
+      }
+
+      if (attempt >= DETAIL_FETCH_MAX_ATTEMPTS) {
+        break;
+      }
+
+      const message = error instanceof Error ? error.message : String(error);
+      logger?.warn(
+        `${displayTitle} detail fetch retry ${attempt + 1}/${DETAIL_FETCH_MAX_ATTEMPTS}: ${message}`
+      );
+      progressModal.setRetry(displayTitle, index, total, attempt + 1, message);
+      await sleep(attempt * 750);
+    }
+  }
+
+  if (lastError) {
+    const message = lastError instanceof Error ? lastError.message : String(lastError);
+    logger?.error(`${displayTitle} detail fetch failed after ${DETAIL_FETCH_MAX_ATTEMPTS} attempts: ${message}`);
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+async function ensureSyncCanContinue(
+  control: SyncExecutionControl,
+  progressModal: SyncProgressReporter,
+  counts: ImportProgressCounts
+): Promise<boolean> {
+  await control.waitIfPaused();
+
+  if (!control.shouldStop()) {
+    return true;
+  }
+
+  progressModal.fail("Sync stopped by user.", counts);
+  return false;
+}

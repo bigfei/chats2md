@@ -1,256 +1,57 @@
-import { App, MarkdownView, Menu, Notice, Plugin, TFile, TFolder, normalizePath } from "obsidian";
+import { App, MarkdownView, Notice, Plugin, TFile, TFolder, normalizePath } from "obsidian";
 
 import {
   fetchConversationDetail,
   fetchConversationFileDownloadInfo,
-  fetchConversationSummaries,
   fetchSignedFileContent,
   parseSessionJson
 } from "./chatgpt-api";
 import { SyncChatGptModal, type SyncExecutionControl, type SyncProgressReporter } from "./import-modal";
 import {
-  ensureConversationNotePath,
-  getIndexedConversationSyncMetadata,
   indexConversationNotes,
   upsertConversationNote
 } from "./note-writer";
 import { Chats2MdSettingTab } from "./settings";
+import { ForceSyncUiController } from "./force-sync-ui";
+import {
+  ASSET_FOLDER_NAME,
+  CONVERSATION_ACCOUNT_ID_KEY,
+  CONVERSATION_CREATED_AT_KEY,
+  CONVERSATION_ID_KEY,
+  CONVERSATION_LIST_UPDATED_AT_KEY,
+  CONVERSATION_TITLE_KEY,
+  CONVERSATION_UPDATED_AT_KEY,
+  CONVERSATION_USER_ID_KEY,
+  SECRET_ID_PREFIX,
+  appendExtensionIfMissing,
+  formatActionLabel,
+  type ConversationFrontmatterInfo,
+  type LegacySettingsPayload,
+  normalizeStoredAccount,
+  normalizeTargetFolder,
+  readString,
+  sanitizePathPart,
+  sortAccounts,
+  SyncRunLogger
+} from "./main-helpers";
+import { runFullSync } from "./full-sync";
 import {
   DEFAULT_SETTINGS,
   type ChatGptRequestConfig,
   type Chats2MdSettings,
-  type ConversationDetail,
   type ConversationAssetLinkMap,
+  type ConversationDetail,
   type ConversationFileReference,
-  type ConversationSummary,
-  type ImportFailure,
-  type ImportProgressCounts,
   type StoredSessionAccount,
   type SyncModalValues
 } from "./types";
-
-const DETAIL_FETCH_MAX_ATTEMPTS = 3;
-const ACCOUNT_SYNC_BATCH_SIZE = 30;
-const ACCOUNT_SYNC_BATCH_DELAY_MS = 30000;
-const SECRET_ID_PREFIX = "chats2md-session";
-const ASSET_FOLDER_NAME = "_assets";
-const MAX_ASSET_FILENAME_LENGTH = 120;
-const CONVERSATION_ID_KEY = "chatgpt_conversation_id";
-const CONVERSATION_TITLE_KEY = "chatgpt_title";
-const CONVERSATION_CREATED_AT_KEY = "chatgpt_created_at";
-const CONVERSATION_UPDATED_AT_KEY = "chatgpt_updated_at";
-const CONVERSATION_LIST_UPDATED_AT_KEY = "chatgpt_list_updated_at";
-const CONVERSATION_ACCOUNT_ID_KEY = "chatgpt_account_id";
-const CONVERSATION_USER_ID_KEY = "chatgpt_user_id";
-const FORCE_SYNC_ACTION_LABEL = "Force sync from Chatgpt";
-const MIME_TO_EXTENSION: Record<string, string> = {
-  "application/json": ".json",
-  "application/pdf": ".pdf",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
-  "application/zip": ".zip",
-  "image/gif": ".gif",
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/svg+xml": ".svg",
-  "image/webp": ".webp",
-  "text/csv": ".csv",
-  "text/html": ".html",
-  "text/plain": ".txt"
-};
-type SyncLogLevel = "info" | "warn" | "error";
-
-class SyncRunLogger {
-  readonly filePath: string;
-  private readonly app: App;
-  private readonly dialogLogger: (message: string) => void;
-  private appendQueue: Promise<void> = Promise.resolve();
-
-  constructor(app: App, filePath: string, dialogLogger: (message: string) => void) {
-    this.app = app;
-    this.filePath = filePath;
-    this.dialogLogger = dialogLogger;
-  }
-
-  info(message: string): void {
-    this.write("info", message, true);
-  }
-
-  warn(message: string): void {
-    this.write("warn", message, false);
-  }
-
-  error(message: string): void {
-    this.write("error", message, false);
-  }
-
-  async flush(): Promise<void> {
-    await this.appendQueue;
-  }
-
-  private write(level: SyncLogLevel, message: string, includeInDialog: boolean): void {
-    if (includeInDialog) {
-      this.dialogLogger(message);
-    }
-
-    const line = `[${new Date().toISOString()}] [${level.toUpperCase()}] ${message}`;
-    this.appendQueue = this.appendQueue
-      .then(() => this.app.vault.adapter.append(this.filePath, `${line}\n`))
-      .catch(() => undefined);
-  }
-}
-
-interface LegacySettingsPayload extends Partial<Chats2MdSettings> {
-  sessionJson?: string;
-}
-
-interface ConversationFrontmatterInfo {
-  conversationId: string;
-  title: string;
-  createdAt: string;
-  updatedAt: string;
-  listUpdatedAt: string;
-  accountId: string;
-  userId: string;
-}
-
-function createEmptyCounts(): ImportProgressCounts {
-  return {
-    created: 0,
-    updated: 0,
-    moved: 0,
-    skipped: 0,
-    failed: 0
-  };
-}
-
-function summarizeCounts(total: number, counts: ImportProgressCounts): string {
-  return [
-    `Synced ${total} conversations.`,
-    `${counts.created} created`,
-    `${counts.updated} updated`,
-    `${counts.moved} moved`,
-    `${counts.skipped} skipped`,
-    `${counts.failed} failed`
-  ].join(" ");
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
-function normalizeTimestampToMs(value: string | null | undefined): number | null {
-  if (!value) {
-    return null;
-  }
-
-  const timestamp = Date.parse(value);
-  return Number.isFinite(timestamp) ? timestamp : null;
-}
-
-function hasMatchingUpdatedAt(existingUpdatedAt: string | null, summaryUpdatedAt: string): boolean {
-  if (!existingUpdatedAt) {
-    return false;
-  }
-
-  if (existingUpdatedAt === summaryUpdatedAt) {
-    return true;
-  }
-
-  const existingMs = normalizeTimestampToMs(existingUpdatedAt);
-  const summaryMs = normalizeTimestampToMs(summaryUpdatedAt);
-
-  if (existingMs === null || summaryMs === null) {
-    return false;
-  }
-
-  return Math.abs(existingMs - summaryMs) <= 1000;
-}
-
-function formatActionLabel(action: string): string {
-  if (!action) {
-    return "Unknown";
-  }
-
-  return `${action.charAt(0).toUpperCase()}${action.slice(1)}`;
-}
-
-function readString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function normalizeTargetFolder(folder: string): string {
-  return normalizePath(folder.trim().replace(/^\/+|\/+$/g, ""));
-}
-
-function sanitizePathPart(value: string): string {
-  const sanitized = value
-    .trim()
-    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_")
-    .replace(/\s+/g, " ")
-    .replace(/^[. ]+|[. ]+$/g, "")
-    .slice(0, MAX_ASSET_FILENAME_LENGTH);
-  return sanitized || "file";
-}
-
-function appendExtensionIfMissing(fileName: string, contentType: string | null): string {
-  if (fileName.includes(".") || !contentType) {
-    return fileName;
-  }
-
-  const normalizedType = (contentType.split(";")[0] ?? "").trim().toLowerCase();
-  const extension = MIME_TO_EXTENSION[normalizedType];
-  return extension ? `${fileName}${extension}` : fileName;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function normalizeStoredAccount(value: unknown): StoredSessionAccount | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-
-  const accountId = readString(value.accountId).trim();
-  const secretId = readString(value.secretId).trim();
-
-  if (!accountId || !secretId) {
-    return null;
-  }
-
-  const timestamp = new Date().toISOString();
-  const expiresAt = readString(value.expiresAt).trim();
-
-  return {
-    accountId,
-    userId: readString(value.userId).trim(),
-    email: readString(value.email).trim(),
-    expiresAt: expiresAt.length > 0 ? expiresAt : undefined,
-    secretId,
-    addedAt: readString(value.addedAt, timestamp),
-    updatedAt: readString(value.updatedAt, timestamp)
-  };
-}
-
-function sortAccounts(accounts: StoredSessionAccount[]): StoredSessionAccount[] {
-  return [...accounts].sort((left, right) => {
-    const emailSort = left.email.localeCompare(right.email);
-
-    if (emailSort !== 0) {
-      return emailSort;
-    }
-
-    return left.accountId.localeCompare(right.accountId);
-  });
-}
 
 export default class Chats2MdPlugin extends Plugin {
   settings: Chats2MdSettings = DEFAULT_SETTINGS;
   private legacySessionMigrationWarning: string | null = null;
   private syncStatusBarEl: HTMLElement | null = null;
   private activeSyncModal: SyncChatGptModal | null = null;
-  private markdownSyncActionEls = new WeakMap<MarkdownView, HTMLElement>();
+  private forceSyncUiController: ForceSyncUiController | null = null;
   private syncWorkerActive = false;
   private syncStatusClearTimer: number | null = null;
   private suppressSyncStatusBarUpdates = false;
@@ -281,9 +82,17 @@ export default class Chats2MdPlugin extends Plugin {
       }
     });
 
-    this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.refreshMarkdownSyncActions()));
-    this.registerEvent(this.app.workspace.on("file-open", () => this.refreshMarkdownSyncActions()));
-    this.registerEvent(this.app.metadataCache.on("changed", () => this.refreshMarkdownSyncActions()));
+    this.forceSyncUiController = new ForceSyncUiController(this.app.workspace, {
+      isSyncing: () => this.syncWorkerActive,
+      isEligibleFile: (file) => this.isForceSyncEligibleFile(file),
+      onForceSync: async (file) => {
+        await this.forceSyncConversationNote(file);
+      }
+    });
+
+    this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.forceSyncUiController?.refreshMarkdownSyncActions()));
+    this.registerEvent(this.app.workspace.on("file-open", () => this.forceSyncUiController?.refreshMarkdownSyncActions()));
+    this.registerEvent(this.app.metadataCache.on("changed", () => this.forceSyncUiController?.refreshMarkdownSyncActions()));
     this.registerEvent(this.app.workspace.on("file-menu", (menu, file, _source, leaf) => {
       if (!(file instanceof TFile) || !leaf || !(leaf.view instanceof MarkdownView)) {
         return;
@@ -292,8 +101,7 @@ export default class Chats2MdPlugin extends Plugin {
       if (leaf.view.file?.path !== file.path) {
         return;
       }
-
-      this.addForceSyncMenuItem(menu, file);
+      this.forceSyncUiController?.addForceSyncMenuItem(menu, file);
     }));
     this.registerEvent(this.app.workspace.on("editor-menu", (menu, _editor, info) => {
       const file = info.file;
@@ -301,9 +109,9 @@ export default class Chats2MdPlugin extends Plugin {
         return;
       }
 
-      this.addForceSyncMenuItem(menu, file);
+      this.forceSyncUiController?.addForceSyncMenuItem(menu, file);
     }));
-    this.app.workspace.onLayoutReady(() => this.refreshMarkdownSyncActions());
+    this.app.workspace.onLayoutReady(() => this.forceSyncUiController?.refreshMarkdownSyncActions());
   }
 
   async loadSettings(): Promise<void> {
@@ -739,65 +547,7 @@ export default class Chats2MdPlugin extends Plugin {
       throw new Error(`No session matches user_id "${frontmatter.userId}" from note frontmatter.`);
     }
 
-    throw new Error(
-      `Note frontmatter is missing ${CONVERSATION_ACCOUNT_ID_KEY} and ${CONVERSATION_USER_ID_KEY}.`
-    );
-  }
-
-  private refreshMarkdownSyncActions(): void {
-    this.app.workspace.iterateAllLeaves((leaf) => {
-      if (!(leaf.view instanceof MarkdownView)) {
-        return;
-      }
-
-      this.ensureMarkdownSyncAction(leaf.view);
-    });
-  }
-
-  private ensureMarkdownSyncAction(view: MarkdownView): void {
-    let actionEl = this.markdownSyncActionEls.get(view);
-
-    if (!actionEl) {
-      actionEl = view.addAction("refresh-cw", FORCE_SYNC_ACTION_LABEL, () => {
-        void this.forceSyncConversationFromView(view);
-      });
-      actionEl.classList.add("chats2md-note-sync-action");
-      this.markdownSyncActionEls.set(view, actionEl);
-    }
-
-    this.updateMarkdownSyncActionVisibility(view, actionEl);
-  }
-
-  private updateMarkdownSyncActionVisibility(view: MarkdownView, actionEl: HTMLElement): void {
-    actionEl.style.display = this.isForceSyncEligibleFile(view.file) ? "" : "none";
-  }
-
-  private addForceSyncMenuItem(menu: Menu, file: TFile): void {
-    if (!this.isForceSyncEligibleFile(file)) {
-      return;
-    }
-
-    menu.addItem((item) => {
-      item
-        .setTitle(FORCE_SYNC_ACTION_LABEL)
-        .setIcon("refresh-cw")
-        .setDisabled(this.syncWorkerActive)
-        .onClick(() => {
-          void this.forceSyncConversationNote(file);
-        });
-    });
-  }
-
-  private async forceSyncConversationFromView(view: MarkdownView): Promise<void> {
-    const file = view.file;
-
-    if (!(file instanceof TFile)) {
-      new Notice("Open a markdown note before forcing sync.");
-      return;
-    }
-
-    await this.forceSyncConversationNote(file);
-    this.refreshMarkdownSyncActions();
+    throw new Error(`Note frontmatter is missing ${CONVERSATION_ACCOUNT_ID_KEY} and ${CONVERSATION_USER_ID_KEY}.`);
   }
 
   private async forceSyncConversationNote(file: TFile): Promise<void> {
@@ -1005,402 +755,44 @@ export default class Chats2MdPlugin extends Plugin {
     this.settings.defaultFolder = values.folder;
     await this.saveSettings();
 
-    const counts = createEmptyCounts();
-    const failures: ImportFailure[] = [];
-    let processedConversations = 0;
-    let totalConversations = 0;
     this.syncWorkerActive = true;
     this.suppressSyncStatusBarUpdates = false;
-    const forceRefresh = values.forceRefresh === true;
-    let syncLogger: SyncRunLogger | null = null;
-    const logInfo = (message: string): void => {
-      if (syncLogger) {
-        syncLogger.info(message);
-        return;
-      }
-
-      progressModal.log(message);
-    };
-    const logWarn = (message: string): void => {
-      if (syncLogger) {
-        syncLogger.warn(message);
-        return;
-      }
-
-      progressModal.log(`Warning: ${message}`);
-    };
-    const logError = (message: string): void => {
-      if (syncLogger) {
-        syncLogger.error(message);
-        return;
-      }
-
-      progressModal.log(`Error: ${message}`);
-    };
 
     try {
-      try {
-        syncLogger = await this.createSyncRunLogger(progressModal);
-        syncLogger.info(`Sync log file: ${syncLogger.filePath}`);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        progressModal.log(`Sync log file unavailable: ${message}`);
-      }
-
-      if (!(await this.ensureSyncCanContinue(control, progressModal, counts))) {
-        return;
-      }
-
-      const selectedAccounts = this.getSelectedAccounts(values);
-      const noteIndex = indexConversationNotes(this.app);
-      logInfo(`Starting sync for ${selectedAccounts.length} account(s).`);
-      logInfo(`Force refresh is ${forceRefresh ? "enabled" : "disabled"}.`);
-      this.setSyncStatusBar(this.buildSyncStatusText(processedConversations, totalConversations, "starting"), true);
-
-      for (const [accountIndex, account] of selectedAccounts.entries()) {
-        if (!(await this.ensureSyncCanContinue(control, progressModal, counts))) {
-          return;
-        }
-
-        const accountLabel = this.getAccountLabel(account);
-        progressModal.setPreparing(`Syncing ${accountLabel} (${accountIndex + 1}/${selectedAccounts.length}): fetching conversation list...`);
-        logInfo(`[${accountIndex + 1}/${selectedAccounts.length}] Fetching conversation list for ${accountLabel}.`);
-        this.setSyncStatusBar(
-          this.buildSyncStatusText(
-            processedConversations,
-            totalConversations,
-            `fetching list for ${accountLabel} (${accountIndex + 1}/${selectedAccounts.length})`
-          ),
-          true
-        );
-
-        let requestConfig: ChatGptRequestConfig;
-
-        try {
-          requestConfig = this.getRequestConfig(account);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          counts.failed += 1;
-          failures.push({
-            id: account.accountId,
-            title: accountLabel,
-            message,
-            attempts: 1
-          });
-          logError(`[${accountLabel}] Failed to load session: ${message}`);
-          continue;
-        }
-
-        let summaries: ConversationSummary[] = [];
-
-        try {
-          if (!(await this.ensureSyncCanContinue(control, progressModal, counts))) {
-            return;
-          }
-
-          summaries = await fetchConversationSummaries(requestConfig);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          counts.failed += 1;
-          failures.push({
-            id: account.accountId,
-            title: accountLabel,
-            message,
-            attempts: 1
-          });
-          logError(`[${accountLabel}] Failed to fetch conversation list: ${message}`);
-          continue;
-        }
-
-        logInfo(`[${accountLabel}] Found ${summaries.length} conversation(s).`);
-        if (summaries.length === 0) {
-          continue;
-        }
-
-        totalConversations += summaries.length;
-        this.setSyncStatusBar(
-          this.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
-          true
-        );
-        let processedForAccount = 0;
-        let detailApiCallsSinceWait = 0;
-
-        for (const [conversationIndex, summary] of summaries.entries()) {
-          if (!(await this.ensureSyncCanContinue(control, progressModal, counts))) {
-            return;
-          }
-
-          const displayTitle = `${accountLabel}: ${summary.title}`;
-
-          progressModal.setProgress(displayTitle, conversationIndex + 1, summaries.length, conversationIndex, counts);
-          logInfo(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Processing "${summary.title}".`);
-
-          const existingSyncMetadata = getIndexedConversationSyncMetadata(
-            this.app,
-            noteIndex,
-            requestConfig.accountId,
-            summary.id
-          );
-
-          const localListUpdatedAt = existingSyncMetadata.listUpdatedAt ?? existingSyncMetadata.updatedAt;
-          const hasMatchingTitle = (existingSyncMetadata.title ?? "") === summary.title;
-
-          if (!forceRefresh && hasMatchingTitle && hasMatchingUpdatedAt(localListUpdatedAt, summary.updatedAt)) {
-            try {
-              const renameResult = await ensureConversationNotePath(
-                this.app,
-                noteIndex,
-                {
-                  id: summary.id,
-                  title: summary.title,
-                  updatedAt: summary.updatedAt
-                },
-                values.folder,
-                requestConfig.accountId
-              );
-
-              counts.skipped += 1;
-              if (renameResult.moved) {
-                counts.moved += 1;
-              }
-
-              logInfo(
-                `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Skipped (up-to-date)${renameResult.moved ? " + moved" : ""}: "${summary.title}".`
-              );
-            } catch (error) {
-              const message = error instanceof Error ? error.message : String(error);
-              counts.failed += 1;
-              failures.push({
-                id: `${account.accountId}/${summary.id}`,
-                title: `${accountLabel}: ${summary.title}`,
-                message,
-                attempts: 1
-              });
-              logError(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed while reconciling note path: "${summary.title}" - ${message}`);
-            }
-          } else {
-            const mismatchReasons: string[] = [];
-            if (forceRefresh) {
-              mismatchReasons.push("force refresh enabled");
-            }
-            if (!hasMatchingTitle) {
-              mismatchReasons.push("title changed");
-            }
-
-            if (!hasMatchingUpdatedAt(localListUpdatedAt, summary.updatedAt)) {
-              mismatchReasons.push("updated_at changed");
-            }
-
-            logInfo(
-              `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Calling /conversation/${summary.id} for "${summary.title}" (${mismatchReasons.join(", ")}).`
-            );
-
-            try {
-              const detail = await this.fetchConversationDetailWithRetries(
-                requestConfig,
-                summary,
-                conversationIndex + 1,
-                summaries.length,
-                progressModal,
-                displayTitle,
-                control,
-                syncLogger,
-                () => {
-                  detailApiCallsSinceWait += 1;
-                }
-              );
-              if (!detail) {
-                return;
-              }
-
-              if (!(await this.ensureSyncCanContinue(control, progressModal, counts))) {
-                return;
-              }
-
-              const assetLinks = await this.syncConversationAssets(
-                requestConfig,
-                detail,
-                values.folder,
-                syncLogger,
-                accountLabel,
-                conversationIndex + 1,
-                summaries.length
-              );
-
-              const result = await upsertConversationNote(
-                this.app,
-                noteIndex,
-                detail,
-                values.folder,
-                {
-                  accountId: requestConfig.accountId,
-                  userId: requestConfig.userId,
-                  userEmail: requestConfig.userEmail
-                },
-                this.manifest.version,
-                summary.updatedAt,
-                assetLinks,
-                forceRefresh
-              );
-
-              counts[result.action] += 1;
-
-              if (result.moved) {
-                counts.moved += 1;
-              }
-              logInfo(
-                `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) ${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}: "${summary.title}".`
-              );
-            } catch (error) {
-              const message = error instanceof Error ? error.message : String(error);
-              counts.failed += 1;
-              failures.push({
-                id: `${account.accountId}/${summary.id}`,
-                title: `${accountLabel}: ${summary.title}`,
-                message,
-                attempts: DETAIL_FETCH_MAX_ATTEMPTS
-              });
-              logError(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed: "${summary.title}" - ${message}`);
-            }
-          }
-
-          processedConversations += 1;
-          processedForAccount += 1;
-
-          progressModal.setProgress(
-            displayTitle,
-            conversationIndex + 1,
-            summaries.length,
-            conversationIndex + 1,
-            counts
-          );
-          this.setSyncStatusBar(
-            this.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
-            true
-          );
-
-          const hasRemainingInAccount = processedForAccount < summaries.length;
-          while (hasRemainingInAccount && detailApiCallsSinceWait >= ACCOUNT_SYNC_BATCH_SIZE) {
-            logInfo(
-              `[${accountLabel}] Called /conversation/{id} ${ACCOUNT_SYNC_BATCH_SIZE} times. Waiting 30s before next batch.`
-            );
-            this.setSyncStatusBar(
-              this.buildSyncStatusText(
-                processedConversations,
-                totalConversations,
-                `waiting 30s before next ${accountLabel} batch`
-              ),
-              true
-            );
-
-            let remainingDelayMs = ACCOUNT_SYNC_BATCH_DELAY_MS;
-            while (remainingDelayMs > 0) {
-              if (!(await this.ensureSyncCanContinue(control, progressModal, counts))) {
-                return;
-              }
-
-              const stepDelay = Math.min(1000, remainingDelayMs);
-              await sleep(stepDelay);
-              remainingDelayMs -= stepDelay;
-            }
-
-            this.setSyncStatusBar(
-              this.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
-              true
-            );
-
-            detailApiCallsSinceWait -= ACCOUNT_SYNC_BATCH_SIZE;
-          }
-        }
-      }
-
-      logInfo("Sync complete.");
-      progressModal.complete(totalConversations, counts, failures);
-      new Notice(summarizeCounts(totalConversations, counts));
-      this.setSyncStatusBar(this.buildSyncStatusText(processedConversations, totalConversations, "complete"), false);
-      this.clearSyncStatusBar(8000);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      progressModal.fail(message, counts);
-      logError(`Sync failed: ${message}`);
-      new Notice(message);
-      this.setSyncStatusBar(`ChatGPT sync failed: ${message}`, false);
-      this.clearSyncStatusBar(10000);
+      await runFullSync({
+        app: this.app,
+        manifestVersion: this.manifest.version,
+        createSyncRunLogger: (reporter) => this.createSyncRunLogger(reporter),
+        getSelectedAccounts: (syncValues) => this.getSelectedAccounts(syncValues),
+        getRequestConfig: (account) => this.getRequestConfig(account),
+        getAccountLabel: (account) => this.getAccountLabel(account),
+        syncConversationAssets: (
+          requestConfig,
+          conversation,
+          baseFolder,
+          logger,
+          accountLabel,
+          conversationIndex,
+          totalConversations
+        ) => this.syncConversationAssets(
+          requestConfig,
+          conversation,
+          baseFolder,
+          logger,
+          accountLabel,
+          conversationIndex,
+          totalConversations
+        ),
+        buildSyncStatusText: (processed, total, phase) => this.buildSyncStatusText(processed, total, phase),
+        setSyncStatusBar: (text, active) => this.setSyncStatusBar(text, active),
+        clearSyncStatusBar: (delayMs) => this.clearSyncStatusBar(delayMs)
+      }, values, progressModal, control);
     } finally {
-      if (syncLogger) {
-        await syncLogger.flush();
-      }
       this.syncWorkerActive = false;
       this.suppressSyncStatusBarUpdates = false;
       if (this.activeSyncModal === modal && !modal.isSyncInProgress()) {
         this.activeSyncModal = null;
       }
     }
-  }
-
-  private async fetchConversationDetailWithRetries(
-    requestConfig: ChatGptRequestConfig,
-    summary: { id: string; title: string; createdAt: string; updatedAt: string },
-    index: number,
-    total: number,
-    progressModal: SyncProgressReporter,
-    displayTitle: string,
-    control: SyncExecutionControl,
-    logger: SyncRunLogger | null,
-    onRequest?: () => void
-  ): Promise<ConversationDetail | null> {
-    let lastError: unknown;
-
-    for (let attempt = 1; attempt <= DETAIL_FETCH_MAX_ATTEMPTS; attempt += 1) {
-      try {
-        await control.waitIfPaused();
-
-        if (control.shouldStop()) {
-          return null;
-        }
-
-        onRequest?.();
-        return await fetchConversationDetail(requestConfig, summary.id, summary);
-      } catch (error) {
-        lastError = error;
-
-        if (control.shouldStop()) {
-          return null;
-        }
-
-        if (attempt >= DETAIL_FETCH_MAX_ATTEMPTS) {
-          break;
-        }
-
-        const message = error instanceof Error ? error.message : String(error);
-        logger?.warn(
-          `${displayTitle} detail fetch retry ${attempt + 1}/${DETAIL_FETCH_MAX_ATTEMPTS}: ${message}`
-        );
-        progressModal.setRetry(displayTitle, index, total, attempt + 1, message);
-        await sleep(attempt * 750);
-      }
-    }
-
-    if (lastError) {
-      const message = lastError instanceof Error ? lastError.message : String(lastError);
-      logger?.error(`${displayTitle} detail fetch failed after ${DETAIL_FETCH_MAX_ATTEMPTS} attempts: ${message}`);
-    }
-
-    throw lastError instanceof Error ? lastError : new Error(String(lastError));
-  }
-
-  private async ensureSyncCanContinue(
-    control: SyncExecutionControl,
-    progressModal: SyncProgressReporter,
-    counts: ImportProgressCounts
-  ): Promise<boolean> {
-    await control.waitIfPaused();
-
-    if (!control.shouldStop()) {
-      return true;
-    }
-
-    progressModal.fail("Sync stopped by user.", counts);
-    return false;
   }
 }
