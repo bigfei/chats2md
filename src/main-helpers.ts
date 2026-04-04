@@ -31,6 +31,7 @@ const MIME_TO_EXTENSION: Record<string, string> = {
   "image/png": ".png",
   "image/svg+xml": ".svg",
   "image/webp": ".webp",
+  "message/rfc822": ".eml",
   "text/csv": ".csv",
   "text/html": ".html",
   "text/plain": ".txt"

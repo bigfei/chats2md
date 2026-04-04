@@ -75,6 +75,7 @@ test("sanitizePathPart strips invalid path characters and preserves length limit
 
 test("appendExtensionIfMissing infers extension from content type", () => {
   assert.equal(appendExtensionIfMissing("image", "image/png"), "image.png");
+  assert.equal(appendExtensionIfMissing("mail", "message/rfc822"), "mail.eml");
   assert.equal(appendExtensionIfMissing("archive.zip", "application/zip"), "archive.zip");
   assert.equal(appendExtensionIfMissing("payload", null), "payload");
 });

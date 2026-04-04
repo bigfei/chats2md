@@ -335,6 +335,18 @@ export default class Chats2MdPlugin extends Plugin {
     }
   }
 
+  private extractKnownExtension(fileName: string): string | null {
+    const trimmed = fileName.trim();
+    const dotIndex = trimmed.lastIndexOf(".");
+
+    if (dotIndex <= 0 || dotIndex === trimmed.length - 1) {
+      return null;
+    }
+
+    const extension = trimmed.slice(dotIndex).toLowerCase();
+    return /^[.][a-z0-9]{1,12}$/i.test(extension) ? extension : null;
+  }
+
   private collectConversationDownloadRefs(
     references: ConversationFileReference[]
   ): Array<{ fileId: string; logicalName: string }> {
@@ -393,7 +405,13 @@ export default class Chats2MdPlugin extends Plugin {
         logger?.info(`${perAssetPrefix} Metadata resolved (file_name=${info.fileName || "<empty>"}).`);
         const rawName = sanitizePathPart(info.fileName || ref.logicalName);
         const withExtension = appendExtensionIfMissing(rawName, null);
-        const preferredFileName = withExtension || sanitizePathPart(ref.logicalName);
+        let preferredFileName = withExtension || sanitizePathPart(ref.logicalName);
+        if (!preferredFileName.includes(".")) {
+          const logicalExtension = this.extractKnownExtension(ref.logicalName);
+          if (logicalExtension) {
+            preferredFileName = `${preferredFileName}${logicalExtension}`;
+          }
+        }
         const preferredPath = normalizePath(`${assetFolderPath}/${preferredFileName}`);
         const preferredExisting = this.app.vault.getAbstractFileByPath(preferredPath);
 
@@ -405,6 +423,22 @@ export default class Chats2MdPlugin extends Plugin {
           usedNames.add(preferredExisting.name);
           logger?.info(`${perAssetPrefix} Reusing existing file: ${preferredExisting.path}`);
           continue;
+        }
+
+        if (preferredFileName !== rawName) {
+          const legacyPath = normalizePath(`${assetFolderPath}/${rawName}`);
+          const legacyExisting = this.app.vault.getAbstractFileByPath(legacyPath);
+          if (legacyExisting instanceof TFile) {
+            const migratedFileName = this.nextAvailableFileName(preferredFileName, usedNames);
+            const migratedPath = normalizePath(`${assetFolderPath}/${migratedFileName}`);
+            await this.app.vault.rename(legacyExisting, migratedPath);
+            linkMap[ref.fileId] = {
+              path: migratedPath,
+              fileName: migratedFileName
+            };
+            logger?.info(`${perAssetPrefix} Renamed legacy asset: ${legacyPath} -> ${migratedPath}`);
+            continue;
+          }
         }
 
         logger?.info(`${perAssetPrefix} Downloading signed asset URL.`);
