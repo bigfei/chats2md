@@ -1,4 +1,4 @@
-import { App, MarkdownView, Notice, Plugin, TFile, TFolder, normalizePath } from "obsidian";
+import { App, MarkdownView, Menu, Notice, Plugin, TFile, TFolder, normalizePath } from "obsidian";
 
 import {
   fetchConversationDetail,
@@ -42,6 +42,7 @@ const CONVERSATION_UPDATED_AT_KEY = "chatgpt_updated_at";
 const CONVERSATION_LIST_UPDATED_AT_KEY = "chatgpt_list_updated_at";
 const CONVERSATION_ACCOUNT_ID_KEY = "chatgpt_account_id";
 const CONVERSATION_USER_ID_KEY = "chatgpt_user_id";
+const FORCE_SYNC_ACTION_LABEL = "Force sync from Chatgpt";
 const MIME_TO_EXTENSION: Record<string, string> = {
   "application/json": ".json",
   "application/pdf": ".pdf",
@@ -283,6 +284,25 @@ export default class Chats2MdPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.refreshMarkdownSyncActions()));
     this.registerEvent(this.app.workspace.on("file-open", () => this.refreshMarkdownSyncActions()));
     this.registerEvent(this.app.metadataCache.on("changed", () => this.refreshMarkdownSyncActions()));
+    this.registerEvent(this.app.workspace.on("file-menu", (menu, file, _source, leaf) => {
+      if (!(file instanceof TFile) || !leaf || !(leaf.view instanceof MarkdownView)) {
+        return;
+      }
+
+      if (leaf.view.file?.path !== file.path) {
+        return;
+      }
+
+      this.addForceSyncMenuItem(menu, file);
+    }));
+    this.registerEvent(this.app.workspace.on("editor-menu", (menu, _editor, info) => {
+      const file = info.file;
+      if (!(file instanceof TFile)) {
+        return;
+      }
+
+      this.addForceSyncMenuItem(menu, file);
+    }));
     this.app.workspace.onLayoutReady(() => this.refreshMarkdownSyncActions());
   }
 
@@ -663,12 +683,13 @@ export default class Chats2MdPlugin extends Plugin {
     };
   }
 
-  private isChats2MdConversationFile(file: TFile | null): boolean {
+  private isForceSyncEligibleFile(file: TFile | null): boolean {
     if (!(file instanceof TFile)) {
       return false;
     }
 
-    return this.getConversationFrontmatter(file).conversationId.length > 0;
+    const frontmatter = this.getConversationFrontmatter(file);
+    return frontmatter.accountId.length > 0 || frontmatter.userId.length > 0;
   }
 
   private resolveAccountForConversation(frontmatter: ConversationFrontmatterInfo): StoredSessionAccount {
@@ -737,7 +758,7 @@ export default class Chats2MdPlugin extends Plugin {
     let actionEl = this.markdownSyncActionEls.get(view);
 
     if (!actionEl) {
-      actionEl = view.addAction("refresh-cw", "Sync", () => {
+      actionEl = view.addAction("refresh-cw", FORCE_SYNC_ACTION_LABEL, () => {
         void this.forceSyncConversationFromView(view);
       });
       actionEl.classList.add("chats2md-note-sync-action");
@@ -748,7 +769,23 @@ export default class Chats2MdPlugin extends Plugin {
   }
 
   private updateMarkdownSyncActionVisibility(view: MarkdownView, actionEl: HTMLElement): void {
-    actionEl.style.display = this.isChats2MdConversationFile(view.file) ? "" : "none";
+    actionEl.style.display = this.isForceSyncEligibleFile(view.file) ? "" : "none";
+  }
+
+  private addForceSyncMenuItem(menu: Menu, file: TFile): void {
+    if (!this.isForceSyncEligibleFile(file)) {
+      return;
+    }
+
+    menu.addItem((item) => {
+      item
+        .setTitle(FORCE_SYNC_ACTION_LABEL)
+        .setIcon("refresh-cw")
+        .setDisabled(this.syncWorkerActive)
+        .onClick(() => {
+          void this.forceSyncConversationNote(file);
+        });
+    });
   }
 
   private async forceSyncConversationFromView(view: MarkdownView): Promise<void> {
@@ -771,7 +808,7 @@ export default class Chats2MdPlugin extends Plugin {
 
     const frontmatter = this.getConversationFrontmatter(file);
     if (!frontmatter.conversationId) {
-      new Notice("Current note is not a chats2md conversation.");
+      new Notice(`Current note is missing ${CONVERSATION_ID_KEY} in frontmatter.`);
       return;
     }
 
