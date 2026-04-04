@@ -1,4 +1,4 @@
-import { Notice, Plugin, TFile, TFolder, normalizePath } from "obsidian";
+import { App, Notice, Plugin, TFile, TFolder, normalizePath } from "obsidian";
 
 import {
   fetchConversationDetail,
@@ -50,6 +50,47 @@ const MIME_TO_EXTENSION: Record<string, string> = {
   "text/html": ".html",
   "text/plain": ".txt"
 };
+type SyncLogLevel = "info" | "warn" | "error";
+
+class SyncRunLogger {
+  readonly filePath: string;
+  private readonly app: App;
+  private readonly dialogLogger: (message: string) => void;
+  private appendQueue: Promise<void> = Promise.resolve();
+
+  constructor(app: App, filePath: string, dialogLogger: (message: string) => void) {
+    this.app = app;
+    this.filePath = filePath;
+    this.dialogLogger = dialogLogger;
+  }
+
+  info(message: string): void {
+    this.write("info", message, true);
+  }
+
+  warn(message: string): void {
+    this.write("warn", message, false);
+  }
+
+  error(message: string): void {
+    this.write("error", message, false);
+  }
+
+  async flush(): Promise<void> {
+    await this.appendQueue;
+  }
+
+  private write(level: SyncLogLevel, message: string, includeInDialog: boolean): void {
+    if (includeInDialog) {
+      this.dialogLogger(message);
+    }
+
+    const line = `[${new Date().toISOString()}] [${level.toUpperCase()}] ${message}`;
+    this.appendQueue = this.appendQueue
+      .then(() => this.app.vault.adapter.append(this.filePath, `${line}\n`))
+      .catch(() => undefined);
+  }
+}
 
 interface LegacySettingsPayload extends Partial<Chats2MdSettings> {
   sessionJson?: string;
@@ -362,6 +403,49 @@ export default class Chats2MdPlugin extends Plugin {
     }
   }
 
+  private async ensureAdapterFolderExists(folderPath: string): Promise<void> {
+    const normalized = normalizePath(folderPath);
+
+    if (!normalized) {
+      return;
+    }
+
+    const parts = normalized.split("/");
+    let current = "";
+
+    for (const part of parts) {
+      current = current.length === 0 ? part : `${current}/${part}`;
+      if (await this.app.vault.adapter.exists(current)) {
+        continue;
+      }
+
+      try {
+        await this.app.vault.adapter.mkdir(current);
+      } catch {
+        if (!(await this.app.vault.adapter.exists(current))) {
+          throw new Error(`Failed to create log folder: ${current}`);
+        }
+      }
+    }
+  }
+
+  private async createSyncRunLogger(progressModal: SyncProgressReporter): Promise<SyncRunLogger> {
+    const logFolder = normalizePath(`${this.app.vault.configDir}/plugins/${this.manifest.id}/logs`);
+    await this.ensureAdapterFolderExists(logFolder);
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filePath = normalizePath(`${logFolder}/sync-${timestamp}.log`);
+    const header = [
+      "# Chats2MD sync log",
+      `started_at: ${new Date().toISOString()}`,
+      `plugin_version: ${this.manifest.version}`,
+      ""
+    ].join("\n");
+    await this.app.vault.adapter.write(filePath, header);
+
+    return new SyncRunLogger(this.app, filePath, (message) => progressModal.log(message));
+  }
+
   private readFolderFileNames(folderPath: string): Set<string> {
     const names = new Set<string>();
     const folder = this.app.vault.getAbstractFileByPath(folderPath);
@@ -421,7 +505,7 @@ export default class Chats2MdPlugin extends Plugin {
     requestConfig: ChatGptRequestConfig,
     conversation: ConversationDetail,
     baseFolder: string,
-    progressModal: SyncProgressReporter,
+    logger: SyncRunLogger | null,
     accountLabel: string,
     conversationIndex: number,
     totalConversations: number
@@ -441,15 +525,21 @@ export default class Chats2MdPlugin extends Plugin {
     const accountFolder = sanitizePathPart(requestConfig.accountId || "account");
     const conversationFolder = sanitizePathPart(conversation.id);
     const assetFolderPath = normalizePath(`${normalizedBaseFolder}/${ASSET_FOLDER_NAME}/${accountFolder}/${conversationFolder}`);
+    const logPrefix = `[${accountLabel}] (${conversationIndex}/${totalConversations})`;
+
+    logger?.info(`${logPrefix} Resolving ${downloadRefs.length} asset reference(s) for "${conversation.title}".`);
+    logger?.info(`${logPrefix} Asset folder: ${assetFolderPath}`);
 
     await this.ensureFolderExists(assetFolderPath);
     const usedNames = this.readFolderFileNames(assetFolderPath);
 
     for (const [assetIndex, ref] of downloadRefs.entries()) {
-      const logPrefix = `[${accountLabel}] (${conversationIndex}/${totalConversations})`;
+      const perAssetPrefix = `${logPrefix} Asset ${assetIndex + 1}/${downloadRefs.length} (${ref.fileId})`;
 
       try {
+        logger?.info(`${perAssetPrefix} Resolving download metadata.`);
         const info = await fetchConversationFileDownloadInfo(requestConfig, ref.fileId);
+        logger?.info(`${perAssetPrefix} Metadata resolved (file_name=${info.fileName || "<empty>"}).`);
         const rawName = sanitizePathPart(info.fileName || ref.logicalName);
         const withExtension = appendExtensionIfMissing(rawName, null);
         const preferredFileName = withExtension || sanitizePathPart(ref.logicalName);
@@ -462,9 +552,11 @@ export default class Chats2MdPlugin extends Plugin {
             fileName: preferredExisting.name
           };
           usedNames.add(preferredExisting.name);
+          logger?.info(`${perAssetPrefix} Reusing existing file: ${preferredExisting.path}`);
           continue;
         }
 
+        logger?.info(`${perAssetPrefix} Downloading signed asset URL.`);
         const fileContent = await fetchSignedFileContent(requestConfig, info.downloadUrl);
         const fileNameWithType = appendExtensionIfMissing(preferredFileName, fileContent.contentType);
         const finalFileName = this.nextAvailableFileName(fileNameWithType, usedNames);
@@ -476,6 +568,7 @@ export default class Chats2MdPlugin extends Plugin {
             path: existingAtFinalPath.path,
             fileName: existingAtFinalPath.name
           };
+          logger?.info(`${perAssetPrefix} Reusing existing file: ${existingAtFinalPath.path}`);
           continue;
         }
 
@@ -484,11 +577,10 @@ export default class Chats2MdPlugin extends Plugin {
           path: created.path,
           fileName: created.name
         };
+        logger?.info(`${perAssetPrefix} Saved asset: ${created.path}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        progressModal.log(
-          `${logPrefix} Asset warning (${assetIndex + 1}/${downloadRefs.length}) for file ${ref.fileId}: ${message}`
-        );
+        logger?.warn(`${perAssetPrefix} Failed to download asset: ${message}`);
       }
     }
 
@@ -657,15 +749,50 @@ export default class Chats2MdPlugin extends Plugin {
     let totalConversations = 0;
     this.syncWorkerActive = true;
     this.suppressSyncStatusBarUpdates = false;
+    const forceRefresh = values.forceRefresh === true;
+    let syncLogger: SyncRunLogger | null = null;
+    const logInfo = (message: string): void => {
+      if (syncLogger) {
+        syncLogger.info(message);
+        return;
+      }
+
+      progressModal.log(message);
+    };
+    const logWarn = (message: string): void => {
+      if (syncLogger) {
+        syncLogger.warn(message);
+        return;
+      }
+
+      progressModal.log(`Warning: ${message}`);
+    };
+    const logError = (message: string): void => {
+      if (syncLogger) {
+        syncLogger.error(message);
+        return;
+      }
+
+      progressModal.log(`Error: ${message}`);
+    };
 
     try {
+      try {
+        syncLogger = await this.createSyncRunLogger(progressModal);
+        syncLogger.info(`Sync log file: ${syncLogger.filePath}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        progressModal.log(`Sync log file unavailable: ${message}`);
+      }
+
       if (!(await this.ensureSyncCanContinue(control, progressModal, counts))) {
         return;
       }
 
       const selectedAccounts = this.getSelectedAccounts(values);
       const noteIndex = indexConversationNotes(this.app);
-      progressModal.log(`Starting sync for ${selectedAccounts.length} account(s).`);
+      logInfo(`Starting sync for ${selectedAccounts.length} account(s).`);
+      logInfo(`Force refresh is ${forceRefresh ? "enabled" : "disabled"}.`);
       this.setSyncStatusBar(this.buildSyncStatusText(processedConversations, totalConversations, "starting"), true);
 
       for (const [accountIndex, account] of selectedAccounts.entries()) {
@@ -675,7 +802,7 @@ export default class Chats2MdPlugin extends Plugin {
 
         const accountLabel = this.getAccountLabel(account);
         progressModal.setPreparing(`Syncing ${accountLabel} (${accountIndex + 1}/${selectedAccounts.length}): fetching conversation list...`);
-        progressModal.log(`[${accountIndex + 1}/${selectedAccounts.length}] Fetching conversation list for ${accountLabel}.`);
+        logInfo(`[${accountIndex + 1}/${selectedAccounts.length}] Fetching conversation list for ${accountLabel}.`);
         this.setSyncStatusBar(
           this.buildSyncStatusText(
             processedConversations,
@@ -698,7 +825,7 @@ export default class Chats2MdPlugin extends Plugin {
             message,
             attempts: 1
           });
-          progressModal.log(`[${accountLabel}] Failed to load session: ${message}`);
+          logError(`[${accountLabel}] Failed to load session: ${message}`);
           continue;
         }
 
@@ -719,11 +846,11 @@ export default class Chats2MdPlugin extends Plugin {
             message,
             attempts: 1
           });
-          progressModal.log(`[${accountLabel}] Failed to fetch conversation list: ${message}`);
+          logError(`[${accountLabel}] Failed to fetch conversation list: ${message}`);
           continue;
         }
 
-        progressModal.log(`[${accountLabel}] Found ${summaries.length} conversation(s).`);
+        logInfo(`[${accountLabel}] Found ${summaries.length} conversation(s).`);
         if (summaries.length === 0) {
           continue;
         }
@@ -744,7 +871,7 @@ export default class Chats2MdPlugin extends Plugin {
           const displayTitle = `${accountLabel}: ${summary.title}`;
 
           progressModal.setProgress(displayTitle, conversationIndex + 1, summaries.length, conversationIndex, counts);
-          progressModal.log(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Processing "${summary.title}".`);
+          logInfo(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Processing "${summary.title}".`);
 
           const existingSyncMetadata = getIndexedConversationSyncMetadata(
             this.app,
@@ -756,7 +883,7 @@ export default class Chats2MdPlugin extends Plugin {
           const localListUpdatedAt = existingSyncMetadata.listUpdatedAt ?? existingSyncMetadata.updatedAt;
           const hasMatchingTitle = (existingSyncMetadata.title ?? "") === summary.title;
 
-          if (hasMatchingTitle && hasMatchingUpdatedAt(localListUpdatedAt, summary.updatedAt)) {
+          if (!forceRefresh && hasMatchingTitle && hasMatchingUpdatedAt(localListUpdatedAt, summary.updatedAt)) {
             try {
               const renameResult = await ensureConversationNotePath(
                 this.app,
@@ -775,7 +902,7 @@ export default class Chats2MdPlugin extends Plugin {
                 counts.moved += 1;
               }
 
-              progressModal.log(
+              logInfo(
                 `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Skipped (up-to-date)${renameResult.moved ? " + moved" : ""}: "${summary.title}".`
               );
             } catch (error) {
@@ -787,10 +914,13 @@ export default class Chats2MdPlugin extends Plugin {
                 message,
                 attempts: 1
               });
-              progressModal.log(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed while reconciling note path: "${summary.title}" - ${message}`);
+              logError(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed while reconciling note path: "${summary.title}" - ${message}`);
             }
           } else {
             const mismatchReasons: string[] = [];
+            if (forceRefresh) {
+              mismatchReasons.push("force refresh enabled");
+            }
             if (!hasMatchingTitle) {
               mismatchReasons.push("title changed");
             }
@@ -799,7 +929,7 @@ export default class Chats2MdPlugin extends Plugin {
               mismatchReasons.push("updated_at changed");
             }
 
-            progressModal.log(
+            logInfo(
               `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Calling /conversation/${summary.id} for "${summary.title}" (${mismatchReasons.join(", ")}).`
             );
 
@@ -812,6 +942,7 @@ export default class Chats2MdPlugin extends Plugin {
                 progressModal,
                 displayTitle,
                 control,
+                syncLogger,
                 () => {
                   detailApiCallsSinceWait += 1;
                 }
@@ -828,7 +959,7 @@ export default class Chats2MdPlugin extends Plugin {
                 requestConfig,
                 detail,
                 values.folder,
-                progressModal,
+                syncLogger,
                 accountLabel,
                 conversationIndex + 1,
                 summaries.length
@@ -846,7 +977,8 @@ export default class Chats2MdPlugin extends Plugin {
                 },
                 this.manifest.version,
                 summary.updatedAt,
-                assetLinks
+                assetLinks,
+                forceRefresh
               );
 
               counts[result.action] += 1;
@@ -854,7 +986,7 @@ export default class Chats2MdPlugin extends Plugin {
               if (result.moved) {
                 counts.moved += 1;
               }
-              progressModal.log(
+              logInfo(
                 `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) ${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}: "${summary.title}".`
               );
             } catch (error) {
@@ -866,7 +998,7 @@ export default class Chats2MdPlugin extends Plugin {
                 message,
                 attempts: DETAIL_FETCH_MAX_ATTEMPTS
               });
-              progressModal.log(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed: "${summary.title}" - ${message}`);
+              logError(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed: "${summary.title}" - ${message}`);
             }
           }
 
@@ -887,7 +1019,7 @@ export default class Chats2MdPlugin extends Plugin {
 
           const hasRemainingInAccount = processedForAccount < summaries.length;
           while (hasRemainingInAccount && detailApiCallsSinceWait >= ACCOUNT_SYNC_BATCH_SIZE) {
-            progressModal.log(
+            logInfo(
               `[${accountLabel}] Called /conversation/{id} ${ACCOUNT_SYNC_BATCH_SIZE} times. Waiting 30s before next batch.`
             );
             this.setSyncStatusBar(
@@ -920,7 +1052,7 @@ export default class Chats2MdPlugin extends Plugin {
         }
       }
 
-      progressModal.log("Sync complete.");
+      logInfo("Sync complete.");
       progressModal.complete(totalConversations, counts, failures);
       new Notice(summarizeCounts(totalConversations, counts));
       this.setSyncStatusBar(this.buildSyncStatusText(processedConversations, totalConversations, "complete"), false);
@@ -928,10 +1060,14 @@ export default class Chats2MdPlugin extends Plugin {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       progressModal.fail(message, counts);
+      logError(`Sync failed: ${message}`);
       new Notice(message);
       this.setSyncStatusBar(`ChatGPT sync failed: ${message}`, false);
       this.clearSyncStatusBar(10000);
     } finally {
+      if (syncLogger) {
+        await syncLogger.flush();
+      }
       this.syncWorkerActive = false;
       this.suppressSyncStatusBarUpdates = false;
       if (this.activeSyncModal === modal && !modal.isSyncInProgress()) {
@@ -948,6 +1084,7 @@ export default class Chats2MdPlugin extends Plugin {
     progressModal: SyncProgressReporter,
     displayTitle: string,
     control: SyncExecutionControl,
+    logger: SyncRunLogger | null,
     onRequest?: () => void
   ): Promise<ConversationDetail | null> {
     let lastError: unknown;
@@ -974,9 +1111,17 @@ export default class Chats2MdPlugin extends Plugin {
         }
 
         const message = error instanceof Error ? error.message : String(error);
+        logger?.warn(
+          `${displayTitle} detail fetch retry ${attempt + 1}/${DETAIL_FETCH_MAX_ATTEMPTS}: ${message}`
+        );
         progressModal.setRetry(displayTitle, index, total, attempt + 1, message);
         await sleep(attempt * 750);
       }
+    }
+
+    if (lastError) {
+      const message = lastError instanceof Error ? lastError.message : String(lastError);
+      logger?.error(`${displayTitle} detail fetch failed after ${DETAIL_FETCH_MAX_ATTEMPTS} attempts: ${message}`);
     }
 
     throw lastError instanceof Error ? lastError : new Error(String(lastError));

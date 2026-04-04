@@ -354,7 +354,8 @@ export async function upsertConversationNote(
   account: { accountId: string; userId: string; userEmail: string },
   pluginVersion: string,
   listUpdatedAt?: string,
-  assetLinks: ConversationAssetLinkMap = {}
+  assetLinks: ConversationAssetLinkMap = {},
+  forceRewrite = false
 ): Promise<ConversationUpsertResult> {
   const normalizedFolder = normalizeTargetFolder(folder);
   const normalizedListUpdatedAt = (listUpdatedAt ?? conversation.updatedAt).trim() || conversation.updatedAt;
@@ -400,7 +401,8 @@ export async function upsertConversationNote(
   const existingUpdatedAt = readFrontmatterString(app, existing, CONVERSATION_UPDATED_AT_KEY);
   const existingTitle = readFrontmatterString(app, existing, CONVERSATION_TITLE_KEY);
   const existingListUpdatedAt = readFrontmatterString(app, existing, CONVERSATION_LIST_UPDATED_AT_KEY);
-  const shouldRewrite = existingUpdatedAt !== conversation.updatedAt
+  const shouldRewrite = forceRewrite
+    || existingUpdatedAt !== conversation.updatedAt
     || existingTitle !== conversation.title
     || existingListUpdatedAt !== normalizedListUpdatedAt;
 

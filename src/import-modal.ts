@@ -47,6 +47,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
   private readonly options: SyncModalOptions;
   private syncScope: "all" | "single" = "all";
   private selectedAccountId: string;
+  private forceRefresh = false;
   private readonly accountSelectorContainer: HTMLDivElement;
 
   private statusEl: HTMLElement | null = null;
@@ -226,6 +227,15 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
           });
       });
 
+    new Setting(contentEl)
+      .setName("Force refresh")
+      .setDesc("Always fetch details and rewrite notes even when updated_at matches local metadata.")
+      .addToggle((toggle) => {
+        toggle.setValue(this.forceRefresh).onChange((value) => {
+          this.forceRefresh = value;
+        });
+      });
+
     this.accountSelectorContainer.remove();
     contentEl.appendChild(this.accountSelectorContainer);
     this.renderAccountSelector();
@@ -251,7 +261,8 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
             const values: SyncModalValues = {
               folder: this.options.folder,
               scope: this.syncScope,
-              accountId: this.syncScope === "single" ? this.selectedAccountId : undefined
+              accountId: this.syncScope === "single" ? this.selectedAccountId : undefined,
+              forceRefresh: this.forceRefresh
             };
 
             try {

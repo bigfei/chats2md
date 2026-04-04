@@ -75,6 +75,7 @@ export interface SyncModalValues {
   folder: string;
   scope: "all" | "single";
   accountId?: string;
+  forceRefresh: boolean;
 }
 
 export type UpsertAction = "created" | "updated" | "skipped";
