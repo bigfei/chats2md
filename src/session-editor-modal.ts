@@ -11,6 +11,7 @@ interface SessionEditorModalOptions {
 }
 
 const SECRET_STORAGE_DOCS_URL = "https://docs.obsidian.md/plugins/guides/secret-storage";
+const CHATGPT_SESSION_JSON_URL = "https://chatgpt.com/api/auth/session";
 
 export class SessionEditorModal extends Modal {
   private readonly options: SessionEditorModalOptions;
@@ -24,6 +25,7 @@ export class SessionEditorModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("chats2md-modal");
+    contentEl.addClass("chats2md-session-modal");
 
     this.setTitle(this.options.title);
 
@@ -32,6 +34,16 @@ export class SessionEditorModal extends Modal {
       text: "Paste a complete session JSON payload. It should include accessToken, account.id, user.id, and user.email."
     });
 
+    const sessionHint = contentEl.createEl("p", {
+      cls: "chats2md-modal__hint"
+    });
+    sessionHint.createSpan({ text: "Get the payload by signing into ChatGPT, then opening " });
+    sessionHint.createEl("a", {
+      text: CHATGPT_SESSION_JSON_URL,
+      href: CHATGPT_SESSION_JSON_URL
+    });
+    sessionHint.createSpan({ text: " and copying the full JSON response." });
+
     let rawValue = this.options.initialValue ?? "";
 
     new Setting(contentEl)
@@ -39,6 +51,8 @@ export class SessionEditorModal extends Modal {
       .setDesc("The raw session payload will be stored in Obsidian Secret Storage.")
       .addTextArea((component) => {
         component.inputEl.rows = 16;
+        component.inputEl.wrap = "off";
+        component.inputEl.spellcheck = false;
         component.inputEl.addClass("chats2md-settings__textarea");
         component.setPlaceholder("{\n  \"accessToken\": \"...\",\n  \"user\": {\n    \"id\": \"...\",\n    \"email\": \"...\"\n  },\n  \"account\": {\n    \"id\": \"...\"\n  },\n  \"cookie\": \"...\"\n}");
         component.setValue(rawValue);
@@ -85,6 +99,9 @@ export class SessionEditorModal extends Modal {
             try {
               await this.options.onSave(trimmed, parsed);
               this.close();
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error);
+              new Notice(message);
             } finally {
               button.setDisabled(false);
             }

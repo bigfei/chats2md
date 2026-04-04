@@ -29,7 +29,9 @@ Configure account session JSON payloads and default folder in plugin settings.
 Session JSON payloads are stored in Obsidian Secret Storage, and each account entry shows its `user.id`,
 `user.email`, and `account.id`. Start sync from the ribbon/command, choose all
 accounts or one account, and the plugin will fetch full conversation logs and
-upsert notes under date buckets: `<default-folder>/<YYYY-MM-DD>/`.
+upsert notes under a configurable path template (default `{date}/{slug}` with
+presets like `{email}/{user_id}/{date}/{slug}`). Each full sync run also writes
+a markdown report to `<default-folder>/result/`.
 
 ## Sample vault
 

@@ -23,6 +23,9 @@ import type {
   ChatGptRequestConfig,
   ConversationAssetLinkMap,
   ConversationDetail,
+  SyncReportConversationEntry,
+  SyncRunReport,
+  SyncRunStatus,
   ConversationSummary,
   ImportFailure,
   ImportProgressCounts,
@@ -46,6 +49,7 @@ export interface FullSyncContext {
     conversationIndex: number,
     totalConversations: number
   ): Promise<ConversationAssetLinkMap>;
+  writeSyncReport(report: SyncRunReport): Promise<string>;
   buildSyncStatusText(processed: number, total: number, phase: string): string;
   setSyncStatusBar(text: string, active?: boolean): void;
   clearSyncStatusBar(delayMs?: number): void;
@@ -59,9 +63,16 @@ export async function runFullSync(
 ): Promise<void> {
   const counts = createEmptyCounts();
   const failures: ImportFailure[] = [];
+  const createdEntries: SyncReportConversationEntry[] = [];
+  const updatedEntries: SyncReportConversationEntry[] = [];
+  const movedEntries: SyncReportConversationEntry[] = [];
+  const failedEntries: SyncReportConversationEntry[] = [];
   let processedConversations = 0;
   let totalConversations = 0;
   const forceRefresh = values.forceRefresh === true;
+  const startedAt = new Date().toISOString();
+  let runStatus: SyncRunStatus = "completed";
+  let selectedAccounts: StoredSessionAccount[] = [];
   let syncLogger: SyncRunLogger | null = null;
   const logInfo = (message: string): void => {
     if (syncLogger) {
@@ -87,6 +98,15 @@ export async function runFullSync(
 
     progressModal.log(`Error: ${message}`);
   };
+  const ensureCanContinue = async (): Promise<boolean> => {
+    const canContinue = await ensureSyncCanContinue(control, progressModal, counts);
+
+    if (!canContinue) {
+      runStatus = "stopped";
+    }
+
+    return canContinue;
+  };
 
   try {
     try {
@@ -97,18 +117,18 @@ export async function runFullSync(
       progressModal.log(`Sync log file unavailable: ${message}`);
     }
 
-    if (!(await ensureSyncCanContinue(control, progressModal, counts))) {
+    if (!(await ensureCanContinue())) {
       return;
     }
 
-    const selectedAccounts = context.getSelectedAccounts(values);
+    selectedAccounts = context.getSelectedAccounts(values);
     const noteIndex = indexConversationNotes(context.app);
     logInfo(`Starting sync for ${selectedAccounts.length} account(s).`);
     logInfo(`Force refresh is ${forceRefresh ? "enabled" : "disabled"}.`);
     context.setSyncStatusBar(context.buildSyncStatusText(processedConversations, totalConversations, "starting"), true);
 
     for (const [accountIndex, account] of selectedAccounts.entries()) {
-      if (!(await ensureSyncCanContinue(control, progressModal, counts))) {
+      if (!(await ensureCanContinue())) {
         return;
       }
 
@@ -137,6 +157,15 @@ export async function runFullSync(
           message,
           attempts: 1
         });
+        failedEntries.push({
+          accountId: account.accountId,
+          accountLabel,
+          conversationId: account.accountId,
+          title: accountLabel,
+          conversationUrl: null,
+          notePath: null,
+          message
+        });
         logError(`[${accountLabel}] Failed to load session: ${message}`);
         continue;
       }
@@ -144,7 +173,7 @@ export async function runFullSync(
       let summaries: ConversationSummary[] = [];
 
       try {
-        if (!(await ensureSyncCanContinue(control, progressModal, counts))) {
+        if (!(await ensureCanContinue())) {
           return;
         }
 
@@ -157,6 +186,15 @@ export async function runFullSync(
           title: accountLabel,
           message,
           attempts: 1
+        });
+        failedEntries.push({
+          accountId: requestConfig.accountId,
+          accountLabel,
+          conversationId: account.accountId,
+          title: `${accountLabel} conversation list`,
+          conversationUrl: null,
+          notePath: null,
+          message
         });
         logError(`[${accountLabel}] Failed to fetch conversation list: ${message}`);
         continue;
@@ -176,7 +214,7 @@ export async function runFullSync(
       let detailApiCallsSinceWait = 0;
 
       for (const [conversationIndex, summary] of summaries.entries()) {
-        if (!(await ensureSyncCanContinue(control, progressModal, counts))) {
+        if (!(await ensureCanContinue())) {
           return;
         }
 
@@ -206,12 +244,26 @@ export async function runFullSync(
                 updatedAt: summary.updatedAt
               },
               values.folder,
-              requestConfig.accountId
+              {
+                accountId: requestConfig.accountId,
+                userId: requestConfig.userId,
+                userEmail: requestConfig.userEmail
+              },
+              values.conversationPathTemplate
             );
 
             counts.skipped += 1;
             if (renameResult.moved) {
               counts.moved += 1;
+              movedEntries.push({
+                accountId: requestConfig.accountId,
+                accountLabel,
+                conversationId: summary.id,
+                title: summary.title,
+                conversationUrl: summary.url,
+                notePath: renameResult.filePath,
+                message: "Moved to match current layout template."
+              });
             }
 
             logInfo(
@@ -225,6 +277,15 @@ export async function runFullSync(
               title: `${accountLabel}: ${summary.title}`,
               message,
               attempts: 1
+            });
+            failedEntries.push({
+              accountId: requestConfig.accountId,
+              accountLabel,
+              conversationId: summary.id,
+              title: summary.title,
+              conversationUrl: summary.url,
+              notePath: null,
+              message
             });
             logError(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed while reconciling note path: "${summary.title}" - ${message}`);
           }
@@ -260,10 +321,11 @@ export async function runFullSync(
               }
             );
             if (!detail) {
+              runStatus = "stopped";
               return;
             }
 
-            if (!(await ensureSyncCanContinue(control, progressModal, counts))) {
+            if (!(await ensureCanContinue())) {
               return;
             }
 
@@ -288,15 +350,34 @@ export async function runFullSync(
                 userEmail: requestConfig.userEmail
               },
               context.manifestVersion,
+              values.conversationPathTemplate,
               summary.updatedAt,
               assetLinks,
               forceRefresh
             );
 
             counts[result.action] += 1;
+            const reportEntry: SyncReportConversationEntry = {
+              accountId: requestConfig.accountId,
+              accountLabel,
+              conversationId: detail.id,
+              title: detail.title,
+              conversationUrl: detail.url,
+              notePath: result.filePath
+            };
+
+            if (result.action === "created") {
+              createdEntries.push(reportEntry);
+            } else if (result.action === "updated") {
+              updatedEntries.push(reportEntry);
+            }
 
             if (result.moved) {
               counts.moved += 1;
+              movedEntries.push({
+                ...reportEntry,
+                message: "Moved to match current layout template."
+              });
             }
             logInfo(
               `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) ${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}: "${summary.title}".`
@@ -309,6 +390,15 @@ export async function runFullSync(
               title: `${accountLabel}: ${summary.title}`,
               message,
               attempts: DETAIL_FETCH_MAX_ATTEMPTS
+            });
+            failedEntries.push({
+              accountId: requestConfig.accountId,
+              accountLabel,
+              conversationId: summary.id,
+              title: summary.title,
+              conversationUrl: summary.url,
+              notePath: null,
+              message
             });
             logError(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed: "${summary.title}" - ${message}`);
           }
@@ -345,7 +435,7 @@ export async function runFullSync(
 
           let remainingDelayMs = ACCOUNT_SYNC_BATCH_DELAY_MS;
           while (remainingDelayMs > 0) {
-            if (!(await ensureSyncCanContinue(control, progressModal, counts))) {
+            if (!(await ensureCanContinue())) {
               return;
             }
 
@@ -370,6 +460,7 @@ export async function runFullSync(
     context.setSyncStatusBar(context.buildSyncStatusText(processedConversations, totalConversations, "complete"), false);
     context.clearSyncStatusBar(8000);
   } catch (error) {
+    runStatus = "failed";
     const message = error instanceof Error ? error.message : String(error);
     progressModal.fail(message, counts);
     logError(`Sync failed: ${message}`);
@@ -377,6 +468,32 @@ export async function runFullSync(
     context.setSyncStatusBar(`ChatGPT sync failed: ${message}`, false);
     context.clearSyncStatusBar(10000);
   } finally {
+    const finishedAt = new Date().toISOString();
+    try {
+      const reportPath = await context.writeSyncReport({
+        startedAt,
+        finishedAt,
+        status: runStatus,
+        folder: values.folder,
+        conversationPathTemplate: values.conversationPathTemplate,
+        scope: values.scope,
+        accounts: selectedAccounts.map((account) => ({
+          accountId: account.accountId,
+          label: context.getAccountLabel(account)
+        })),
+        total: totalConversations,
+        counts: { ...counts },
+        created: createdEntries,
+        updated: updatedEntries,
+        moved: movedEntries,
+        failed: failedEntries
+      });
+      logInfo(`Sync report saved: ${reportPath}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logWarn(`Sync report generation failed: ${message}`);
+    }
+
     if (syncLogger) {
       await syncLogger.flush();
     }

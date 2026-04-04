@@ -35,6 +35,7 @@ import {
   SyncRunLogger
 } from "./main-helpers";
 import { runFullSync } from "./full-sync";
+import { renderSyncRunReport } from "./sync-report";
 import {
   DEFAULT_SETTINGS,
   type ChatGptRequestConfig,
@@ -42,6 +43,7 @@ import {
   type ConversationAssetLinkMap,
   type ConversationDetail,
   type ConversationFileReference,
+  type SyncRunReport,
   type StoredSessionAccount,
   type SyncModalValues
 } from "./types";
@@ -124,6 +126,8 @@ export default class Chats2MdPlugin extends Plugin {
     this.settings = {
       ...DEFAULT_SETTINGS,
       defaultFolder: readString(saved?.defaultFolder, DEFAULT_SETTINGS.defaultFolder),
+      conversationPathTemplate: readString(saved?.conversationPathTemplate, DEFAULT_SETTINGS.conversationPathTemplate).trim()
+        || DEFAULT_SETTINGS.conversationPathTemplate,
       accounts: sortAccounts(savedAccounts),
       legacySessionJson
     };
@@ -295,6 +299,29 @@ export default class Chats2MdPlugin extends Plugin {
     await this.app.vault.adapter.write(filePath, header);
 
     return new SyncRunLogger(this.app, filePath, (message) => progressModal.log(message));
+  }
+
+  private async writeSyncReport(report: SyncRunReport): Promise<string> {
+    const normalizedFolder = normalizeTargetFolder(report.folder);
+
+    if (!normalizedFolder) {
+      throw new Error("Cannot write sync report because sync folder is empty.");
+    }
+
+    const reportFolder = normalizePath(`${normalizedFolder}/result`);
+    await this.ensureFolderExists(reportFolder);
+    const timestamp = report.finishedAt.replace(/[:.]/g, "-");
+    const basePath = normalizePath(`${reportFolder}/sync-${timestamp}.md`);
+    let reportPath = basePath;
+    let suffix = 2;
+
+    while (this.app.vault.getAbstractFileByPath(reportPath)) {
+      reportPath = normalizePath(`${reportFolder}/sync-${timestamp}-${suffix}.md`);
+      suffix += 1;
+    }
+
+    await this.app.vault.create(reportPath, renderSyncRunReport(report));
+    return reportPath;
   }
 
   private readFolderFileNames(folderPath: string): Set<string> {
@@ -651,6 +678,7 @@ export default class Chats2MdPlugin extends Plugin {
           userEmail: requestConfig.userEmail
         },
         this.manifest.version,
+        this.settings.conversationPathTemplate,
         frontmatter.listUpdatedAt || detail.updatedAt,
         assetLinks,
         true
@@ -763,6 +791,7 @@ export default class Chats2MdPlugin extends Plugin {
     let modal: SyncChatGptModal;
     modal = new SyncChatGptModal(this.app, {
       folder: this.settings.defaultFolder,
+      conversationPathTemplate: this.settings.conversationPathTemplate,
       accounts,
       onSubmit: async (values, progress, control) => this.handleSync(values, progress, control, modal),
       onSyncDialogHidden: (reason) => {
@@ -817,6 +846,7 @@ export default class Chats2MdPlugin extends Plugin {
           conversationIndex,
           totalConversations
         ),
+        writeSyncReport: (report) => this.writeSyncReport(report),
         buildSyncStatusText: (processed, total, phase) => this.buildSyncStatusText(processed, total, phase),
         setSyncStatusBar: (text, active) => this.setSyncStatusBar(text, active),
         clearSyncStatusBar: (delayMs) => this.clearSyncStatusBar(delayMs)

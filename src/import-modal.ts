@@ -18,6 +18,7 @@ export interface SyncExecutionControl {
 
 interface SyncModalOptions {
   folder: string;
+  conversationPathTemplate: string;
   accounts: StoredSessionAccount[];
   onSubmit: (values: SyncModalValues, progress: SyncProgressReporter, control: SyncExecutionControl) => Promise<void>;
   onSyncDialogHidden?: (reason: "minimize" | "close") => void;
@@ -198,6 +199,9 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
       text: `Folder: ${this.options.folder}`
     });
     summaryList.createEl("li", {
+      text: `Layout template: ${this.options.conversationPathTemplate}`
+    });
+    summaryList.createEl("li", {
       text: `Configured accounts: ${this.options.accounts.length}`
     });
 
@@ -260,6 +264,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
 
             const values: SyncModalValues = {
               folder: this.options.folder,
+              conversationPathTemplate: this.options.conversationPathTemplate,
               scope: this.syncScope,
               accountId: this.syncScope === "single" ? this.selectedAccountId : undefined,
               forceRefresh: this.forceRefresh

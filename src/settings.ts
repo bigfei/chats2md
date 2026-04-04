@@ -1,6 +1,7 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 
-import { parseSessionJson } from "./chatgpt-api";
+import { parseSessionJson, validateConversationListAccess } from "./chatgpt-api";
+import { CONVERSATION_PATH_TEMPLATE_PRESETS } from "./path-template";
 import { FolderSuggest } from "./folder-suggest";
 import type Chats2MdPlugin from "./main";
 import { SessionEditorModal } from "./session-editor-modal";
@@ -28,6 +29,45 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         component.onChange(async (value) => {
           this.plugin.settings.defaultFolder = value.trim();
           await this.plugin.saveSettings();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName("Conversation path template")
+      .setDesc("Relative note path template (without .md). Placeholders: {date}, {slug}, {email}, {user_id}, {conversation_id}.")
+      .addText((component) => {
+        component.setPlaceholder("{date}/{slug}");
+        component.setValue(this.plugin.settings.conversationPathTemplate);
+        component.onChange(async (value) => {
+          this.plugin.settings.conversationPathTemplate = value.trim() || "{date}/{slug}";
+          await this.plugin.saveSettings();
+        });
+      });
+
+    let selectedPreset = "";
+    new Setting(containerEl)
+      .setName("Path template presets")
+      .setDesc("Apply one of the common folder layouts.")
+      .addDropdown((dropdown) => {
+        dropdown.addOption("", "Select preset...");
+        for (const preset of CONVERSATION_PATH_TEMPLATE_PRESETS) {
+          dropdown.addOption(preset, preset);
+        }
+        dropdown.setValue(selectedPreset).onChange((value) => {
+          selectedPreset = value;
+        });
+      })
+      .addButton((button) => {
+        button.setButtonText("Apply").onClick(async () => {
+          if (!selectedPreset) {
+            new Notice("Select a template preset first.");
+            return;
+          }
+
+          this.plugin.settings.conversationPathTemplate = selectedPreset;
+          await this.plugin.saveSettings();
+          new Notice(`Applied conversation template: ${selectedPreset}`);
+          this.display();
         });
       });
 
@@ -89,10 +129,16 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Validate sessions")
-      .setDesc("Checks whether all stored account sessions can still be parsed into request credentials.")
+      .setDesc("Checks whether stored sessions can be parsed and call the conversation list API.")
       .addButton((button) => {
-        button.setButtonText("Validate").onClick(() => {
-          this.validateSessions();
+        button.setButtonText("Validate").onClick(async () => {
+          button.setDisabled(true);
+
+          try {
+            await this.validateSessions();
+          } finally {
+            button.setDisabled(false);
+          }
         });
       });
   }
@@ -114,6 +160,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       pluginVersion: this.plugin.manifest.version,
       initialValue,
       onSave: async (raw, parsed) => {
+        await validateConversationListAccess(parsed);
         const saved = await this.plugin.upsertSessionAccount(raw, parsed);
         const label = saved.email.trim().length > 0 ? saved.email : saved.accountId;
         new Notice(`Saved session for ${label}.`);
@@ -122,7 +169,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
     }).open();
   }
 
-  private validateSessions(): void {
+  private async validateSessions(): Promise<void> {
     const accounts = this.plugin.getAccounts();
 
     if (accounts.length === 0) {
@@ -149,6 +196,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           continue;
         }
 
+        await validateConversationListAccess(parsed);
         validCount += 1;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

@@ -10,12 +10,14 @@ export interface StoredSessionAccount {
 
 export interface Chats2MdSettings {
   defaultFolder: string;
+  conversationPathTemplate: string;
   accounts: StoredSessionAccount[];
   legacySessionJson: string;
 }
 
 export const DEFAULT_SETTINGS: Chats2MdSettings = {
   defaultFolder: "Imports/ChatGPT",
+  conversationPathTemplate: "{date}/{slug}",
   accounts: [],
   legacySessionJson: ""
 };
@@ -73,6 +75,7 @@ export interface ConversationDetail {
 
 export interface SyncModalValues {
   folder: string;
+  conversationPathTemplate: string;
   scope: "all" | "single";
   accountId?: string;
   forceRefresh: boolean;
@@ -104,4 +107,32 @@ export interface ImportFailure {
   title: string;
   message: string;
   attempts: number;
+}
+
+export type SyncRunStatus = "completed" | "failed" | "stopped";
+
+export interface SyncReportConversationEntry {
+  accountId: string;
+  accountLabel: string;
+  conversationId: string;
+  title: string;
+  conversationUrl: string | null;
+  notePath: string | null;
+  message?: string;
+}
+
+export interface SyncRunReport {
+  startedAt: string;
+  finishedAt: string;
+  status: SyncRunStatus;
+  folder: string;
+  conversationPathTemplate: string;
+  scope: "all" | "single";
+  accounts: Array<{ accountId: string; label: string }>;
+  total: number;
+  counts: ImportProgressCounts;
+  created: SyncReportConversationEntry[];
+  updated: SyncReportConversationEntry[];
+  moved: SyncReportConversationEntry[];
+  failed: SyncReportConversationEntry[];
 }

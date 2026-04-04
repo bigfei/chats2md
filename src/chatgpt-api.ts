@@ -837,6 +837,14 @@ export async function fetchConversationSummaries(
   return summaries;
 }
 
+export async function validateConversationListAccess(config: ChatGptRequestConfig): Promise<void> {
+  const payload = await requestJson(buildListUrl(1, 0), config, {
+    "X-OpenAI-Target-Path": "/backend-api/conversations",
+    "X-OpenAI-Target-Route": "/backend-api/conversations"
+  });
+  extractConversationItems(payload);
+}
+
 export async function fetchConversationDetail(
   config: ChatGptRequestConfig,
   conversationId: string,

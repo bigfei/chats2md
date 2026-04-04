@@ -1,5 +1,5 @@
 import { App, normalizePath, TFile, TFolder } from "obsidian";
-import { getDateBucketFromTimestamp, slugifyConversationTitle } from "./conversation-utils";
+import { resolveConversationNoteRelativePath } from "./path-template";
 
 import type {
   ConversationAssetLinkMap,
@@ -216,6 +216,22 @@ function normalizeTargetFolder(folder: string): string {
   return normalizePath(folder.trim().replace(/^\/+|\/+$/g, ""));
 }
 
+function buildConversationDesiredPath(
+  folder: string,
+  conversationPathTemplate: string,
+  conversation: { id: string; title: string; updatedAt: string },
+  account: { userId: string; userEmail: string }
+): string {
+  const relativePath = resolveConversationNoteRelativePath(conversationPathTemplate, {
+    title: conversation.title,
+    updatedAt: conversation.updatedAt,
+    conversationId: conversation.id,
+    email: account.userEmail,
+    userId: account.userId
+  });
+  return normalizePath(`${folder}/${relativePath}`);
+}
+
 async function findAvailablePath(app: App, desiredPath: string, currentPath?: string): Promise<string> {
   if (currentPath === desiredPath) {
     return desiredPath;
@@ -299,9 +315,10 @@ export async function ensureConversationNotePath(
   noteIndex: Map<string, TFile>,
   conversation: { id: string; title: string; updatedAt: string },
   folder: string,
-  accountId: string
+  account: { accountId: string; userId: string; userEmail: string },
+  conversationPathTemplate: string
 ): Promise<{ moved: boolean; filePath: string | null }> {
-  const noteKey = buildConversationKey(accountId, conversation.id);
+  const noteKey = buildConversationKey(account.accountId, conversation.id);
   const legacyKey = buildConversationKey("", conversation.id);
   const existing = noteIndex.get(noteKey) ?? noteIndex.get(legacyKey);
 
@@ -324,12 +341,15 @@ export async function ensureConversationNotePath(
 
   await ensureFolderExists(app, normalizedFolder);
 
-  const dateFolder = getDateBucketFromTimestamp(conversation.updatedAt);
-  const targetFolder = normalizePath(`${normalizedFolder}/${dateFolder}`);
+  const desiredByTemplate = buildConversationDesiredPath(
+    normalizedFolder,
+    conversationPathTemplate,
+    conversation,
+    account
+  );
+  const targetFolder = getFolderPathFromFilePath(desiredByTemplate);
   await ensureFolderExists(app, targetFolder);
-
-  const fileName = `${slugifyConversationTitle(conversation.title)}.md`;
-  const desiredPath = await findAvailablePath(app, joinPath(targetFolder, fileName), existing.path);
+  const desiredPath = await findAvailablePath(app, desiredByTemplate, existing.path);
 
   if (desiredPath === existing.path) {
     return {
@@ -353,6 +373,7 @@ export async function upsertConversationNote(
   folder: string,
   account: { accountId: string; userId: string; userEmail: string },
   pluginVersion: string,
+  conversationPathTemplate: string,
   listUpdatedAt?: string,
   assetLinks: ConversationAssetLinkMap = {},
   forceRewrite = false
@@ -364,18 +385,19 @@ export async function upsertConversationNote(
     throw new Error("A vault folder is required.");
   }
 
-  await ensureFolderExists(app, normalizedFolder);
-
-  const dateFolder = getDateBucketFromTimestamp(conversation.updatedAt);
-  const targetFolder = normalizePath(`${normalizedFolder}/${dateFolder}`);
+  const desiredByTemplate = buildConversationDesiredPath(
+    normalizedFolder,
+    conversationPathTemplate,
+    conversation,
+    account
+  );
+  const targetFolder = getFolderPathFromFilePath(desiredByTemplate);
   await ensureFolderExists(app, targetFolder);
-
-  const fileName = `${slugifyConversationTitle(conversation.title)}.md`;
   const noteKey = buildConversationKey(account.accountId, conversation.id);
   const existing = noteIndex.get(noteKey);
 
   if (!existing) {
-    const desiredPath = await findAvailablePath(app, joinPath(targetFolder, fileName));
+    const desiredPath = await findAvailablePath(app, desiredByTemplate);
     const importedAt = new Date().toISOString();
     const createdFile = await app.vault.create(
       desiredPath,
@@ -390,7 +412,7 @@ export async function upsertConversationNote(
     };
   }
 
-  const desiredPath = await findAvailablePath(app, joinPath(targetFolder, fileName), existing.path);
+  const desiredPath = await findAvailablePath(app, desiredByTemplate, existing.path);
   let moved = false;
 
   if (desiredPath !== existing.path) {

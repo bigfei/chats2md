@@ -4,6 +4,18 @@
   resize: vertical;
 }
 
+.chats2md-session-modal .modal-content {
+  min-width: min(980px, 96vw);
+}
+
+.chats2md-session-modal textarea {
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+  overflow-x: auto;
+  resize: both;
+}
+
 .chats2md-modal .setting-item-info {
   flex: 1 1 auto;
 }
