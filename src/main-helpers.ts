@@ -22,6 +22,7 @@ export const CONVERSATION_ACCOUNT_ID_KEY = "chatgpt_account_id";
 export const CONVERSATION_USER_ID_KEY = "chatgpt_user_id";
 export const CONVERSATION_ASSET_STORAGE_MODE_KEY = "chats2md_asset_storage";
 export const FORCE_SYNC_ACTION_LABEL = "Force sync from ChatGPT";
+export const DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE = "<syncFolder>/sync-result";
 const MIME_TO_EXTENSION: Record<string, string> = {
   "application/json": ".json",
   "application/pdf": ".pdf",
@@ -180,6 +181,26 @@ function normalizeVaultPath(path: string): string {
 
 export function normalizeTargetFolder(folder: string): string {
   return normalizeVaultPath(folder.trim().replace(/^\/+|\/+$/g, ""));
+}
+
+export function resolveSyncReportFolder(syncFolder: string, configuredFolder: string): string {
+  const normalizedSyncFolder = normalizeTargetFolder(syncFolder);
+
+  if (!normalizedSyncFolder) {
+    throw new Error("Cannot resolve sync report folder because sync folder is empty.");
+  }
+
+  const configuredTemplate = configuredFolder.trim() || DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE;
+  const resolvedTemplate = configuredTemplate.includes("<syncFolder>")
+    ? configuredTemplate.split("<syncFolder>").join(normalizedSyncFolder)
+    : configuredTemplate;
+  const resolvedFolder = normalizeTargetFolder(resolvedTemplate);
+
+  if (resolvedFolder) {
+    return resolvedFolder;
+  }
+
+  return normalizeTargetFolder(`${normalizedSyncFolder}/sync-result`);
 }
 
 export function sanitizePathPart(value: string): string {

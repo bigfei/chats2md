@@ -32,7 +32,7 @@ import {
   type ConversationFrontmatterInfo,
   type LegacySettingsPayload,
   normalizeStoredAccount,
-  normalizeTargetFolder,
+  resolveSyncReportFolder,
   readString,
   sanitizePathPart,
   sortAccounts,
@@ -268,6 +268,9 @@ export default class Chats2MdPlugin extends Plugin {
       conversationPathTemplate: readString(saved?.conversationPathTemplate, DEFAULT_SETTINGS.conversationPathTemplate).trim()
         || DEFAULT_SETTINGS.conversationPathTemplate,
       assetStorageMode: normalizeAssetStorageMode(saved?.assetStorageMode),
+      generateSyncReport: saved?.generateSyncReport !== false,
+      syncReportFolder: readString(saved?.syncReportFolder, DEFAULT_SETTINGS.syncReportFolder).trim()
+        || DEFAULT_SETTINGS.syncReportFolder,
       debugLogging: saved?.debugLogging === true,
       saveConversationJson: saved?.saveConversationJson === true,
       accounts: sortAccounts(savedAccounts),
@@ -482,14 +485,12 @@ export default class Chats2MdPlugin extends Plugin {
     return new SyncRunLogger(this.app, filePath, (message) => progressSink.log(message));
   }
 
-  private async writeSyncReport(report: SyncRunReport): Promise<string> {
-    const normalizedFolder = normalizeTargetFolder(report.folder);
-
-    if (!normalizedFolder) {
-      throw new Error("Cannot write sync report because sync folder is empty.");
+  private async writeSyncReport(report: SyncRunReport): Promise<string | null> {
+    if (!this.settings.generateSyncReport) {
+      return null;
     }
 
-    const reportFolder = normalizePath(`${normalizedFolder}/result`);
+    const reportFolder = resolveSyncReportFolder(report.folder, this.settings.syncReportFolder);
     await this.ensureFolderExists(reportFolder);
     const timestamp = report.finishedAt.replace(/[:.]/g, "-");
     const basePath = normalizePath(`${reportFolder}/sync-${timestamp}.md`);
@@ -862,7 +863,11 @@ export default class Chats2MdPlugin extends Plugin {
           moved: movedEntries,
           failed: failedEntries
         });
-        syncLogger?.info(`Rebuild report saved: ${reportPath}`);
+        if (reportPath) {
+          syncLogger?.info(`Rebuild report saved: ${reportPath}`);
+        } else {
+          syncLogger?.info("Rebuild report generation skipped (disabled in settings).");
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         syncLogger?.warn(`Rebuild report generation failed: ${message}`);

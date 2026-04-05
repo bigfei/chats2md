@@ -14,6 +14,8 @@ export interface Chats2MdSettings {
   defaultFolder: string;
   conversationPathTemplate: string;
   assetStorageMode: AssetStorageMode;
+  generateSyncReport: boolean;
+  syncReportFolder: string;
   debugLogging: boolean;
   saveConversationJson: boolean;
   accounts: StoredSessionAccount[];
@@ -24,6 +26,8 @@ export const DEFAULT_SETTINGS: Chats2MdSettings = {
   defaultFolder: "Imports/ChatGPT",
   conversationPathTemplate: "{date}/{slug}",
   assetStorageMode: "global_by_conversation",
+  generateSyncReport: true,
+  syncReportFolder: "<syncFolder>/sync-result",
   debugLogging: false,
   saveConversationJson: false,
   accounts: [],

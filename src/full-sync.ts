@@ -61,7 +61,7 @@ export interface FullSyncContext {
     conversationIndex: number,
     totalConversations: number
   ): Promise<ConversationAssetLinkMap>;
-  writeSyncReport(report: SyncRunReport): Promise<string>;
+  writeSyncReport(report: SyncRunReport): Promise<string | null>;
   buildSyncStatusText(processed: number, total: number, phase: string): string;
   setSyncStatusBar(text: string, active?: boolean): void;
   clearSyncStatusBar(delayMs?: number): void;
@@ -649,7 +649,11 @@ export async function runFullSync(
         moved: movedEntries,
         failed: failedEntries
       });
-      logInfo(`Sync report saved: ${reportPath}`);
+      if (reportPath) {
+        logInfo(`Sync report saved: ${reportPath}`);
+      } else {
+        logInfo("Sync report generation skipped (disabled in settings).");
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logWarn(`Sync report generation failed: ${message}`);

@@ -1,7 +1,7 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 
 import { parseSessionJson, validateConversationListAccess } from "./chatgpt-api";
-import { formatAssetStorageMode } from "./main-helpers";
+import { DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE, formatAssetStorageMode } from "./main-helpers";
 import { CONVERSATION_PATH_TEMPLATE_PRESETS } from "./path-template";
 import { FolderSuggest } from "./folder-suggest";
 import type Chats2MdPlugin from "./main";
@@ -99,6 +99,35 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         });
       });
+
+    new Setting(containerEl)
+      .setName("Sync report")
+      .setHeading();
+
+    new Setting(containerEl)
+      .setName("Generate sync report")
+      .setDesc("Write a markdown report after each full sync run and cached-JSON rebuild.")
+      .addToggle((toggle) => {
+        toggle.setValue(this.plugin.settings.generateSyncReport).onChange(async (value) => {
+          this.plugin.settings.generateSyncReport = value;
+          await this.plugin.saveSettings();
+          this.display();
+        });
+      });
+
+    if (this.plugin.settings.generateSyncReport) {
+      new Setting(containerEl)
+        .setName("Sync report folder")
+        .setDesc("Vault folder for reports. Supports <syncFolder> placeholder. Default: <syncFolder>/sync-result.")
+        .addText((component) => {
+          component.setPlaceholder(DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE);
+          component.setValue(this.plugin.settings.syncReportFolder);
+          component.onChange(async (value) => {
+            this.plugin.settings.syncReportFolder = value.trim() || DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE;
+            await this.plugin.saveSettings();
+          });
+        });
+    }
 
     new Setting(containerEl)
       .setName("Cached detail JSON")

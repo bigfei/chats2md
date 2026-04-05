@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE,
   appendExtensionIfMissing,
   createEmptyCounts,
   formatAssetStorageMode,
@@ -12,6 +13,7 @@ import {
   normalizeTargetFolder,
   normalizeTimestampToMs,
   readString,
+  resolveSyncReportFolder,
   sanitizePathPart,
   sortAccounts,
   summarizeCounts
@@ -79,6 +81,28 @@ test("readString returns string values or fallback", () => {
 test("normalizeTargetFolder trims outer slashes and whitespace", () => {
   assert.equal(normalizeTargetFolder(" /Imports/ChatGPT/ "), "Imports/ChatGPT");
   assert.equal(normalizeTargetFolder("Imports/ChatGPT"), "Imports/ChatGPT");
+});
+
+test("resolveSyncReportFolder defaults to <syncFolder>/sync-result", () => {
+  assert.equal(
+    resolveSyncReportFolder("Imports/ChatGPT", ""),
+    "Imports/ChatGPT/sync-result"
+  );
+  assert.equal(DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE, "<syncFolder>/sync-result");
+});
+
+test("resolveSyncReportFolder supports <syncFolder> placeholder in custom folder", () => {
+  assert.equal(
+    resolveSyncReportFolder("Imports/ChatGPT", "<syncFolder>/reports"),
+    "Imports/ChatGPT/reports"
+  );
+});
+
+test("resolveSyncReportFolder uses a static folder when no placeholder is configured", () => {
+  assert.equal(
+    resolveSyncReportFolder("Imports/ChatGPT", "Shared/SyncReports"),
+    "Shared/SyncReports"
+  );
 });
 
 test("sanitizePathPart strips invalid path characters and preserves length limit", () => {
