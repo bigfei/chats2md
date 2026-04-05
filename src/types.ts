@@ -14,6 +14,7 @@ export interface Chats2MdSettings {
   defaultFolder: string;
   conversationPathTemplate: string;
   assetStorageMode: AssetStorageMode;
+  saveConversationJson: boolean;
   accounts: StoredSessionAccount[];
   legacySessionJson: string;
 }
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: Chats2MdSettings = {
   defaultFolder: "Imports/ChatGPT",
   conversationPathTemplate: "{date}/{slug}",
   assetStorageMode: "global_by_conversation",
+  saveConversationJson: false,
   accounts: [],
   legacySessionJson: ""
 };
@@ -92,6 +94,7 @@ export interface ConversationUpsertResult {
   action: UpsertAction;
   filePath: string;
   moved: boolean;
+  previousFilePath?: string;
 }
 
 export interface ImportProgressCounts {

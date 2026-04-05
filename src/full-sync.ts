@@ -1,6 +1,6 @@
 import { App, Notice } from "obsidian";
 
-import { fetchConversationDetail, fetchConversationSummaries } from "./chatgpt-api";
+import { fetchConversationDetailWithPayload, fetchConversationSummaries } from "./chatgpt-api";
 import type { SyncExecutionControl, SyncProgressReporter } from "./import-modal";
 import {
   ACCOUNT_SYNC_BATCH_DELAY_MS,
@@ -41,6 +41,9 @@ export interface FullSyncContext {
   getSelectedAccounts(values: SyncModalValues): StoredSessionAccount[];
   getRequestConfig(account: StoredSessionAccount): ChatGptRequestConfig;
   getAccountLabel(account: StoredSessionAccount): string;
+  shouldSaveConversationJson(): boolean;
+  saveConversationJsonSidecar(notePath: string, payload: unknown): Promise<string>;
+  moveConversationJsonSidecar(sourceNotePath: string, targetNotePath: string): Promise<boolean>;
   syncConversationAssets(
     requestConfig: ChatGptRequestConfig,
     conversation: ConversationDetail,
@@ -259,6 +262,24 @@ export async function runFullSync(
 
             counts.skipped += 1;
             if (renameResult.moved) {
+              let moveMessage = "Moved to match current layout template.";
+              const fromPath = renameResult.previousFilePath;
+              const toPath = renameResult.filePath;
+              if (fromPath && toPath) {
+                try {
+                  const movedSidecar = await context.moveConversationJsonSidecar(fromPath, toPath);
+                  if (movedSidecar) {
+                    moveMessage = `${moveMessage} JSON sidecar moved with note.`;
+                  }
+                } catch (error) {
+                  const warning = error instanceof Error ? error.message : String(error);
+                  moveMessage = `${moveMessage} JSON sidecar move failed: ${warning}`;
+                  logWarn(
+                    `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar move warning for "${summary.title}": ${warning}`
+                  );
+                }
+              }
+
               counts.moved += 1;
               movedEntries.push({
                 accountId: requestConfig.accountId,
@@ -267,7 +288,7 @@ export async function runFullSync(
                 title: summary.title,
                 conversationUrl: summary.url,
                 notePath: renameResult.filePath,
-                message: "Moved to match current layout template."
+                message: moveMessage
               });
             }
 
@@ -315,7 +336,7 @@ export async function runFullSync(
           );
 
           try {
-            const detail = await fetchConversationDetailWithRetries(
+            const detailResult = await fetchConversationDetailWithRetries(
               requestConfig,
               summary,
               conversationIndex + 1,
@@ -328,10 +349,11 @@ export async function runFullSync(
                 detailApiCallsSinceWait += 1;
               }
             );
-            if (!detail) {
+            if (!detailResult) {
               runStatus = "stopped";
               return;
             }
+            const detail = detailResult.detail;
 
             if (!(await ensureCanContinue())) {
               return;
@@ -376,6 +398,38 @@ export async function runFullSync(
               conversationUrl: detail.url,
               notePath: result.filePath
             };
+            const reportWarnings: string[] = [];
+
+            if (result.moved && result.previousFilePath) {
+              try {
+                const movedSidecar = await context.moveConversationJsonSidecar(result.previousFilePath, result.filePath);
+                if (movedSidecar) {
+                  reportWarnings.push("JSON sidecar moved with note.");
+                }
+              } catch (error) {
+                const warning = error instanceof Error ? error.message : String(error);
+                reportWarnings.push(`JSON sidecar move failed: ${warning}`);
+                logWarn(
+                  `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar move warning for "${summary.title}": ${warning}`
+                );
+              }
+            }
+
+            if (context.shouldSaveConversationJson()) {
+              try {
+                await context.saveConversationJsonSidecar(result.filePath, detailResult.rawPayload);
+              } catch (error) {
+                const warning = error instanceof Error ? error.message : String(error);
+                reportWarnings.push(`JSON sidecar save failed: ${warning}`);
+                logWarn(
+                  `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar save warning for "${summary.title}": ${warning}`
+                );
+              }
+            }
+
+            if (reportWarnings.length > 0) {
+              reportEntry.message = reportWarnings.join(" ");
+            }
 
             if (result.action === "created") {
               createdEntries.push(reportEntry);
@@ -385,9 +439,12 @@ export async function runFullSync(
 
             if (result.moved) {
               counts.moved += 1;
+              const moveMessage = reportEntry.message
+                ? `Moved to match current layout template. ${reportEntry.message}`
+                : "Moved to match current layout template.";
               movedEntries.push({
                 ...reportEntry,
-                message: "Moved to match current layout template."
+                message: moveMessage
               });
             }
             logInfo(
@@ -522,7 +579,7 @@ async function fetchConversationDetailWithRetries(
   control: SyncExecutionControl,
   logger: SyncRunLogger | null,
   onRequest?: () => void
-): Promise<ConversationDetail | null> {
+): Promise<{ detail: ConversationDetail; rawPayload: unknown } | null> {
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= DETAIL_FETCH_MAX_ATTEMPTS; attempt += 1) {
@@ -534,7 +591,7 @@ async function fetchConversationDetailWithRetries(
       }
 
       onRequest?.();
-      return await fetchConversationDetail(requestConfig, summary.id, summary);
+      return await fetchConversationDetailWithPayload(requestConfig, summary.id, summary);
     } catch (error) {
       lastError = error;
 

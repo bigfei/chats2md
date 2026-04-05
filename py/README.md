@@ -40,6 +40,26 @@ uv --directory py run list-conversations ../session.json --count-total
 This mode increments `offset` by 50 for each page and stops when the unique
 conversation total no longer increases over the next 50-item interval.
 
+## Save conversation detail JSON files
+
+To fetch `/backend-api/conversation/{id}` for each conversation returned by the
+current `--limit/--offset` page and save raw JSON files:
+
+```bash
+uv run list-conversations session.json --save-detail-json-dir ./conversation-json
+```
+
+Or from the repo root:
+
+```bash
+uv --directory py run list-conversations ../session.json --save-detail-json-dir ./conversation-json
+```
+
+Each detail payload is written as `<conversation-id>.json` in the specified
+directory.
+
+`--save-detail-json-dir` cannot be combined with `--count-total`.
+
 ## Verify cookie necessity
 
 Probe the conversations list endpoint with and without the `Cookie` header:

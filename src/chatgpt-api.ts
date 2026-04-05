@@ -62,6 +62,11 @@ interface MappingExtractionResult {
   fileReferences: ConversationFileReference[];
 }
 
+export interface ConversationDetailFetchResult {
+  detail: ConversationDetail;
+  rawPayload: unknown;
+}
+
 function readString(value: unknown, fallback = ""): string {
   return typeof value === "string" && value.trim().length > 0 ? value : fallback;
 }
@@ -738,6 +743,14 @@ function normalizeConversationDetail(
   };
 }
 
+export function parseConversationDetailPayload(
+  payload: unknown,
+  conversationId: string,
+  fallback?: Pick<ConversationSummary, "title" | "createdAt" | "updatedAt">
+): ConversationDetail {
+  return normalizeConversationDetail(payload, conversationId, fallback);
+}
+
 export function parseSessionJson(raw: string, pluginVersion = "0.1.0"): ChatGptRequestConfig {
   let payload: SessionPayload;
 
@@ -850,6 +863,15 @@ export async function fetchConversationDetail(
   conversationId: string,
   fallback?: Pick<ConversationSummary, "title" | "createdAt" | "updatedAt">
 ): Promise<ConversationDetail> {
+  const result = await fetchConversationDetailWithPayload(config, conversationId, fallback);
+  return result.detail;
+}
+
+export async function fetchConversationDetailWithPayload(
+  config: ChatGptRequestConfig,
+  conversationId: string,
+  fallback?: Pick<ConversationSummary, "title" | "createdAt" | "updatedAt">
+): Promise<ConversationDetailFetchResult> {
   const targetPath = `/backend-api/conversation/${conversationId}`;
   const payload = await requestJson(buildDetailUrl(conversationId), config, {
     Referer: `${BASE_URL}/c/${conversationId}`,
@@ -857,7 +879,10 @@ export async function fetchConversationDetail(
     "X-OpenAI-Target-Route": "/backend-api/conversation/{conversation_id}"
   });
 
-  return normalizeConversationDetail(payload, conversationId, fallback);
+  return {
+    detail: normalizeConversationDetail(payload, conversationId, fallback),
+    rawPayload: payload
+  };
 }
 
 function normalizeFileDownloadInfo(payload: unknown, fileId: string): FileDownloadInfo {

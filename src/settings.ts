@@ -91,6 +91,34 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       });
 
     containerEl.createEl("h3", {
+      text: "Cached detail JSON"
+    });
+
+    new Setting(containerEl)
+      .setName("Save conversation detail JSON sidecar")
+      .setDesc("Save raw /backend-api/conversation/{id} JSON next to each note as <note>.json whenever detail is fetched.")
+      .addToggle((toggle) => {
+        toggle.setValue(this.plugin.settings.saveConversationJson).onChange(async (value) => {
+          this.plugin.settings.saveConversationJson = value;
+          await this.plugin.saveSettings();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName("Rebuild markdown from cached JSON")
+      .setDesc("Rebuild existing synced notes from local sidecar JSON without calling /conversation/{id}. Missing sidecars are skipped.")
+      .addButton((button) => {
+        button.setButtonText("Rebuild now").setCta().onClick(async () => {
+          button.setDisabled(true);
+          try {
+            await this.plugin.rebuildNotesFromCachedJson();
+          } finally {
+            button.setDisabled(false);
+          }
+        });
+      });
+
+    containerEl.createEl("h3", {
       text: "Account sessions"
     });
 

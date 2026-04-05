@@ -326,7 +326,7 @@ export async function ensureConversationNotePath(
   folder: string,
   account: { accountId: string; userId: string; userEmail: string },
   conversationPathTemplate: string
-): Promise<{ moved: boolean; filePath: string | null }> {
+): Promise<{ moved: boolean; filePath: string | null; previousFilePath?: string }> {
   const noteKey = buildConversationKey(account.accountId, conversation.id);
   const legacyKey = buildConversationKey("", conversation.id);
   const existing = noteIndex.get(noteKey) ?? noteIndex.get(legacyKey);
@@ -367,11 +367,13 @@ export async function ensureConversationNotePath(
     };
   }
 
+  const previousFilePath = existing.path;
   await app.fileManager.renameFile(existing, desiredPath);
 
   return {
     moved: true,
-    filePath: desiredPath
+    filePath: desiredPath,
+    previousFilePath
   };
 }
 
@@ -424,8 +426,10 @@ export async function upsertConversationNote(
 
   const desiredPath = await findAvailablePath(app, desiredByTemplate, existing.path);
   let moved = false;
+  let previousFilePath: string | undefined;
 
   if (desiredPath !== existing.path) {
+    previousFilePath = existing.path;
     await app.fileManager.renameFile(existing, desiredPath);
     moved = true;
   }
@@ -444,7 +448,8 @@ export async function upsertConversationNote(
     return {
       action: "skipped",
       filePath: existing.path,
-      moved
+      moved,
+      previousFilePath
     };
   }
 
@@ -457,6 +462,7 @@ export async function upsertConversationNote(
   return {
     action: "updated",
     filePath: existing.path,
-    moved
+    moved,
+    previousFilePath
   };
 }

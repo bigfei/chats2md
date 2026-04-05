@@ -34,6 +34,10 @@ def build_conversations_url(base_url: str, offset: int, limit: int) -> str:
     return f"{base_url.rstrip('/')}/backend-api/conversations?{query}"
 
 
+def build_conversation_detail_url(base_url: str, conversation_id: str) -> str:
+    return f"{base_url.rstrip('/')}/backend-api/conversation/{urllib.parse.quote(conversation_id)}"
+
+
 def fetch_conversations(base_url: str, access_token: str, account_id: str, offset: int, limit: int) -> dict:
     request = urllib.request.Request(
         build_conversations_url(base_url, offset, limit),
@@ -55,6 +59,33 @@ def fetch_conversations(base_url: str, access_token: str, account_id: str, offse
         raise SystemExit(f"Network error while fetching conversations: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise SystemExit(f"Invalid JSON returned by conversations endpoint:\n{exc}") from exc
+
+
+def fetch_conversation_detail(base_url: str, access_token: str, account_id: str, conversation_id: str) -> dict:
+    request = urllib.request.Request(
+        build_conversation_detail_url(base_url, conversation_id),
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "ChatGPT-Account-ID": account_id,
+            "Accept": "application/json",
+            "User-Agent": DEFAULT_USER_AGENT,
+        },
+    )
+
+    try:
+        with urllib.request.urlopen(request) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        raise SystemExit(
+            f"HTTP {exc.code} while fetching conversation detail {conversation_id}:\n{body}"
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise SystemExit(f"Network error while fetching conversation detail {conversation_id}: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise SystemExit(
+            f"Invalid JSON returned by conversation detail endpoint for {conversation_id}:\n{exc}"
+        ) from exc
 
 
 def get_items(payload: dict) -> list[dict]:
@@ -137,6 +168,32 @@ def print_conversations(items: list[dict]) -> None:
         print(f"     updated: {update_time}")
 
 
+def save_conversation_details(
+    base_url: str,
+    access_token: str,
+    account_id: str,
+    items: list[dict],
+    output_dir: Path,
+) -> int:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    saved = 0
+
+    for item in items:
+        conversation_id = item.get("id")
+        if not isinstance(conversation_id, str) or not conversation_id:
+            continue
+
+        payload = fetch_conversation_detail(base_url, access_token, account_id, conversation_id)
+        output_path = output_dir / f"{conversation_id}.json"
+        output_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        saved += 1
+
+    return saved
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Read a ChatGPT /api/auth/session JSON file and list conversations."
@@ -161,6 +218,14 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_BASE_URL,
         help=f"Base URL for ChatGPT (default: {DEFAULT_BASE_URL})",
     )
+    parser.add_argument(
+        "--save-detail-json-dir",
+        type=Path,
+        help=(
+            "Directory to save /backend-api/conversation/{id} JSON for each conversation "
+            "returned by the current --limit/--offset page."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -179,6 +244,8 @@ def main() -> int:
         raise SystemExit("--limit must be greater than 0.")
     if args.offset < 0:
         raise SystemExit("--offset must be 0 or greater.")
+    if args.count_total and args.save_detail_json_dir:
+        raise SystemExit("--save-detail-json-dir cannot be used with --count-total.")
 
     if args.count_total:
         total, pages_fetched = count_total_conversations(
@@ -193,5 +260,18 @@ def main() -> int:
         return 0
 
     payload = fetch_conversations(args.base_url, access_token, account_id, args.offset, args.limit)
-    print_conversations(get_items(payload))
+    items = get_items(payload)
+    print_conversations(items)
+
+    if args.save_detail_json_dir:
+        saved_count = save_conversation_details(
+            args.base_url,
+            access_token,
+            account_id,
+            items,
+            args.save_detail_json_dir,
+        )
+        print(f"Saved detail JSON files: {saved_count}")
+        print(f"Output directory: {args.save_detail_json_dir}")
+
     return 0

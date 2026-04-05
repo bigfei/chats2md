@@ -34,6 +34,10 @@ presets like `{email}/{account_id}/{date}/{slug}`). Each full sync run also writ
 a markdown report to `<default-folder>/result/`. Asset storage can be configured
 as global (`<default-folder>/_assets/<account_id>/<conversation_id>/`) or local
 to each conversation folder (`<conversation-folder>/_assets/<conversation_id>/`).
+Optionally, you can enable JSON sidecar caching in settings to store raw
+`/backend-api/conversation/{id}` payloads next to notes as `<note>.json`, and run
+a manual settings action to rebuild markdown notes from cached JSON without
+calling the conversation detail endpoint.
 
 ## Sample vault
 
