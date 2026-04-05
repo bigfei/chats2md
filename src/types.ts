@@ -8,9 +8,12 @@ export interface StoredSessionAccount {
   updatedAt: string;
 }
 
+export type AssetStorageMode = "global_by_conversation" | "with_conversation";
+
 export interface Chats2MdSettings {
   defaultFolder: string;
   conversationPathTemplate: string;
+  assetStorageMode: AssetStorageMode;
   accounts: StoredSessionAccount[];
   legacySessionJson: string;
 }
@@ -18,6 +21,7 @@ export interface Chats2MdSettings {
 export const DEFAULT_SETTINGS: Chats2MdSettings = {
   defaultFolder: "Imports/ChatGPT",
   conversationPathTemplate: "{date}/{slug}",
+  assetStorageMode: "global_by_conversation",
   accounts: [],
   legacySessionJson: ""
 };
@@ -76,6 +80,7 @@ export interface ConversationDetail {
 export interface SyncModalValues {
   folder: string;
   conversationPathTemplate: string;
+  assetStorageMode: AssetStorageMode;
   scope: "all" | "single";
   accountId?: string;
   forceRefresh: boolean;
@@ -127,6 +132,7 @@ export interface SyncRunReport {
   status: SyncRunStatus;
   folder: string;
   conversationPathTemplate: string;
+  assetStorageMode: AssetStorageMode;
   scope: "all" | "single";
   accounts: Array<{ accountId: string; label: string }>;
   total: number;

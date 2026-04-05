@@ -1,7 +1,9 @@
 import { App, normalizePath, TFile, TFolder } from "obsidian";
+import { normalizeAssetStorageMode } from "./main-helpers";
 import { resolveConversationNoteRelativePath } from "./path-template";
 
 import type {
+  AssetStorageMode,
   ConversationAssetLinkMap,
   ConversationDetail,
   ConversationFileReference,
@@ -14,6 +16,7 @@ const CONVERSATION_TITLE_KEY = "chatgpt_title";
 const CONVERSATION_UPDATED_AT_KEY = "chatgpt_updated_at";
 const CONVERSATION_LIST_UPDATED_AT_KEY = "chatgpt_list_updated_at";
 const CONVERSATION_ACCOUNT_ID_KEY = "chatgpt_account_id";
+const CONVERSATION_ASSET_STORAGE_MODE_KEY = "chats2md_asset_storage";
 
 function quoteYaml(value: string): string {
   return JSON.stringify(value);
@@ -150,7 +153,8 @@ function buildFrontmatter(
   listUpdatedAt: string,
   importedAt: string,
   account: { accountId: string; userId: string; userEmail: string },
-  pluginVersion: string
+  pluginVersion: string,
+  assetStorageMode: AssetStorageMode
 ): string {
   const rows = [
     "---",
@@ -164,6 +168,7 @@ function buildFrontmatter(
     `${CONVERSATION_ACCOUNT_ID_KEY}: ${quoteYaml(account.accountId)}`,
     `chatgpt_user_id: ${quoteYaml(account.userId)}`,
     `chatgpt_user_email: ${quoteYaml(account.userEmail)}`,
+    `${CONVERSATION_ASSET_STORAGE_MODE_KEY}: ${quoteYaml(assetStorageMode)}`,
     `chats2md_source: ${quoteYaml("backend-api/conversation")}`,
     `chats2md_plugin_version: ${quoteYaml(pluginVersion)}`,
     "---"
@@ -206,10 +211,11 @@ function buildNoteContent(
   importedAt: string,
   account: { accountId: string; userId: string; userEmail: string },
   pluginVersion: string,
+  assetStorageMode: AssetStorageMode,
   notePath: string,
   assetLinks: ConversationAssetLinkMap
 ): string {
-  return `${buildFrontmatter(conversation, listUpdatedAt, importedAt, account, pluginVersion)}\n\n${buildBody(conversation, notePath, assetLinks)}\n`;
+  return `${buildFrontmatter(conversation, listUpdatedAt, importedAt, account, pluginVersion, assetStorageMode)}\n\n${buildBody(conversation, notePath, assetLinks)}\n`;
 }
 
 function normalizeTargetFolder(folder: string): string {
@@ -270,7 +276,7 @@ export function getIndexedConversationSyncMetadata(
   noteIndex: Map<string, TFile>,
   accountId: string,
   conversationId: string
-): { updatedAt: string | null; listUpdatedAt: string | null; title: string | null } {
+): { updatedAt: string | null; listUpdatedAt: string | null; title: string | null; assetStorageMode: AssetStorageMode | null } {
   const noteKey = buildConversationKey(accountId, conversationId);
   const legacyKey = buildConversationKey("", conversationId);
   const existing = noteIndex.get(noteKey) ?? noteIndex.get(legacyKey);
@@ -279,18 +285,21 @@ export function getIndexedConversationSyncMetadata(
     return {
       updatedAt: null,
       listUpdatedAt: null,
-      title: null
+      title: null,
+      assetStorageMode: null
     };
   }
 
   const updatedAt = readFrontmatterString(app, existing, CONVERSATION_UPDATED_AT_KEY).trim();
   const listUpdatedAt = readFrontmatterString(app, existing, CONVERSATION_LIST_UPDATED_AT_KEY).trim();
   const title = readFrontmatterString(app, existing, CONVERSATION_TITLE_KEY).trim();
+  const storedAssetMode = readFrontmatterString(app, existing, CONVERSATION_ASSET_STORAGE_MODE_KEY).trim();
 
   return {
     updatedAt: updatedAt.length > 0 ? updatedAt : null,
     listUpdatedAt: listUpdatedAt.length > 0 ? listUpdatedAt : null,
-    title: title.length > 0 ? title : null
+    title: title.length > 0 ? title : null,
+    assetStorageMode: storedAssetMode.length > 0 ? normalizeAssetStorageMode(storedAssetMode) : null
   };
 }
 
@@ -374,6 +383,7 @@ export async function upsertConversationNote(
   account: { accountId: string; userId: string; userEmail: string },
   pluginVersion: string,
   conversationPathTemplate: string,
+  assetStorageMode: AssetStorageMode,
   listUpdatedAt?: string,
   assetLinks: ConversationAssetLinkMap = {},
   forceRewrite = false
@@ -401,7 +411,7 @@ export async function upsertConversationNote(
     const importedAt = new Date().toISOString();
     const createdFile = await app.vault.create(
       desiredPath,
-      buildNoteContent(conversation, normalizedListUpdatedAt, importedAt, account, pluginVersion, desiredPath, assetLinks)
+      buildNoteContent(conversation, normalizedListUpdatedAt, importedAt, account, pluginVersion, assetStorageMode, desiredPath, assetLinks)
     );
     noteIndex.set(noteKey, createdFile);
 
@@ -423,10 +433,12 @@ export async function upsertConversationNote(
   const existingUpdatedAt = readFrontmatterString(app, existing, CONVERSATION_UPDATED_AT_KEY);
   const existingTitle = readFrontmatterString(app, existing, CONVERSATION_TITLE_KEY);
   const existingListUpdatedAt = readFrontmatterString(app, existing, CONVERSATION_LIST_UPDATED_AT_KEY);
+  const existingAssetStorageMode = normalizeAssetStorageMode(readFrontmatterString(app, existing, CONVERSATION_ASSET_STORAGE_MODE_KEY));
   const shouldRewrite = forceRewrite
     || existingUpdatedAt !== conversation.updatedAt
     || existingTitle !== conversation.title
-    || existingListUpdatedAt !== normalizedListUpdatedAt;
+    || existingListUpdatedAt !== normalizedListUpdatedAt
+    || existingAssetStorageMode !== assetStorageMode;
 
   if (!shouldRewrite) {
     return {
@@ -439,7 +451,7 @@ export async function upsertConversationNote(
   const importedAt = new Date().toISOString();
   await app.vault.modify(
     existing,
-    buildNoteContent(conversation, normalizedListUpdatedAt, importedAt, account, pluginVersion, existing.path, assetLinks)
+    buildNoteContent(conversation, normalizedListUpdatedAt, importedAt, account, pluginVersion, assetStorageMode, existing.path, assetLinks)
   );
 
   return {

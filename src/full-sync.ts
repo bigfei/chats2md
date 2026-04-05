@@ -20,6 +20,7 @@ import {
   upsertConversationNote
 } from "./note-writer";
 import type {
+  AssetStorageMode,
   ChatGptRequestConfig,
   ConversationAssetLinkMap,
   ConversationDetail,
@@ -44,6 +45,8 @@ export interface FullSyncContext {
     requestConfig: ChatGptRequestConfig,
     conversation: ConversationDetail,
     baseFolder: string,
+    conversationPathTemplate: string,
+    assetStorageMode: AssetStorageMode,
     logger: SyncRunLogger | null,
     accountLabel: string,
     conversationIndex: number,
@@ -232,8 +235,10 @@ export async function runFullSync(
 
         const localListUpdatedAt = existingSyncMetadata.listUpdatedAt ?? existingSyncMetadata.updatedAt;
         const hasMatchingTitle = (existingSyncMetadata.title ?? "") === summary.title;
+        const hasMatchingAssetStorageMode = (existingSyncMetadata.assetStorageMode ?? "global_by_conversation")
+          === values.assetStorageMode;
 
-        if (!forceRefresh && hasMatchingTitle && hasMatchingUpdatedAt(localListUpdatedAt, summary.updatedAt)) {
+        if (!forceRefresh && hasMatchingTitle && hasMatchingUpdatedAt(localListUpdatedAt, summary.updatedAt) && hasMatchingAssetStorageMode) {
           try {
             const renameResult = await ensureConversationNotePath(
               context.app,
@@ -301,6 +306,9 @@ export async function runFullSync(
           if (!hasMatchingUpdatedAt(localListUpdatedAt, summary.updatedAt)) {
             mismatchReasons.push("updated_at changed");
           }
+          if (!hasMatchingAssetStorageMode) {
+            mismatchReasons.push("asset storage changed");
+          }
 
           logInfo(
             `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Calling /conversation/${summary.id} for "${summary.title}" (${mismatchReasons.join(", ")}).`
@@ -333,6 +341,8 @@ export async function runFullSync(
               requestConfig,
               detail,
               values.folder,
+              values.conversationPathTemplate,
+              values.assetStorageMode,
               syncLogger,
               accountLabel,
               conversationIndex + 1,
@@ -351,6 +361,7 @@ export async function runFullSync(
               },
               context.manifestVersion,
               values.conversationPathTemplate,
+              values.assetStorageMode,
               summary.updatedAt,
               assetLinks,
               forceRefresh
@@ -476,6 +487,7 @@ export async function runFullSync(
         status: runStatus,
         folder: values.folder,
         conversationPathTemplate: values.conversationPathTemplate,
+        assetStorageMode: values.assetStorageMode,
         scope: values.scope,
         accounts: selectedAccounts.map((account) => ({
           accountId: account.accountId,

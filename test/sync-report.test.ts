@@ -11,6 +11,7 @@ test("renderSyncRunReport includes run metadata and wikilinks", () => {
     status: "completed",
     folder: "Imports/ChatGPT",
     conversationPathTemplate: "{email}/{account_id}/{slug}",
+    assetStorageMode: "with_conversation",
     scope: "single",
     accounts: [{
       accountId: "acc-1",
@@ -56,6 +57,7 @@ test("renderSyncRunReport includes run metadata and wikilinks", () => {
 
   assert.match(markdown, /# Chats2MD Sync Report/);
   assert.match(markdown, /- Layout template: \{email\}\/\{account_id\}\/\{slug\}/);
+  assert.match(markdown, /- Asset storage: With conversation folder/);
   assert.match(markdown, /\[\[Imports\/ChatGPT\/user@example\.com\/u-1\/created-chat\|Created chat\]\] \(`conv-1`\)/);
   assert.match(markdown, /## Failed[\s\S]*_None_/);
 });

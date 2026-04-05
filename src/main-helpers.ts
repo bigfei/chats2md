@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 
 import type {
+  AssetStorageMode,
   Chats2MdSettings,
   ImportProgressCounts,
   StoredSessionAccount
@@ -19,6 +20,7 @@ export const CONVERSATION_UPDATED_AT_KEY = "chatgpt_updated_at";
 export const CONVERSATION_LIST_UPDATED_AT_KEY = "chatgpt_list_updated_at";
 export const CONVERSATION_ACCOUNT_ID_KEY = "chatgpt_account_id";
 export const CONVERSATION_USER_ID_KEY = "chatgpt_user_id";
+export const CONVERSATION_ASSET_STORAGE_MODE_KEY = "chats2md_asset_storage";
 export const FORCE_SYNC_ACTION_LABEL = "Force sync from Chatgpt";
 const MIME_TO_EXTENSION: Record<string, string> = {
   "application/json": ".json",
@@ -152,6 +154,16 @@ export function formatActionLabel(action: string): string {
   }
 
   return `${action.charAt(0).toUpperCase()}${action.slice(1)}`;
+}
+
+export function normalizeAssetStorageMode(value: unknown): AssetStorageMode {
+  return value === "with_conversation" ? "with_conversation" : "global_by_conversation";
+}
+
+export function formatAssetStorageMode(mode: AssetStorageMode): string {
+  return mode === "with_conversation"
+    ? "With conversation folder"
+    : "Global by conversation";
 }
 
 export function readString(value: unknown, fallback = ""): string {

@@ -1,6 +1,7 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 
 import { parseSessionJson, validateConversationListAccess } from "./chatgpt-api";
+import { formatAssetStorageMode } from "./main-helpers";
 import { CONVERSATION_PATH_TEMPLATE_PRESETS } from "./path-template";
 import { FolderSuggest } from "./folder-suggest";
 import type Chats2MdPlugin from "./main";
@@ -30,6 +31,23 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           this.plugin.settings.defaultFolder = value.trim();
           await this.plugin.saveSettings();
         });
+      });
+
+    new Setting(containerEl)
+      .setName("Asset storage preset")
+      .setDesc("Global: <default>/_assets/<account_id>/<conversation_id>. With conversation: <note-folder>/_assets/<conversation_id>.")
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption("global_by_conversation", "Global by conversation")
+          .addOption("with_conversation", "With conversation")
+          .setValue(this.plugin.settings.assetStorageMode)
+          .onChange(async (value) => {
+            this.plugin.settings.assetStorageMode = value === "with_conversation"
+              ? "with_conversation"
+              : "global_by_conversation";
+            await this.plugin.saveSettings();
+            new Notice(`Asset storage preset: ${formatAssetStorageMode(this.plugin.settings.assetStorageMode)}`);
+          });
       });
 
     new Setting(containerEl)

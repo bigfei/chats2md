@@ -6,6 +6,7 @@ import {
   fetchSignedFileContent,
   parseSessionJson
 } from "./chatgpt-api";
+import { resolveAssetFolderPaths } from "./asset-storage";
 import { SyncChatGptModal, type SyncExecutionControl, type SyncProgressReporter } from "./import-modal";
 import {
   indexConversationNotes,
@@ -14,7 +15,6 @@ import {
 import { Chats2MdSettingTab } from "./settings";
 import { ForceSyncUiController } from "./force-sync-ui";
 import {
-  ASSET_FOLDER_NAME,
   CONVERSATION_ACCOUNT_ID_KEY,
   CONVERSATION_CREATED_AT_KEY,
   CONVERSATION_ID_KEY,
@@ -24,7 +24,9 @@ import {
   CONVERSATION_USER_ID_KEY,
   SECRET_ID_PREFIX,
   appendExtensionIfMissing,
+  formatAssetStorageMode,
   formatActionLabel,
+  normalizeAssetStorageMode,
   type ConversationFrontmatterInfo,
   type LegacySettingsPayload,
   normalizeStoredAccount,
@@ -37,6 +39,7 @@ import {
 import { runFullSync } from "./full-sync";
 import { renderSyncRunReport } from "./sync-report";
 import {
+  type AssetStorageMode,
   DEFAULT_SETTINGS,
   type ChatGptRequestConfig,
   type Chats2MdSettings,
@@ -128,6 +131,7 @@ export default class Chats2MdPlugin extends Plugin {
       defaultFolder: readString(saved?.defaultFolder, DEFAULT_SETTINGS.defaultFolder),
       conversationPathTemplate: readString(saved?.conversationPathTemplate, DEFAULT_SETTINGS.conversationPathTemplate).trim()
         || DEFAULT_SETTINGS.conversationPathTemplate,
+      assetStorageMode: normalizeAssetStorageMode(saved?.assetStorageMode),
       accounts: sortAccounts(savedAccounts),
       legacySessionJson
     };
@@ -391,10 +395,39 @@ export default class Chats2MdPlugin extends Plugin {
     return Array.from(refsById.values());
   }
 
+  private async migrateConversationAssetFiles(
+    targetFolderPath: string,
+    sourceFolderPaths: string[],
+    usedNames: Set<string>,
+    logger: SyncRunLogger | null,
+    logPrefix: string
+  ): Promise<void> {
+    for (const sourceFolderPath of sourceFolderPaths) {
+      const sourceFolder = this.app.vault.getAbstractFileByPath(sourceFolderPath);
+      if (!(sourceFolder instanceof TFolder)) {
+        continue;
+      }
+
+      for (const child of Array.from(sourceFolder.children)) {
+        if (!(child instanceof TFile)) {
+          continue;
+        }
+
+        const oldPath = child.path;
+        const destinationFileName = this.nextAvailableFileName(child.name, usedNames);
+        const destinationPath = normalizePath(`${targetFolderPath}/${destinationFileName}`);
+        await this.app.fileManager.renameFile(child, destinationPath);
+        logger?.info(`${logPrefix} Migrated existing asset: ${oldPath} -> ${destinationPath}`);
+      }
+    }
+  }
+
   private async syncConversationAssets(
     requestConfig: ChatGptRequestConfig,
     conversation: ConversationDetail,
     baseFolder: string,
+    conversationPathTemplate: string,
+    assetStorageMode: AssetStorageMode,
     logger: SyncRunLogger | null,
     accountLabel: string,
     conversationIndex: number,
@@ -407,21 +440,31 @@ export default class Chats2MdPlugin extends Plugin {
       return linkMap;
     }
 
-    const normalizedBaseFolder = normalizeTargetFolder(baseFolder);
-    if (!normalizedBaseFolder) {
-      throw new Error("A vault folder is required.");
-    }
-
-    const accountFolder = sanitizePathPart(requestConfig.accountId || "account");
-    const conversationFolder = sanitizePathPart(conversation.id);
-    const assetFolderPath = normalizePath(`${normalizedBaseFolder}/${ASSET_FOLDER_NAME}/${accountFolder}/${conversationFolder}`);
+    const folderPaths = resolveAssetFolderPaths({
+      mode: assetStorageMode,
+      baseFolder,
+      conversationPathTemplate,
+      conversation: {
+        id: conversation.id,
+        title: conversation.title,
+        updatedAt: conversation.updatedAt
+      },
+      account: {
+        accountId: requestConfig.accountId,
+        email: requestConfig.userEmail
+      }
+    });
+    const assetFolderPath = folderPaths.targetFolderPath;
     const logPrefix = `[${accountLabel}] (${conversationIndex}/${totalConversations})`;
 
     logger?.info(`${logPrefix} Resolving ${downloadRefs.length} asset reference(s) for "${conversation.title}".`);
+    logger?.info(`${logPrefix} Asset storage mode: ${formatAssetStorageMode(assetStorageMode)}`);
     logger?.info(`${logPrefix} Asset folder: ${assetFolderPath}`);
 
     await this.ensureFolderExists(assetFolderPath);
     const usedNames = this.readFolderFileNames(assetFolderPath);
+    const sourceFolderPaths = folderPaths.candidateFolderPaths.filter((path) => path !== assetFolderPath);
+    await this.migrateConversationAssetFiles(assetFolderPath, sourceFolderPaths, usedNames, logger, logPrefix);
 
     for (const [assetIndex, ref] of downloadRefs.entries()) {
       const perAssetPrefix = `${logPrefix} Asset ${assetIndex + 1}/${downloadRefs.length} (${ref.fileId})`;
@@ -661,6 +704,8 @@ export default class Chats2MdPlugin extends Plugin {
         requestConfig,
         detail,
         this.settings.defaultFolder,
+        this.settings.conversationPathTemplate,
+        this.settings.assetStorageMode,
         null,
         accountLabel,
         1,
@@ -679,6 +724,7 @@ export default class Chats2MdPlugin extends Plugin {
         },
         this.manifest.version,
         this.settings.conversationPathTemplate,
+        this.settings.assetStorageMode,
         frontmatter.listUpdatedAt || detail.updatedAt,
         assetLinks,
         true
@@ -792,6 +838,7 @@ export default class Chats2MdPlugin extends Plugin {
     modal = new SyncChatGptModal(this.app, {
       folder: this.settings.defaultFolder,
       conversationPathTemplate: this.settings.conversationPathTemplate,
+      assetStorageMode: this.settings.assetStorageMode,
       accounts,
       onSubmit: async (values, progress, control) => this.handleSync(values, progress, control, modal),
       onSyncDialogHidden: (reason) => {
@@ -816,6 +863,7 @@ export default class Chats2MdPlugin extends Plugin {
     modal: SyncChatGptModal
   ): Promise<void> {
     this.settings.defaultFolder = values.folder;
+    this.settings.assetStorageMode = values.assetStorageMode;
     await this.saveSettings();
 
     this.syncWorkerActive = true;
@@ -833,6 +881,8 @@ export default class Chats2MdPlugin extends Plugin {
           requestConfig,
           conversation,
           baseFolder,
+          conversationPathTemplate,
+          assetStorageMode,
           logger,
           accountLabel,
           conversationIndex,
@@ -841,6 +891,8 @@ export default class Chats2MdPlugin extends Plugin {
           requestConfig,
           conversation,
           baseFolder,
+          conversationPathTemplate,
+          assetStorageMode,
           logger,
           accountLabel,
           conversationIndex,

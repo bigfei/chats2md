@@ -15,7 +15,7 @@ test("resolveConversationNoteRelativePath applies date and slug placeholders", (
   assert.equal(resolved, "2026-04-04/Hello-World.md");
 });
 
-test("resolveConversationNoteRelativePath applies email/user placeholders with fallbacks", () => {
+test("resolveConversationNoteRelativePath applies email/account placeholders with fallbacks", () => {
   const resolved = resolveConversationNoteRelativePath("{email}/{account_id}/{slug}", {
     title: "Template Test",
     updatedAt: "2026-04-04T10:20:30.000Z",

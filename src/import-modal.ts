@@ -1,5 +1,6 @@
 import { App, Modal, Notice, Setting } from "obsidian";
 
+import { formatAssetStorageMode } from "./main-helpers";
 import type { ImportFailure, ImportProgressCounts, StoredSessionAccount, SyncModalValues } from "./types";
 
 export interface SyncProgressReporter {
@@ -19,6 +20,7 @@ export interface SyncExecutionControl {
 interface SyncModalOptions {
   folder: string;
   conversationPathTemplate: string;
+  assetStorageMode: SyncModalValues["assetStorageMode"];
   accounts: StoredSessionAccount[];
   onSubmit: (values: SyncModalValues, progress: SyncProgressReporter, control: SyncExecutionControl) => Promise<void>;
   onSyncDialogHidden?: (reason: "minimize" | "close") => void;
@@ -202,6 +204,9 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
       text: `Layout template: ${this.options.conversationPathTemplate}`
     });
     summaryList.createEl("li", {
+      text: `Asset storage: ${formatAssetStorageMode(this.options.assetStorageMode)}`
+    });
+    summaryList.createEl("li", {
       text: `Configured accounts: ${this.options.accounts.length}`
     });
 
@@ -265,6 +270,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
             const values: SyncModalValues = {
               folder: this.options.folder,
               conversationPathTemplate: this.options.conversationPathTemplate,
+              assetStorageMode: this.options.assetStorageMode,
               scope: this.syncScope,
               accountId: this.syncScope === "single" ? this.selectedAccountId : undefined,
               forceRefresh: this.forceRefresh

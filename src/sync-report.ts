@@ -1,3 +1,4 @@
+import { formatAssetStorageMode } from "./main-helpers";
 import type { SyncReportConversationEntry, SyncRunReport } from "./types";
 
 function stripMarkdownExtension(path: string): string {
@@ -56,6 +57,7 @@ export function renderSyncRunReport(report: SyncRunReport): string {
     `- Scope: ${report.scope}`,
     `- Sync folder: ${report.folder}`,
     `- Layout template: ${report.conversationPathTemplate}`,
+    `- Asset storage: ${formatAssetStorageMode(report.assetStorageMode)}`,
     `- Accounts: ${report.accounts.length > 0 ? report.accounts.map((account) => `${account.label} (${account.accountId})`).join(", ") : "None"}`,
     "",
     "## Summary",

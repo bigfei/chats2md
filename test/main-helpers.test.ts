@@ -4,8 +4,10 @@ import test from "node:test";
 import {
   appendExtensionIfMissing,
   createEmptyCounts,
+  formatAssetStorageMode,
   formatActionLabel,
   hasMatchingUpdatedAt,
+  normalizeAssetStorageMode,
   normalizeStoredAccount,
   normalizeTargetFolder,
   normalizeTimestampToMs,
@@ -56,6 +58,17 @@ test("hasMatchingUpdatedAt accepts exact and near-equivalent timestamps", () => 
 test("formatActionLabel title-cases values and handles empty action", () => {
   assert.equal(formatActionLabel("updated"), "Updated");
   assert.equal(formatActionLabel(""), "Unknown");
+});
+
+test("normalizeAssetStorageMode defaults unknown values to global mode", () => {
+  assert.equal(normalizeAssetStorageMode("with_conversation"), "with_conversation");
+  assert.equal(normalizeAssetStorageMode("global_by_conversation"), "global_by_conversation");
+  assert.equal(normalizeAssetStorageMode("invalid"), "global_by_conversation");
+});
+
+test("formatAssetStorageMode returns human-readable labels", () => {
+  assert.equal(formatAssetStorageMode("global_by_conversation"), "Global by conversation");
+  assert.equal(formatAssetStorageMode("with_conversation"), "With conversation folder");
 });
 
 test("readString returns string values or fallback", () => {
