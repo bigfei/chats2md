@@ -46,7 +46,7 @@ export function resolveAssetFolderPaths(context: AssetFolderPathContext): Resolv
 
   const conversationFolder = sanitizePathPart(context.conversation.id);
   const accountFolder = sanitizePathPart(context.account.accountId || "account");
-  const globalFolderPath = normalizeVaultPath(`${normalizedBaseFolder}/${ASSET_FOLDER_NAME}/${accountFolder}/${conversationFolder}`);
+  const globalFolderPath = normalizeVaultPath(`${normalizedBaseFolder}/${ASSET_FOLDER_NAME}/${accountFolder}`);
   const noteRelativePath = resolveConversationNoteRelativePath(context.conversationPathTemplate, {
     title: context.conversation.title,
     updatedAt: context.conversation.updatedAt,
@@ -58,11 +58,13 @@ export function resolveAssetFolderPaths(context: AssetFolderPathContext): Resolv
   const noteFolderPath = noteRelativeFolder.length > 0
     ? normalizeVaultPath(`${normalizedBaseFolder}/${noteRelativeFolder}`)
     : normalizedBaseFolder;
-  const localFolderPath = normalizeVaultPath(`${noteFolderPath}/${ASSET_FOLDER_NAME}/${conversationFolder}`);
+  const localFolderPath = normalizeVaultPath(`${noteFolderPath}/${ASSET_FOLDER_NAME}`);
+  const legacyGlobalFolderPath = normalizeVaultPath(`${globalFolderPath}/${conversationFolder}`);
+  const legacyLocalFolderPath = normalizeVaultPath(`${localFolderPath}/${conversationFolder}`);
   const targetFolderPath = context.mode === "with_conversation"
     ? localFolderPath
     : globalFolderPath;
-  const candidateFolderPaths = Array.from(new Set([globalFolderPath, localFolderPath]));
+  const candidateFolderPaths = Array.from(new Set([legacyGlobalFolderPath, legacyLocalFolderPath]));
 
   return {
     targetFolderPath,

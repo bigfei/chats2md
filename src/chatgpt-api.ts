@@ -200,6 +200,16 @@ function buildFileDownloadUrl(fileId: string): string {
   return `${BASE_URL}/backend-api/files/download/${encodeURIComponent(fileId)}`;
 }
 
+function shouldIncludeSessionHeadersForBinaryDownload(url: string): boolean {
+  try {
+    const parsed = new URL(url, BASE_URL);
+    const hostname = parsed.hostname.toLowerCase();
+    return hostname === "chatgpt.com" || hostname.endsWith(".chatgpt.com");
+  } catch {
+    return false;
+  }
+}
+
 function buildHeaders(
   config: ChatGptRequestConfig,
   extraHeaders: Record<string, string>
@@ -932,9 +942,10 @@ export async function fetchSignedFileContent(
   config: ChatGptRequestConfig,
   url: string
 ): Promise<DownloadedFileContent> {
+  const includeSessionHeaders = shouldIncludeSessionHeadersForBinaryDownload(url);
   return requestArrayBuffer(url, config, {
     Accept: "*/*"
   }, {
-    includeSessionHeaders: false
+    includeSessionHeaders
   });
 }

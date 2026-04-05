@@ -45,8 +45,8 @@ presets like `{email}/{account_id}/{date}/{slug}`). Each full sync run also writ
 a markdown report when enabled in settings. The default report folder is
 `<syncFolder>/sync-result/` (supports `<syncFolder>` placeholder for custom
 locations). Asset storage can be configured
-as global (`<default-folder>/_assets/<account_id>/<conversation_id>/`) or local
-to each conversation folder (`<conversation-folder>/_assets/<conversation_id>/`).
+as global (`<default-folder>/_assets/<account_id>/`) or local
+to each conversation folder (`<conversation-folder>/_assets/`).
 Optionally, you can enable JSON sidecar caching in settings to store raw
 `/backend-api/conversation/{id}` payloads next to notes as `<note>.json`, and run
 a manual settings action to rebuild markdown notes from cached JSON without

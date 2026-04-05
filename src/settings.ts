@@ -41,7 +41,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Asset storage preset")
-      .setDesc("Global: <default>/_assets/<account_id>/<conversation_id>. With conversation: <note-folder>/_assets/<conversation_id>.")
+      .setDesc("Global: <default>/_assets/<account_id>. With conversation: <note-folder>/_assets.")
       .addDropdown((dropdown) => {
         dropdown
           .addOption("global_by_conversation", "Global by conversation")
