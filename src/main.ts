@@ -1,4 +1,4 @@
-import { App, MarkdownView, Notice, Plugin, TFile, TFolder, normalizePath } from "obsidian";
+import { App, MarkdownView, Notice, Plugin, TFile, TFolder, addIcon, normalizePath } from "obsidian";
 
 import {
   fetchConversationDetailWithPayload,
@@ -56,6 +56,21 @@ import {
   type SyncModalValues
 } from "./types";
 
+const OPENAI_RIBBON_ICON_ID = "chats2md-openai-knot";
+const OPENAI_RIBBON_ICON_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <g stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="10" y="2.5" width="4" height="11" rx="2" />
+    <rect x="10" y="2.5" width="4" height="11" rx="2" transform="rotate(60 12 12)" />
+    <rect x="10" y="2.5" width="4" height="11" rx="2" transform="rotate(120 12 12)" />
+    <rect x="10" y="2.5" width="4" height="11" rx="2" transform="rotate(180 12 12)" />
+    <rect x="10" y="2.5" width="4" height="11" rx="2" transform="rotate(240 12 12)" />
+    <rect x="10" y="2.5" width="4" height="11" rx="2" transform="rotate(300 12 12)" />
+  </g>
+  <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+</svg>
+`;
+
 export default class Chats2MdPlugin extends Plugin {
   settings: Chats2MdSettings = DEFAULT_SETTINGS;
   private legacySessionMigrationWarning: string | null = null;
@@ -69,7 +84,8 @@ export default class Chats2MdPlugin extends Plugin {
   async onload(): Promise<void> {
     await this.loadSettings();
 
-    this.addRibbonIcon("download", "Sync ChatGPT conversations", () => {
+    addIcon(OPENAI_RIBBON_ICON_ID, OPENAI_RIBBON_ICON_SVG);
+    this.addRibbonIcon(OPENAI_RIBBON_ICON_ID, "Sync ChatGPT conversations", () => {
       this.openSyncModal();
     });
 
