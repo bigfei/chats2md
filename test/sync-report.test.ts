@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { renderSyncRunReport } from "../src/sync-report.ts";
-import type { SyncRunReport } from "../src/types.ts";
+import { renderSyncRunReport } from "../src/sync/report.ts";
+import type { SyncRunReport } from "../src/shared/types.ts";
 
 test("renderSyncRunReport includes run metadata and wikilinks", () => {
   const report: SyncRunReport = {

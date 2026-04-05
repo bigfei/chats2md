@@ -1,6 +1,6 @@
-import { getDateBucketFromTimestamp, slugifyConversationTitle } from "./conversation-utils";
-import { sanitizePathPart } from "./main-helpers";
-import { normalizeObsidianPath } from "./path-normalization";
+import { getDateBucketFromTimestamp, slugifyConversationTitle } from "../chatgpt/conversation-utils";
+import { sanitizePathPart } from "../main/helpers";
+import { normalizeObsidianPath } from "./normalization";
 
 const SUPPORTED_PLACEHOLDERS = new Set([
   "date",

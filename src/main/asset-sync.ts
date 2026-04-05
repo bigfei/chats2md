@@ -1,20 +1,20 @@
 import { App, TFile, TFolder, normalizePath } from "obsidian";
 
-import { resolveAssetFolderPaths } from "./asset-storage";
-import { fetchConversationFileDownloadInfo, fetchSignedFileContent } from "./chatgpt-api";
+import { resolveAssetFolderPaths } from "../storage/asset-storage";
+import { fetchConversationFileDownloadInfo, fetchSignedFileContent } from "../chatgpt/api";
 import {
   appendExtensionIfMissing,
   formatAssetStorageMode,
   sanitizePathPart,
   type SyncRunLogger
-} from "./main-helpers";
+} from "./helpers";
 import type {
   AssetStorageMode,
   ChatGptRequestConfig,
   ConversationAssetLinkMap,
   ConversationDetail,
   ConversationFileReference
-} from "./types";
+} from "../shared/types";
 
 export interface MainAssetSyncHost {
   app: App;

@@ -1,6 +1,6 @@
 import { Notice, type TFile } from "obsidian";
 
-import { parseConversationDetailPayload } from "./chatgpt-api";
+import { parseConversationDetailPayload } from "../chatgpt/api";
 import {
   CONVERSATION_ID_KEY,
   createEmptyCounts,
@@ -8,8 +8,8 @@ import {
   summarizeCounts,
   type ConversationFrontmatterInfo,
   type SyncRunLogger
-} from "./main-helpers";
-import { indexConversationNotes, upsertConversationNote } from "./note-writer";
+} from "./helpers";
+import { indexConversationNotes, upsertConversationNote } from "../storage/note-writer";
 import type {
   ChatGptRequestConfig,
   ConversationAssetLinkMap,
@@ -18,7 +18,7 @@ import type {
   SyncRunReport,
   SyncRunStatus,
   StoredSessionAccount
-} from "./types";
+} from "../shared/types";
 
 export interface MainRebuildHost {
   app: {

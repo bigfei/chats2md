@@ -1,7 +1,7 @@
 import { App, Modal, Notice, Setting } from "obsidian";
 
-import { parseSessionJson } from "./chatgpt-api";
-import type { ChatGptRequestConfig } from "./types";
+import { parseSessionJson } from "../chatgpt/api";
+import type { ChatGptRequestConfig } from "../shared/types";
 
 interface SessionEditorModalOptions {
   title: string;

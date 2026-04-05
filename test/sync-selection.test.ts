@@ -4,8 +4,8 @@ import test from "node:test";
 import {
   resolveEffectiveConversationListLimit,
   shouldPromptConversationRangeSelection
-} from "../src/sync-selection.ts";
-import type { ConversationUpdatedAtSpan } from "../src/sync-date-range.ts";
+} from "../src/sync/selection.ts";
+import type { ConversationUpdatedAtSpan } from "../src/sync/date-range.ts";
 
 function createSpan(spanMs: number): ConversationUpdatedAtSpan {
   return {

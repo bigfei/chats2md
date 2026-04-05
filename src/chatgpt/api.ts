@@ -10,7 +10,7 @@ import {
   getLatestWindowOldestTimestampMs,
   mergeFetchedAndCachedConversationSummaries,
   shouldStopLatestListFetch
-} from "./conversation-list-strategy";
+} from "../sync/list-strategy";
 
 import type {
   ChatGptRequestConfig,
@@ -19,7 +19,7 @@ import type {
   ConversationFileReferenceKind,
   ConversationMessage,
   ConversationSummary
-} from "./types";
+} from "../shared/types";
 
 const BASE_URL = "https://chatgpt.com";
 const DEFAULT_LIST_PAGE_LIMIT = 28;

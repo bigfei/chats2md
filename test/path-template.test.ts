@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { CONVERSATION_PATH_TEMPLATE_PRESETS, resolveConversationNoteRelativePath } from "../src/path-template.ts";
+import { CONVERSATION_PATH_TEMPLATE_PRESETS, resolveConversationNoteRelativePath } from "../src/path/template.ts";
 
 test("resolveConversationNoteRelativePath applies date and slug placeholders", () => {
   const resolved = resolveConversationNoteRelativePath("{date}/{slug}", {

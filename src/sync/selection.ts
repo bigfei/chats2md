@@ -1,5 +1,5 @@
-import { DEFAULT_CONVERSATION_LIST_LATEST_LIMIT, normalizeConversationListLatestLimit } from "./main-helpers";
-import { shouldPromptForDateRange, type ConversationUpdatedAtSpan } from "./sync-date-range";
+import { DEFAULT_CONVERSATION_LIST_LATEST_LIMIT, normalizeConversationListLatestLimit } from "../main/helpers";
+import { shouldPromptForDateRange, type ConversationUpdatedAtSpan } from "./date-range";
 
 export function resolveEffectiveConversationListLimit(
   defaultLimit: number,

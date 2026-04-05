@@ -1,6 +1,6 @@
 import { App, normalizePath, type Editor, TFile, TFolder } from "obsidian";
-import { normalizeAssetStorageMode } from "./main-helpers";
-import { resolveConversationNoteRelativePath } from "./path-template";
+import { normalizeAssetStorageMode } from "../main/helpers";
+import { resolveConversationNoteRelativePath } from "../path/template";
 
 import type {
   AssetStorageMode,
@@ -9,7 +9,7 @@ import type {
   ConversationFileReference,
   ConversationFileReferenceKind,
   ConversationUpsertResult
-} from "./types";
+} from "../shared/types";
 
 const CONVERSATION_ID_KEY = "chatgpt_conversation_id";
 const CONVERSATION_TITLE_KEY = "chatgpt_title";

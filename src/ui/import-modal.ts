@@ -1,7 +1,7 @@
 import { App, Modal, Notice, Setting } from "obsidian";
 
-import { formatAssetStorageMode } from "./main-helpers";
-import { toIsoUtcDate } from "./sync-date-range";
+import { formatAssetStorageMode } from "../main/helpers";
+import { toIsoUtcDate } from "../sync/date-range";
 import type {
   ConversationSyncDateRangePromptContext,
   ConversationSyncDateRangeSelection,
@@ -9,7 +9,7 @@ import type {
   ImportProgressCounts,
   StoredSessionAccount,
   SyncModalValues
-} from "./types";
+} from "../shared/types";
 
 export interface SyncProgressReporter {
   setPreparing(message: string): void;

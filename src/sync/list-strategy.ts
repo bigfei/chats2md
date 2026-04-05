@@ -1,4 +1,4 @@
-import type { ConversationSummary } from "./types";
+import type { ConversationSummary } from "../shared/types";
 
 export interface ShouldStopLatestListFetchOptions {
   fetchedSummaries: ConversationSummary[];

@@ -1,6 +1,6 @@
 import { MarkdownView, Menu, Notice, TFile, type Workspace } from "obsidian";
 
-import { FORCE_SYNC_ACTION_LABEL } from "./main-helpers";
+import { FORCE_SYNC_ACTION_LABEL } from "../main/helpers";
 
 interface ForceSyncUiCallbacks {
   isSyncing(): boolean;

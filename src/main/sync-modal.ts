@@ -1,8 +1,8 @@
 import { Notice } from "obsidian";
 
-import { runFullSync } from "./full-sync";
-import { SyncChatGptModal, type SyncExecutionControl, type SyncProgressReporter } from "./import-modal";
-import type { SyncModalValues } from "./types";
+import { runFullSync } from "../sync/full-sync";
+import { SyncChatGptModal, type SyncExecutionControl, type SyncProgressReporter } from "../ui/import-modal";
+import type { SyncModalValues } from "../shared/types";
 
 export function openSyncModal(host: any): void {
   if (host.syncWorkerActive) {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveAssetFolderPaths } from "../src/asset-storage.ts";
+import { resolveAssetFolderPaths } from "../src/storage/asset-storage.ts";
 
 test("resolveAssetFolderPaths returns global target for global mode", () => {
   const paths = resolveAssetFolderPaths({

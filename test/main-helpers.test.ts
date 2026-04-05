@@ -19,7 +19,7 @@ import {
   sanitizePathPart,
   sortAccounts,
   summarizeCounts
-} from "../src/main-helpers.ts";
+} from "../src/main/helpers.ts";
 
 test("createEmptyCounts initializes all counters to zero", () => {
   assert.deepEqual(createEmptyCounts(), {

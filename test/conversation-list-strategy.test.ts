@@ -7,8 +7,8 @@ import {
   rankConversationSummariesByUpdatedAt,
   shouldStopLatestListFetch,
   trimConversationSummaries
-} from "../src/conversation-list-strategy.ts";
-import type { ConversationSummary } from "../src/types.ts";
+} from "../src/sync/list-strategy.ts";
+import type { ConversationSummary } from "../src/shared/types.ts";
 
 function createSummary(id: string, updatedAt: string, title = id): ConversationSummary {
   return {

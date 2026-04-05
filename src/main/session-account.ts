@@ -1,8 +1,8 @@
 import { Notice } from "obsidian";
 
-import { parseSessionJson } from "./chatgpt-api";
-import { SECRET_ID_PREFIX, sortAccounts } from "./main-helpers";
-import type { ChatGptRequestConfig, Chats2MdSettings, StoredSessionAccount } from "./types";
+import { parseSessionJson } from "../chatgpt/api";
+import { SECRET_ID_PREFIX, sortAccounts } from "./helpers";
+import type { ChatGptRequestConfig, Chats2MdSettings, StoredSessionAccount } from "../shared/types";
 
 export interface MainSessionAccountHost {
   app: {

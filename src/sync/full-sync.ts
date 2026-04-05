@@ -1,7 +1,7 @@
 import { App, Notice } from "obsidian";
 
-import { fetchConversationDetailWithPayload, fetchConversationSummaries } from "./chatgpt-api";
-import type { SyncExecutionControl, SyncProgressReporter } from "./import-modal";
+import { fetchConversationDetailWithPayload, fetchConversationSummaries } from "../chatgpt/api";
+import type { SyncExecutionControl, SyncProgressReporter } from "../ui/import-modal";
 import {
   ACCOUNT_SYNC_BATCH_DELAY_MS,
   ACCOUNT_SYNC_BATCH_SIZE,
@@ -12,23 +12,23 @@ import {
   sleep,
   summarizeCounts,
   type SyncRunLogger
-} from "./main-helpers";
+} from "../main/helpers";
 import {
   ensureConversationNotePath,
   getIndexedConversationSyncMetadata,
   indexConversationNotes,
   upsertConversationNote
-} from "./note-writer";
+} from "../storage/note-writer";
 import {
   filterConversationSummariesByUpdatedDateRange,
   getConversationUpdatedAtSpan,
   toIsoUtcDate
-} from "./sync-date-range";
-import { trimConversationSummaries } from "./conversation-list-strategy";
+} from "./date-range";
+import { trimConversationSummaries } from "./list-strategy";
 import {
   resolveEffectiveConversationListLimit,
   shouldPromptConversationRangeSelection
-} from "./sync-selection";
+} from "./selection";
 import type {
   AssetStorageMode,
   ChatGptRequestConfig,
@@ -42,7 +42,7 @@ import type {
   ImportProgressCounts,
   StoredSessionAccount,
   SyncModalValues
-} from "./types";
+} from "../shared/types";
 
 export interface FullSyncContext {
   app: App;

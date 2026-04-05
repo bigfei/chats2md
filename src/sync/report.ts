@@ -1,5 +1,5 @@
-import { formatAssetStorageMode } from "./main-helpers";
-import type { SyncReportConversationEntry, SyncRunReport } from "./types";
+import { formatAssetStorageMode } from "../main/helpers";
+import type { SyncReportConversationEntry, SyncRunReport } from "../shared/types";
 
 function stripMarkdownExtension(path: string): string {
   return path.toLowerCase().endsWith(".md") ? path.slice(0, -3) : path;

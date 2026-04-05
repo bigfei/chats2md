@@ -1,7 +1,7 @@
-import { ASSET_FOLDER_NAME, normalizeTargetFolder, sanitizePathPart } from "./main-helpers";
-import { normalizeObsidianPath } from "./path-normalization";
-import { resolveConversationNoteRelativePath } from "./path-template";
-import type { AssetStorageMode } from "./types";
+import { ASSET_FOLDER_NAME, normalizeTargetFolder, sanitizePathPart } from "../main/helpers";
+import { normalizeObsidianPath } from "../path/normalization";
+import { resolveConversationNoteRelativePath } from "../path/template";
+import type { AssetStorageMode } from "../shared/types";
 
 export interface AssetFolderPathContext {
   mode: AssetStorageMode;

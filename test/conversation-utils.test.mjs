@@ -12,7 +12,7 @@ import {
   normalizeConversationTimestamp,
   shouldFetchNextConversationListPage,
   slugifyConversationTitle
-} from "../src/conversation-utils.js";
+} from "../src/chatgpt/conversation-utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

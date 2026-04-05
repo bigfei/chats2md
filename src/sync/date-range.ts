@@ -1,4 +1,4 @@
-import type { ConversationSummary } from "./types";
+import type { ConversationSummary } from "../shared/types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const ONE_MONTH_SYNC_RANGE_MS = 30 * DAY_MS;

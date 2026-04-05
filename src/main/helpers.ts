@@ -7,8 +7,8 @@ import type {
   ConversationSummary,
   ImportProgressCounts,
   StoredSessionAccount
-} from "./types";
-import { normalizeObsidianPath } from "./path-normalization";
+} from "../shared/types";
+import { normalizeObsidianPath } from "../path/normalization";
 
 export const DETAIL_FETCH_MAX_ATTEMPTS = 3;
 export const ACCOUNT_SYNC_BATCH_SIZE = 30;

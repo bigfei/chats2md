@@ -1,16 +1,16 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 
-import { parseSessionJson, validateConversationListAccess } from "./chatgpt-api";
+import { parseSessionJson, validateConversationListAccess } from "../chatgpt/api";
 import {
   DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE,
   formatAssetStorageMode,
   normalizeConversationListLatestLimit
-} from "./main-helpers";
-import { CONVERSATION_PATH_TEMPLATE_PRESETS } from "./path-template";
+} from "../main/helpers";
+import { CONVERSATION_PATH_TEMPLATE_PRESETS } from "../path/template";
 import { FolderSuggest } from "./folder-suggest";
-import type Chats2MdPlugin from "./main";
+import type Chats2MdPlugin from "../main";
 import { SessionEditorModal } from "./session-editor-modal";
-import type { StoredSessionAccount } from "./types";
+import type { StoredSessionAccount } from "../shared/types";
 
 const CUSTOM_TEMPLATE_OPTION = "__custom__";
 

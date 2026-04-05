@@ -7,8 +7,8 @@ import {
   filterConversationSummariesByUpdatedDateRange,
   getConversationUpdatedAtSpan,
   shouldPromptForDateRange
-} from "../src/sync-date-range.ts";
-import type { ConversationSummary } from "../src/types.ts";
+} from "../src/sync/date-range.ts";
+import type { ConversationSummary } from "../src/shared/types.ts";
 
 function createSummary(id: string, updatedAt: string): ConversationSummary {
   return {
