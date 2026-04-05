@@ -25,9 +25,9 @@ const BASE_URL = "https://chatgpt.com";
 const DEFAULT_LIST_PAGE_LIMIT = 28;
 const MAX_LIST_PAGE_LIMIT = 100;
 const MAX_LIST_PAGE_REQUESTS = 100;
-const MAX_RATE_LIMIT_RETRIES = 6;
+const MAX_RATE_LIMIT_RETRIES = 3;
 const MIN_RATE_LIMIT_BACKOFF_MS = 5000;
-const MAX_RATE_LIMIT_BACKOFF_MS = 120000;
+const MAX_RATE_LIMIT_BACKOFF_MS = 60000;
 const DEFAULT_FIREFOX_USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:149.0) Gecko/20100101 Firefox/149.0";
 const RESERVED_HEADER_NAMES = new Set(["accept", "authorization", "chatgpt-account-id", "cookie", "user-agent"]);
