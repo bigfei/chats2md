@@ -16,6 +16,26 @@
   resize: both;
 }
 
+.chats2md-session-modal__editor {
+  margin-top: 1rem;
+}
+
+.chats2md-session-modal__editor-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: var(--font-semibold);
+}
+
+.chats2md-session-modal__editor-desc {
+  margin: 0 0 0.6rem;
+  color: var(--text-muted);
+}
+
+.chats2md-session-modal__editor textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .chats2md-modal .setting-item-info {
   flex: 1 1 auto;
 }

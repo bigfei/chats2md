@@ -126,11 +126,6 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         .setName(account.email.trim().length > 0 ? account.email : account.accountId)
         .setDesc(this.describeAccount(account))
         .addButton((button) => {
-          button.setIcon("pencil").setTooltip("Edit session").onClick(() => {
-            this.openSessionEditor(account);
-          });
-        })
-        .addButton((button) => {
           button.setIcon("shield-check").setTooltip("Validate session").onClick(async () => {
             button.setDisabled(true);
 
@@ -139,6 +134,11 @@ export class Chats2MdSettingTab extends PluginSettingTab {
             } finally {
               button.setDisabled(false);
             }
+          });
+        })
+        .addButton((button) => {
+          button.setIcon("pencil").setTooltip("Edit session").onClick(() => {
+            this.openSessionEditor(account);
           });
         })
         .addButton((button) => {

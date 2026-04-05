@@ -46,20 +46,26 @@ export class SessionEditorModal extends Modal {
 
     let rawValue = this.options.initialValue ?? "";
 
-    new Setting(contentEl)
-      .setName("Session JSON")
-      .setDesc("The raw session payload will be stored in Obsidian Secret Storage.")
-      .addTextArea((component) => {
-        component.inputEl.rows = 16;
-        component.inputEl.wrap = "off";
-        component.inputEl.spellcheck = false;
-        component.inputEl.addClass("chats2md-settings__textarea");
-        component.setPlaceholder("{\n  \"accessToken\": \"...\",\n  \"user\": {\n    \"id\": \"...\",\n    \"email\": \"...\"\n  },\n  \"account\": {\n    \"id\": \"...\"\n  },\n  \"cookie\": \"...\"\n}");
-        component.setValue(rawValue);
-        component.onChange((value) => {
-          rawValue = value;
-        });
-      });
+    const editorSection = contentEl.createDiv({ cls: "chats2md-session-modal__editor" });
+    editorSection.createEl("label", {
+      cls: "chats2md-session-modal__editor-label",
+      text: "Session JSON"
+    });
+    editorSection.createEl("p", {
+      cls: "chats2md-session-modal__editor-desc",
+      text: "The raw session payload will be stored in Obsidian Secret Storage."
+    });
+    const textarea = editorSection.createEl("textarea", {
+      cls: "chats2md-settings__textarea"
+    });
+    textarea.rows = 16;
+    textarea.wrap = "off";
+    textarea.spellcheck = false;
+    textarea.placeholder = "{\n  \"accessToken\": \"...\",\n  \"user\": {\n    \"id\": \"...\",\n    \"email\": \"...\"\n  },\n  \"account\": {\n    \"id\": \"...\"\n  },\n  \"cookie\": \"...\"\n}";
+    textarea.value = rawValue;
+    textarea.addEventListener("input", () => {
+      rawValue = textarea.value;
+    });
 
     const docs = contentEl.createEl("p", {
       cls: "chats2md-modal__hint"
