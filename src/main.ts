@@ -1,13 +1,9 @@
-import { App, MarkdownView, Notice, Plugin, TFile, TFolder, addIcon, normalizePath, setIcon } from "obsidian";
+import { App, MarkdownView, Notice, Plugin, TFile, TFolder, addIcon, normalizePath } from "obsidian";
 
 import {
   fetchConversationDetailWithPayload,
-  fetchConversationFileDownloadInfo,
-  fetchSignedFileContent,
-  parseConversationDetailPayload,
   parseSessionJson
 } from "./chatgpt-api";
-import { resolveAssetFolderPaths } from "./asset-storage";
 import { SyncChatGptModal, type SyncExecutionControl, type SyncProgressReporter } from "./import-modal";
 import {
   indexConversationNotes,
@@ -23,11 +19,8 @@ import {
   CONVERSATION_TITLE_KEY,
   CONVERSATION_UPDATED_AT_KEY,
   CONVERSATION_USER_ID_KEY,
-  SECRET_ID_PREFIX,
-  appendExtensionIfMissing,
   createEmptyCounts,
   DEFAULT_CONVERSATION_LIST_LATEST_LIMIT,
-  formatAssetStorageMode,
   formatActionLabel,
   normalizeAssetStorageMode,
   normalizeConversationListCacheByAccount,
@@ -37,12 +30,27 @@ import {
   normalizeStoredAccount,
   resolveSyncReportFolder,
   readString,
-  sanitizePathPart,
   sortAccounts,
   summarizeCounts,
   SyncRunLogger
 } from "./main-helpers";
-import { runFullSync } from "./full-sync";
+import { syncConversationAssetsForConversation } from "./main-asset-sync";
+import { runRebuildNotesFromCachedJson } from "./main-rebuild";
+import {
+  migrateLegacySessionIfNeeded as migrateLegacySessionIfNeededHelper,
+  removeSessionAccount as removeSessionAccountHelper,
+  upsertSessionAccount as upsertSessionAccountHelper
+} from "./main-session-account";
+import {
+  enableSettingsPaneIcon as enableSettingsPaneIconHelper,
+  syncSettingsPaneIconObserver as syncSettingsPaneIconObserverHelper
+} from "./main-settings-pane-icon";
+import { handleSync as handleSyncHelper, openSyncModal as openSyncModalHelper } from "./main-sync-modal";
+import {
+  buildSyncStatusText as buildSyncStatusTextHelper,
+  clearSyncStatusBar as clearSyncStatusBarHelper,
+  setSyncStatusBar as setSyncStatusBarHelper
+} from "./main-sync-status";
 import { renderSyncRunReport } from "./sync-report";
 import { configureNormalizePath } from "./path-normalization";
 import {
@@ -52,7 +60,6 @@ import {
   type Chats2MdSettings,
   type ConversationAssetLinkMap,
   type ConversationDetail,
-  type ConversationFileReference,
   type ConversationSummary,
   type SyncReportConversationEntry,
   type SyncRunReport,
@@ -156,110 +163,11 @@ export default class Chats2MdPlugin extends Plugin {
   }
 
   private enableSettingsPaneIcon(): void {
-    if (typeof document === "undefined") {
-      return;
-    }
-
-    this.syncSettingsPaneIconObserver();
-    this.register(() => {
-      this.settingsPaneIconObserver?.disconnect();
-      this.settingsPaneIconObserverRoot = null;
-    });
+    enableSettingsPaneIconHelper(this, CHATGPT_IMPORT_SYNC_ICON_ID);
   }
 
   private syncSettingsPaneIconObserver(): void {
-    if (typeof document === "undefined") {
-      return;
-    }
-
-    const settingsRoot = document.querySelector<HTMLElement>(".mod-settings");
-
-    if (!settingsRoot) {
-      this.settingsPaneIconObserver?.disconnect();
-      this.settingsPaneIconObserverRoot = null;
-      return;
-    }
-
-    this.scheduleSettingsPaneIconSync();
-
-    if (typeof MutationObserver === "undefined") {
-      return;
-    }
-
-    if (!this.settingsPaneIconObserver) {
-      this.settingsPaneIconObserver = new MutationObserver(() => {
-        this.scheduleSettingsPaneIconSync();
-      });
-    }
-
-    if (this.settingsPaneIconObserverRoot === settingsRoot) {
-      return;
-    }
-
-    this.settingsPaneIconObserver.disconnect();
-    this.settingsPaneIconObserver.observe(settingsRoot, {
-      childList: true,
-      subtree: true
-    });
-    this.settingsPaneIconObserverRoot = settingsRoot;
-  }
-
-  private scheduleSettingsPaneIconSync(): void {
-    if (this.settingsPaneIconSyncScheduled) {
-      return;
-    }
-
-    if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
-      this.applySettingsPaneIcon();
-      return;
-    }
-
-    this.settingsPaneIconSyncScheduled = true;
-    window.requestAnimationFrame(() => {
-      this.settingsPaneIconSyncScheduled = false;
-      this.applySettingsPaneIcon();
-    });
-  }
-
-  private applySettingsPaneIcon(): void {
-    const pluginName = this.manifest.name.trim();
-    if (!pluginName) {
-      return;
-    }
-
-    const matchedItems = new Set<HTMLElement>();
-    for (const selector of [
-      `.vertical-tab-nav-item[data-tab-id="${this.manifest.id}"]`,
-      `.vertical-tab-nav-item[data-tab-id="community-plugins-${this.manifest.id}"]`
-    ]) {
-      for (const matchedEl of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
-        matchedItems.add(matchedEl);
-      }
-    }
-
-    if (matchedItems.size === 0) {
-      for (const itemEl of Array.from(document.querySelectorAll<HTMLElement>(".vertical-tab-nav-item"))) {
-        const titleEl = itemEl.querySelector<HTMLElement>(".vertical-tab-nav-item-title");
-        if (titleEl?.textContent?.trim() !== pluginName) {
-          continue;
-        }
-        matchedItems.add(itemEl);
-      }
-    }
-
-    for (const itemEl of matchedItems) {
-      itemEl.classList.add("mod-has-icon");
-
-      let iconContainer = itemEl.querySelector<HTMLElement>(".vertical-tab-nav-item-icon");
-      if (!iconContainer) {
-        iconContainer = document.createElement("div");
-        iconContainer.className = "vertical-tab-nav-item-icon";
-        itemEl.prepend(iconContainer);
-      }
-
-      itemEl.classList.add("chats2md-settings-nav-item");
-      setIcon(iconContainer, CHATGPT_IMPORT_SYNC_ICON_ID);
-    }
+    syncSettingsPaneIconObserverHelper(this, CHATGPT_IMPORT_SYNC_ICON_ID);
   }
 
   async loadSettings(): Promise<void> {
@@ -348,85 +256,39 @@ export default class Chats2MdPlugin extends Plugin {
   }
 
   async upsertSessionAccount(rawSessionJson: string, parsed?: ChatGptRequestConfig): Promise<StoredSessionAccount> {
-    const normalizedRaw = rawSessionJson.trim();
-
-    if (!normalizedRaw) {
-      throw new Error("Session JSON cannot be empty.");
-    }
-
-    const requestConfig = parsed ?? parseSessionJson(normalizedRaw, this.manifest.version);
-    const secretId = this.buildSecretId(requestConfig.accountId);
-
-    this.app.secretStorage.setSecret(secretId, normalizedRaw);
-    const account = this.upsertAccountMetadata(requestConfig, secretId);
-    this.legacySessionMigrationWarning = null;
-
-    if (this.settings.legacySessionJson.trim().length > 0) {
-      this.settings.legacySessionJson = "";
-    }
-
-    await this.saveSettings();
-    return account;
+    return upsertSessionAccountHelper({
+      app: this.app,
+      manifestVersion: this.manifest.version,
+      settings: this.settings,
+      setLegacySessionMigrationWarning: (value) => {
+        this.legacySessionMigrationWarning = value;
+      },
+      saveSettings: () => this.saveSettings()
+    }, rawSessionJson, parsed);
   }
 
   async removeSessionAccount(accountId: string): Promise<void> {
-    this.settings.accounts = this.settings.accounts.filter((account) => account.accountId !== accountId);
-    await this.saveSettings();
+    await removeSessionAccountHelper({
+      app: this.app,
+      manifestVersion: this.manifest.version,
+      settings: this.settings,
+      setLegacySessionMigrationWarning: (value) => {
+        this.legacySessionMigrationWarning = value;
+      },
+      saveSettings: () => this.saveSettings()
+    }, accountId);
   }
 
   private async migrateLegacySessionIfNeeded(): Promise<void> {
-    const raw = this.settings.legacySessionJson.trim();
-
-    if (!raw) {
-      this.legacySessionMigrationWarning = null;
-      return;
-    }
-
-    try {
-      const parsed = parseSessionJson(raw, this.manifest.version);
-      const secretId = this.buildSecretId(parsed.accountId);
-      this.app.secretStorage.setSecret(secretId, raw);
-      this.upsertAccountMetadata(parsed, secretId);
-      this.settings.legacySessionJson = "";
-      this.legacySessionMigrationWarning = null;
-      await this.saveSettings();
-      new Notice("Legacy Session JSON was migrated into Secret Storage.");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.legacySessionMigrationWarning = `Legacy Session JSON migration failed: ${message}`;
-    }
-  }
-
-  private upsertAccountMetadata(requestConfig: ChatGptRequestConfig, secretId: string): StoredSessionAccount {
-    const now = new Date().toISOString();
-    const existing = this.settings.accounts.find((account) => account.accountId === requestConfig.accountId);
-
-    const account: StoredSessionAccount = {
-      accountId: requestConfig.accountId,
-      userId: requestConfig.userId,
-      email: requestConfig.userEmail,
-      expiresAt: requestConfig.expiresAt,
-      secretId,
-      addedAt: existing?.addedAt ?? now,
-      updatedAt: now
-    };
-
-    this.settings.accounts = sortAccounts([
-      ...this.settings.accounts.filter((item) => item.accountId !== requestConfig.accountId),
-      account
-    ]);
-
-    return account;
-  }
-
-  private buildSecretId(accountId: string): string {
-    const normalizedPart = accountId
-      .toLowerCase()
-      .replace(/[^a-z0-9-]+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
-
-    return `${SECRET_ID_PREFIX}-${normalizedPart || "account"}`;
+    await migrateLegacySessionIfNeededHelper({
+      app: this.app,
+      manifestVersion: this.manifest.version,
+      settings: this.settings,
+      setLegacySessionMigrationWarning: (value) => {
+        this.legacySessionMigrationWarning = value;
+      },
+      saveSettings: () => this.saveSettings()
+    });
   }
 
   private async ensureFolderExists(folderPath: string): Promise<void> {
@@ -573,402 +435,59 @@ export default class Chats2MdPlugin extends Plugin {
   }
 
   async rebuildNotesFromCachedJson(): Promise<void> {
-    if (this.syncWorkerActive) {
-      new Notice("A sync job is already running. Wait for it to finish.");
-      return;
-    }
-
-    const noteIndex = indexConversationNotes(this.app);
-    const notes = Array.from(new Set(noteIndex.values()));
-
-    if (notes.length === 0) {
-      new Notice("No synced ChatGPT notes were found.");
-      return;
-    }
-
-    const startedAt = new Date().toISOString();
-    let runStatus: SyncRunStatus = "completed";
-    const counts = createEmptyCounts();
-    const createdEntries: SyncReportConversationEntry[] = [];
-    const updatedEntries: SyncReportConversationEntry[] = [];
-    const movedEntries: SyncReportConversationEntry[] = [];
-    const failedEntries: SyncReportConversationEntry[] = [];
-    let syncLogger: SyncRunLogger | null = null;
-
-    const logInfo = (message: string): void => {
-      if (syncLogger) {
-        syncLogger.info(message);
-        return;
-      }
-
-      this.logInfo(message);
-    };
-
-    const logWarn = (message: string): void => {
-      if (syncLogger) {
-        syncLogger.warn(message);
-        return;
-      }
-
-      this.logWarn(message);
-    };
-
-    const logError = (message: string): void => {
-      if (syncLogger) {
-        syncLogger.error(message);
-        return;
-      }
-
-      this.logError(message);
-    };
-
-    this.syncWorkerActive = true;
-    this.suppressSyncStatusBarUpdates = false;
-    this.setSyncStatusBar(this.buildSyncStatusText(0, notes.length, "rebuilding from cached JSON"), true);
-
-    try {
-      try {
-        syncLogger = await this.createSyncRunLogger({
-          log: (message) => this.logInfo(message)
-        }, this.settings.defaultFolder);
-        syncLogger.info(`Rebuild log file: ${syncLogger.filePath}`);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        this.logWarn(`Rebuild log unavailable: ${message}`);
-      }
-
-      for (const [noteIndexValue, note] of notes.entries()) {
-        const frontmatter = this.getConversationFrontmatter(note);
-        const displayTitle = frontmatter.title || note.basename || frontmatter.conversationId || note.path;
-        this.setSyncStatusBar(
-          this.buildSyncStatusText(noteIndexValue, notes.length, `rebuilding ${displayTitle}`),
-          true
-        );
-
-        if (!frontmatter.conversationId) {
-          counts.failed += 1;
-          failedEntries.push({
-            accountId: frontmatter.accountId || "unknown-account",
-            accountLabel: frontmatter.accountId || "unknown-account",
-            conversationId: "unknown-conversation",
-            title: displayTitle,
-            conversationUrl: null,
-            notePath: note.path,
-            message: `Missing ${CONVERSATION_ID_KEY} in note frontmatter.`
-          });
-          logError(`Skipping ${note.path}: missing ${CONVERSATION_ID_KEY}.`);
-          continue;
-        }
-
-        const fallbackSummary = {
-          title: frontmatter.title || note.basename || "Untitled Conversation",
-          createdAt: frontmatter.createdAt || frontmatter.updatedAt || "",
-          updatedAt: frontmatter.updatedAt || frontmatter.createdAt || ""
-        };
-
-        let account: StoredSessionAccount;
-        try {
-          account = this.resolveAccountForConversation(frontmatter);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          counts.failed += 1;
-          failedEntries.push({
-            accountId: frontmatter.accountId || "unknown-account",
-            accountLabel: frontmatter.accountId || "unknown-account",
-            conversationId: frontmatter.conversationId,
-            title: fallbackSummary.title,
-            conversationUrl: null,
-            notePath: note.path,
-            message
-          });
-          logError(`Skipping ${note.path}: ${message}`);
-          continue;
-        }
-
-        const accountLabel = this.getAccountLabel(account);
-        let requestConfig: ChatGptRequestConfig;
-        try {
-          requestConfig = this.getRequestConfig(account);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          counts.failed += 1;
-          failedEntries.push({
-            accountId: account.accountId,
-            accountLabel,
-            conversationId: frontmatter.conversationId,
-            title: fallbackSummary.title,
-            conversationUrl: null,
-            notePath: note.path,
-            message
-          });
-          logError(`[${accountLabel}] Failed to load session for ${note.path}: ${message}`);
-          continue;
-        }
-
-        let rawPayload: unknown;
-        try {
-          rawPayload = await this.readConversationJsonSidecar(note.path);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          counts.skipped += 1;
-          logWarn(`[${accountLabel}] Skipped ${note.path}: ${message}`);
-          continue;
-        }
-
-        if (rawPayload === null) {
-          counts.skipped += 1;
-          logWarn(`[${accountLabel}] Skipped ${note.path}: JSON sidecar not found.`);
-          continue;
-        }
-
-        let detail: ConversationDetail;
-        try {
-          detail = parseConversationDetailPayload(rawPayload, frontmatter.conversationId, fallbackSummary);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          counts.skipped += 1;
-          logWarn(`[${accountLabel}] Skipped ${note.path}: ${message}`);
-          continue;
-        }
-
-        try {
-          const assetLinks = await this.syncConversationAssets(
-            requestConfig,
-            detail,
-            this.settings.defaultFolder,
-            this.settings.conversationPathTemplate,
-            this.settings.assetStorageMode,
-            syncLogger,
-            accountLabel,
-            noteIndexValue + 1,
-            notes.length
-          );
-
-          const result = await upsertConversationNote(
-            this.app,
-            noteIndex,
-            detail,
-            this.settings.defaultFolder,
-            {
-              accountId: requestConfig.accountId,
-              userId: requestConfig.userId,
-              userEmail: requestConfig.userEmail
-            },
-            this.manifest.version,
-            this.settings.conversationPathTemplate,
-            this.settings.assetStorageMode,
-            frontmatter.listUpdatedAt || detail.updatedAt,
-            assetLinks,
-            true
-          );
-
-          counts[result.action] += 1;
-          const reportEntry: SyncReportConversationEntry = {
-            accountId: requestConfig.accountId,
-            accountLabel,
-            conversationId: detail.id,
-            title: detail.title,
-            conversationUrl: detail.url,
-            notePath: result.filePath
-          };
-          const warnings: string[] = [];
-
-          if (result.moved && result.previousFilePath) {
-            try {
-              const movedSidecar = await this.moveConversationJsonSidecar(result.previousFilePath, result.filePath);
-              if (movedSidecar) {
-                warnings.push("JSON sidecar moved with note.");
-              }
-            } catch (error) {
-              const warning = error instanceof Error ? error.message : String(error);
-              warnings.push(`JSON sidecar move failed: ${warning}`);
-              logWarn(`[${accountLabel}] Sidecar move warning for "${detail.title}": ${warning}`);
-            }
-          }
-
-          if (warnings.length > 0) {
-            reportEntry.message = warnings.join(" ");
-          }
-
-          if (result.action === "created") {
-            createdEntries.push(reportEntry);
-          } else if (result.action === "updated") {
-            updatedEntries.push(reportEntry);
-          }
-
-          if (result.moved) {
-            counts.moved += 1;
-            const moveMessage = reportEntry.message
-              ? `Moved to match current layout template. ${reportEntry.message}`
-              : "Moved to match current layout template.";
-            movedEntries.push({
-              ...reportEntry,
-              message: moveMessage
-            });
-          }
-
-          logInfo(
-            `[${accountLabel}] (${noteIndexValue + 1}/${notes.length}) ${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}: "${detail.title}".`
-          );
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          counts.failed += 1;
-          failedEntries.push({
-            accountId: requestConfig.accountId,
-            accountLabel,
-            conversationId: frontmatter.conversationId,
-            title: fallbackSummary.title,
-            conversationUrl: null,
-            notePath: note.path,
-            message
-          });
-          logError(`[${accountLabel}] (${noteIndexValue + 1}/${notes.length}) Failed to rebuild "${displayTitle}": ${message}`);
-        }
-      }
-
-      this.setSyncStatusBar(this.buildSyncStatusText(notes.length, notes.length, "rebuild complete"), false);
-      this.clearSyncStatusBar(8000);
-      new Notice(`Rebuild from cached JSON complete. ${summarizeCounts(notes.length, counts)}`);
-    } catch (error) {
-      runStatus = "failed";
-      const message = error instanceof Error ? error.message : String(error);
-      this.setSyncStatusBar(`Rebuild from cached JSON failed: ${message}`, false);
-      this.clearSyncStatusBar(10000);
-      new Notice(`Rebuild from cached JSON failed: ${message}`);
-    } finally {
-      const finishedAt = new Date().toISOString();
-      try {
-        const reportPath = await this.writeSyncReport({
-          startedAt,
-          finishedAt,
-          status: runStatus,
-          logPath: syncLogger?.filePath ?? null,
-          folder: this.settings.defaultFolder,
-          conversationPathTemplate: this.settings.conversationPathTemplate,
-          assetStorageMode: this.settings.assetStorageMode,
-          scope: "all",
-          accounts: this.getAccounts().map((account) => ({
-            accountId: account.accountId,
-            label: this.getAccountLabel(account)
-          })),
-          total: notes.length,
-          counts: { ...counts },
-          created: createdEntries,
-          updated: updatedEntries,
-          moved: movedEntries,
-          failed: failedEntries
-        });
-        if (reportPath) {
-          syncLogger?.info(`Rebuild report saved: ${reportPath}`);
-        } else {
-          syncLogger?.info("Rebuild report generation skipped (disabled in settings).");
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        syncLogger?.warn(`Rebuild report generation failed: ${message}`);
-      }
-
-      if (syncLogger) {
-        await syncLogger.flush();
-      }
-
-      this.syncWorkerActive = false;
-      this.suppressSyncStatusBarUpdates = false;
-    }
-  }
-
-  private readFolderFileNames(folderPath: string): Set<string> {
-    const names = new Set<string>();
-    const folder = this.app.vault.getAbstractFileByPath(folderPath);
-
-    if (!(folder instanceof TFolder)) {
-      return names;
-    }
-
-    for (const child of folder.children) {
-      if (child instanceof TFile) {
-        names.add(child.name);
-      }
-    }
-
-    return names;
-  }
-
-  private nextAvailableFileName(baseName: string, usedNames: Set<string>): string {
-    if (!usedNames.has(baseName)) {
-      usedNames.add(baseName);
-      return baseName;
-    }
-
-    const dotIndex = baseName.lastIndexOf(".");
-    const stem = dotIndex > 0 ? baseName.slice(0, dotIndex) : baseName;
-    const extension = dotIndex > 0 ? baseName.slice(dotIndex) : "";
-    let suffix = 1;
-
-    while (true) {
-      const candidate = `${stem}_${suffix}${extension}`;
-      if (!usedNames.has(candidate)) {
-        usedNames.add(candidate);
-        return candidate;
-      }
-      suffix += 1;
-    }
-  }
-
-  private extractKnownExtension(fileName: string): string | null {
-    const trimmed = fileName.trim();
-    const dotIndex = trimmed.lastIndexOf(".");
-
-    if (dotIndex <= 0 || dotIndex === trimmed.length - 1) {
-      return null;
-    }
-
-    const extension = trimmed.slice(dotIndex).toLowerCase();
-    return /^[.][a-z0-9]{1,12}$/i.test(extension) ? extension : null;
-  }
-
-  private collectConversationDownloadRefs(
-    references: ConversationFileReference[]
-  ): Array<{ fileId: string; logicalName: string }> {
-    const refsById = new Map<string, { fileId: string; logicalName: string }>();
-
-    for (const reference of references) {
-      if (!refsById.has(reference.fileId)) {
-        refsById.set(reference.fileId, {
-          fileId: reference.fileId,
-          logicalName: reference.logicalName
-        });
-      }
-    }
-
-    return Array.from(refsById.values());
-  }
-
-  private async migrateConversationAssetFiles(
-    targetFolderPath: string,
-    sourceFolderPaths: string[],
-    usedNames: Set<string>,
-    logger: SyncRunLogger | null,
-    logPrefix: string
-  ): Promise<void> {
-    for (const sourceFolderPath of sourceFolderPaths) {
-      const sourceFolder = this.app.vault.getAbstractFileByPath(sourceFolderPath);
-      if (!(sourceFolder instanceof TFolder)) {
-        continue;
-      }
-
-      for (const child of Array.from(sourceFolder.children)) {
-        if (!(child instanceof TFile)) {
-          continue;
-        }
-
-        const oldPath = child.path;
-        const destinationFileName = this.nextAvailableFileName(child.name, usedNames);
-        const destinationPath = normalizePath(`${targetFolderPath}/${destinationFileName}`);
-        await this.app.fileManager.renameFile(child, destinationPath);
-        logger?.info(`${logPrefix} Migrated existing asset: ${oldPath} -> ${destinationPath}`);
-      }
-    }
+    await runRebuildNotesFromCachedJson({
+      app: this.app,
+      settings: {
+        defaultFolder: this.settings.defaultFolder,
+        conversationPathTemplate: this.settings.conversationPathTemplate,
+        assetStorageMode: this.settings.assetStorageMode
+      },
+      manifestVersion: this.manifest.version,
+      isSyncWorkerActive: () => this.syncWorkerActive,
+      setSyncWorkerActive: (value) => {
+        this.syncWorkerActive = value;
+      },
+      setSuppressSyncStatusBarUpdates: (value) => {
+        this.suppressSyncStatusBarUpdates = value;
+      },
+      setSyncStatusBar: (text, active) => this.setSyncStatusBar(text, active),
+      buildSyncStatusText: (processed, total, phase) => this.buildSyncStatusText(processed, total, phase),
+      clearSyncStatusBar: (delayMs) => this.clearSyncStatusBar(delayMs),
+      createSyncRunLogger: (progressSink, syncFolder) => this.createSyncRunLogger(progressSink, syncFolder),
+      getConversationFrontmatter: (file) => this.getConversationFrontmatter(file),
+      resolveAccountForConversation: (frontmatter) => this.resolveAccountForConversation(frontmatter),
+      getAccountLabel: (account) => this.getAccountLabel(account),
+      getRequestConfig: (account) => this.getRequestConfig(account),
+      readConversationJsonSidecar: (notePath) => this.readConversationJsonSidecar(notePath),
+      syncConversationAssets: (
+        requestConfig,
+        conversation,
+        baseFolder,
+        conversationPathTemplate,
+        assetStorageMode,
+        logger,
+        accountLabel,
+        conversationIndex,
+        totalConversations
+      ) => this.syncConversationAssets(
+        requestConfig,
+        conversation,
+        baseFolder,
+        conversationPathTemplate,
+        assetStorageMode,
+        logger,
+        accountLabel,
+        conversationIndex,
+        totalConversations
+      ),
+      moveConversationJsonSidecar: (sourceNotePath, targetNotePath) =>
+        this.moveConversationJsonSidecar(sourceNotePath, targetNotePath),
+      writeSyncReport: (report) => this.writeSyncReport(report),
+      getAccounts: () => this.getAccounts(),
+      logInfo: (message, context) => this.logInfo(message, context),
+      logWarn: (message, context) => this.logWarn(message, context),
+      logError: (message, context) => this.logError(message, context)
+    });
   }
 
   private async syncConversationAssets(
@@ -982,113 +501,20 @@ export default class Chats2MdPlugin extends Plugin {
     conversationIndex: number,
     totalConversations: number
   ): Promise<ConversationAssetLinkMap> {
-    const linkMap: ConversationAssetLinkMap = {};
-    const downloadRefs = this.collectConversationDownloadRefs(conversation.fileReferences);
-
-    if (downloadRefs.length === 0) {
-      return linkMap;
-    }
-
-    const folderPaths = resolveAssetFolderPaths({
-      mode: assetStorageMode,
+    return syncConversationAssetsForConversation({
+      app: this.app,
+      ensureFolderExists: (folderPath) => this.ensureFolderExists(folderPath)
+    }, {
+      requestConfig,
+      conversation,
       baseFolder,
       conversationPathTemplate,
-      conversation: {
-        id: conversation.id,
-        title: conversation.title,
-        updatedAt: conversation.updatedAt
-      },
-      account: {
-        accountId: requestConfig.accountId,
-        email: requestConfig.userEmail
-      }
+      assetStorageMode,
+      logger,
+      accountLabel,
+      conversationIndex,
+      totalConversations
     });
-    const assetFolderPath = folderPaths.targetFolderPath;
-    const logPrefix = `[${accountLabel}] (${conversationIndex}/${totalConversations})`;
-
-    logger?.info(`${logPrefix} Resolving ${downloadRefs.length} asset reference(s) for "${conversation.title}".`);
-    logger?.info(`${logPrefix} Asset storage mode: ${formatAssetStorageMode(assetStorageMode)}`);
-    logger?.info(`${logPrefix} Asset folder: ${assetFolderPath}`);
-
-    await this.ensureFolderExists(assetFolderPath);
-    const usedNames = this.readFolderFileNames(assetFolderPath);
-    const sourceFolderPaths = folderPaths.candidateFolderPaths.filter((path) => path !== assetFolderPath);
-    await this.migrateConversationAssetFiles(assetFolderPath, sourceFolderPaths, usedNames, logger, logPrefix);
-
-    for (const [assetIndex, ref] of downloadRefs.entries()) {
-      const perAssetPrefix = `${logPrefix} Asset ${assetIndex + 1}/${downloadRefs.length} (${ref.fileId})`;
-
-      try {
-        logger?.info(`${perAssetPrefix} Resolving download metadata.`);
-        const info = await fetchConversationFileDownloadInfo(requestConfig, ref.fileId);
-        logger?.info(`${perAssetPrefix} Metadata resolved (file_name=${info.fileName || "<empty>"}).`);
-        const rawName = sanitizePathPart(info.fileName || ref.logicalName);
-        const withExtension = appendExtensionIfMissing(rawName, null);
-        let preferredFileName = withExtension || sanitizePathPart(ref.logicalName);
-        if (!preferredFileName.includes(".")) {
-          const logicalExtension = this.extractKnownExtension(ref.logicalName);
-          if (logicalExtension) {
-            preferredFileName = `${preferredFileName}${logicalExtension}`;
-          }
-        }
-        const preferredPath = normalizePath(`${assetFolderPath}/${preferredFileName}`);
-        const preferredExisting = this.app.vault.getAbstractFileByPath(preferredPath);
-
-        if (preferredExisting instanceof TFile) {
-          linkMap[ref.fileId] = {
-            path: preferredExisting.path,
-            fileName: preferredExisting.name
-          };
-          usedNames.add(preferredExisting.name);
-          logger?.info(`${perAssetPrefix} Reusing existing file: ${preferredExisting.path}`);
-          continue;
-        }
-
-        if (preferredFileName !== rawName) {
-          const legacyPath = normalizePath(`${assetFolderPath}/${rawName}`);
-          const legacyExisting = this.app.vault.getAbstractFileByPath(legacyPath);
-          if (legacyExisting instanceof TFile) {
-            const migratedFileName = this.nextAvailableFileName(preferredFileName, usedNames);
-            const migratedPath = normalizePath(`${assetFolderPath}/${migratedFileName}`);
-            await this.app.vault.rename(legacyExisting, migratedPath);
-            linkMap[ref.fileId] = {
-              path: migratedPath,
-              fileName: migratedFileName
-            };
-            logger?.info(`${perAssetPrefix} Renamed legacy asset: ${legacyPath} -> ${migratedPath}`);
-            continue;
-          }
-        }
-
-        logger?.info(`${perAssetPrefix} Downloading signed asset URL.`);
-        const fileContent = await fetchSignedFileContent(requestConfig, info.downloadUrl);
-        const fileNameWithType = appendExtensionIfMissing(preferredFileName, fileContent.contentType);
-        const finalFileName = this.nextAvailableFileName(fileNameWithType, usedNames);
-        const finalPath = normalizePath(`${assetFolderPath}/${finalFileName}`);
-        const existingAtFinalPath = this.app.vault.getAbstractFileByPath(finalPath);
-
-        if (existingAtFinalPath instanceof TFile) {
-          linkMap[ref.fileId] = {
-            path: existingAtFinalPath.path,
-            fileName: existingAtFinalPath.name
-          };
-          logger?.info(`${perAssetPrefix} Reusing existing file: ${existingAtFinalPath.path}`);
-          continue;
-        }
-
-        const created = await this.app.vault.createBinary(finalPath, fileContent.data);
-        linkMap[ref.fileId] = {
-          path: created.path,
-          fileName: created.name
-        };
-        logger?.info(`${perAssetPrefix} Saved asset: ${created.path}`);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        logger?.warn(`${perAssetPrefix} Failed to download asset: ${message}`);
-      }
-    }
-
-    return linkMap;
   }
 
   private getSelectedAccounts(values: SyncModalValues): StoredSessionAccount[] {
@@ -1342,117 +768,19 @@ export default class Chats2MdPlugin extends Plugin {
   }
 
   private buildSyncStatusText(processed: number, total: number, phase: string): string {
-    if (total > 0) {
-      const percent = Math.round((processed / total) * 100);
-      return `ChatGPT sync: ${processed}/${total} (${percent}%) - ${phase}`;
-    }
-
-    return `ChatGPT sync: ${phase}`;
+    return buildSyncStatusTextHelper(processed, total, phase);
   }
 
   private setSyncStatusBar(text: string, active = false): void {
-    if (this.suppressSyncStatusBarUpdates) {
-      return;
-    }
-
-    if (this.syncStatusClearTimer !== null) {
-      window.clearTimeout(this.syncStatusClearTimer);
-      this.syncStatusClearTimer = null;
-    }
-
-    if (!this.syncStatusBarEl) {
-      return;
-    }
-
-    this.syncStatusBarEl.textContent = text;
-    this.syncStatusBarEl.style.display = "";
-    this.syncStatusBarEl.setAttribute(
-      "aria-label",
-      active && this.activeSyncModal?.isSyncInProgress() ? `${text} (click to reopen dialog)` : text
-    );
+    setSyncStatusBarHelper(this, text, active);
   }
 
   private clearSyncStatusBar(delayMs = 0, force = false): void {
-    if (!this.syncStatusBarEl) {
-      return;
-    }
-
-    if (this.syncStatusClearTimer !== null) {
-      window.clearTimeout(this.syncStatusClearTimer);
-      this.syncStatusClearTimer = null;
-    }
-
-    const clear = () => {
-      if (!this.syncStatusBarEl) {
-        return;
-      }
-
-      if (!force && this.activeSyncModal?.isSyncInProgress()) {
-        return;
-      }
-
-      this.syncStatusBarEl.textContent = "";
-      this.syncStatusBarEl.style.display = "none";
-      this.syncStatusBarEl.removeAttribute("aria-label");
-    };
-
-    if (delayMs <= 0) {
-      clear();
-      return;
-    }
-
-    this.syncStatusClearTimer = window.setTimeout(() => {
-      this.syncStatusClearTimer = null;
-      clear();
-    }, delayMs);
+    clearSyncStatusBarHelper(this, delayMs, force);
   }
 
   private openSyncModal(): void {
-    if (this.syncWorkerActive) {
-      if (this.activeSyncModal?.isSyncInProgress() && !this.suppressSyncStatusBarUpdates) {
-        this.suppressSyncStatusBarUpdates = false;
-        this.activeSyncModal.open();
-        return;
-      }
-
-      new Notice("A sync job is still stopping in the background. Please wait a moment.");
-      return;
-    }
-
-    if (this.activeSyncModal?.isSyncInProgress()) {
-      this.suppressSyncStatusBarUpdates = false;
-      this.activeSyncModal.open();
-      return;
-    }
-
-    const accounts = this.getAccounts();
-
-    if (accounts.length === 0) {
-      new Notice("Add at least one account session in plugin settings before syncing.");
-      return;
-    }
-
-    let modal: SyncChatGptModal;
-    modal = new SyncChatGptModal(this.app, {
-      folder: this.settings.defaultFolder,
-      conversationPathTemplate: this.settings.conversationPathTemplate,
-      assetStorageMode: this.settings.assetStorageMode,
-      defaultConversationListLatestLimit: this.settings.conversationListLatestLimit,
-      accounts,
-      onSubmit: async (values, progress, control) => this.handleSync(values, progress, control, modal),
-      onSyncDialogHidden: (reason) => {
-        if (reason === "close") {
-          this.suppressSyncStatusBarUpdates = true;
-          this.clearSyncStatusBar(0, true);
-          return;
-        }
-
-        this.suppressSyncStatusBarUpdates = false;
-      }
-    });
-
-    this.activeSyncModal = modal;
-    modal.open();
+    openSyncModalHelper(this);
   }
 
   private async handleSync(
@@ -1461,60 +789,6 @@ export default class Chats2MdPlugin extends Plugin {
     control: SyncExecutionControl,
     modal: SyncChatGptModal
   ): Promise<void> {
-    this.settings.defaultFolder = values.folder;
-    this.settings.assetStorageMode = values.assetStorageMode;
-    await this.saveSettings();
-
-    this.syncWorkerActive = true;
-    this.suppressSyncStatusBarUpdates = false;
-
-    try {
-      await runFullSync({
-        app: this.app,
-        manifestVersion: this.manifest.version,
-        createSyncRunLogger: (reporter) => this.createSyncRunLogger(reporter, values.folder),
-        getSelectedAccounts: (syncValues) => this.getSelectedAccounts(syncValues),
-        getRequestConfig: (account) => this.getRequestConfig(account),
-        getAccountLabel: (account) => this.getAccountLabel(account),
-        getDefaultConversationListLatestLimit: () => this.settings.conversationListLatestLimit,
-        getConversationListCache: (accountId) => this.getConversationListCache(accountId),
-        saveConversationListCache: (accountId, summaries) => this.saveConversationListCache(accountId, summaries),
-        shouldSaveConversationJson: () => this.settings.saveConversationJson,
-        saveConversationJsonSidecar: (notePath, payload) => this.saveConversationJsonSidecar(notePath, payload),
-        moveConversationJsonSidecar: (sourceNotePath, targetNotePath) =>
-          this.moveConversationJsonSidecar(sourceNotePath, targetNotePath),
-        syncConversationAssets: (
-          requestConfig,
-          conversation,
-          baseFolder,
-          conversationPathTemplate,
-          assetStorageMode,
-          logger,
-          accountLabel,
-          conversationIndex,
-          totalConversations
-        ) => this.syncConversationAssets(
-          requestConfig,
-          conversation,
-          baseFolder,
-          conversationPathTemplate,
-          assetStorageMode,
-          logger,
-          accountLabel,
-          conversationIndex,
-          totalConversations
-        ),
-        writeSyncReport: (report) => this.writeSyncReport(report),
-        buildSyncStatusText: (processed, total, phase) => this.buildSyncStatusText(processed, total, phase),
-        setSyncStatusBar: (text, active) => this.setSyncStatusBar(text, active),
-        clearSyncStatusBar: (delayMs) => this.clearSyncStatusBar(delayMs)
-      }, values, progressModal, control);
-    } finally {
-      this.syncWorkerActive = false;
-      this.suppressSyncStatusBarUpdates = false;
-      if (this.activeSyncModal === modal && !modal.isSyncInProgress()) {
-        this.activeSyncModal = null;
-      }
-    }
+    await handleSyncHelper(this, values, progressModal, control, modal);
   }
 }
