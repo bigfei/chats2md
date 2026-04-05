@@ -8,6 +8,12 @@ import type Chats2MdPlugin from "./main";
 import { SessionEditorModal } from "./session-editor-modal";
 import type { StoredSessionAccount } from "./types";
 
+const CUSTOM_TEMPLATE_OPTION = "__custom__";
+
+function isKnownTemplatePreset(template: string): boolean {
+  return CONVERSATION_PATH_TEMPLATE_PRESETS.includes(template as (typeof CONVERSATION_PATH_TEMPLATE_PRESETS)[number]);
+}
+
 export class Chats2MdSettingTab extends PluginSettingTab {
   private readonly plugin: Chats2MdPlugin;
 
@@ -53,39 +59,34 @@ export class Chats2MdSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName("Conversation path template")
       .setDesc("Relative note path template (without .md). Placeholders: {date}, {slug}, {email}, {account_id}, {conversation_id}.")
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption(CONVERSATION_PATH_TEMPLATE_PRESETS[0], CONVERSATION_PATH_TEMPLATE_PRESETS[0])
+          .addOption(CONVERSATION_PATH_TEMPLATE_PRESETS[1], CONVERSATION_PATH_TEMPLATE_PRESETS[1])
+          .addOption(CONVERSATION_PATH_TEMPLATE_PRESETS[2], CONVERSATION_PATH_TEMPLATE_PRESETS[2])
+          .addOption(CUSTOM_TEMPLATE_OPTION, "Customize")
+          .setValue(
+            isKnownTemplatePreset(this.plugin.settings.conversationPathTemplate)
+              ? this.plugin.settings.conversationPathTemplate
+              : CUSTOM_TEMPLATE_OPTION
+          )
+          .onChange(async (value) => {
+            if (value === CUSTOM_TEMPLATE_OPTION) {
+              return;
+            }
+
+            this.plugin.settings.conversationPathTemplate = value;
+            await this.plugin.saveSettings();
+            new Notice(`Applied conversation template: ${value}`);
+            this.display();
+          });
+      })
       .addText((component) => {
         component.setPlaceholder("{date}/{slug}");
         component.setValue(this.plugin.settings.conversationPathTemplate);
         component.onChange(async (value) => {
           this.plugin.settings.conversationPathTemplate = value.trim() || "{date}/{slug}";
           await this.plugin.saveSettings();
-        });
-      });
-
-    let selectedPreset = "";
-    new Setting(containerEl)
-      .setName("Path template presets")
-      .setDesc("Apply one of the common folder layouts.")
-      .addDropdown((dropdown) => {
-        dropdown.addOption("", "Select preset...");
-        for (const preset of CONVERSATION_PATH_TEMPLATE_PRESETS) {
-          dropdown.addOption(preset, preset);
-        }
-        dropdown.setValue(selectedPreset).onChange((value) => {
-          selectedPreset = value;
-        });
-      })
-      .addButton((button) => {
-        button.setButtonText("Apply").onClick(async () => {
-          if (!selectedPreset) {
-            new Notice("Select a template preset first.");
-            return;
-          }
-
-          this.plugin.settings.conversationPathTemplate = selectedPreset;
-          await this.plugin.saveSettings();
-          new Notice(`Applied conversation template: ${selectedPreset}`);
-          this.display();
         });
       });
 
@@ -125,12 +126,23 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         .setName(account.email.trim().length > 0 ? account.email : account.accountId)
         .setDesc(this.describeAccount(account))
         .addButton((button) => {
-          button.setButtonText("Edit").onClick(() => {
+          button.setIcon("pencil").setTooltip("Edit session").onClick(() => {
             this.openSessionEditor(account);
           });
         })
         .addButton((button) => {
-          button.setButtonText("Delete").setWarning().onClick(async () => {
+          button.setIcon("shield-check").setTooltip("Validate session").onClick(async () => {
+            button.setDisabled(true);
+
+            try {
+              await this.validateAccount(account);
+            } finally {
+              button.setDisabled(false);
+            }
+          });
+        })
+        .addButton((button) => {
+          button.setIcon("trash-2").setWarning().setTooltip("Delete session").onClick(async () => {
             const label = account.email.trim().length > 0 ? account.email : account.accountId;
             const confirmed = window.confirm(`Delete account session for ${label}?`);
 
@@ -144,21 +156,6 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           });
         });
     }
-
-    new Setting(containerEl)
-      .setName("Validate sessions")
-      .setDesc("Checks whether stored sessions can be parsed and call the conversation list API.")
-      .addButton((button) => {
-        button.setButtonText("Validate").onClick(async () => {
-          button.setDisabled(true);
-
-          try {
-            await this.validateSessions();
-          } finally {
-            button.setDisabled(false);
-          }
-        });
-      });
   }
 
   private describeAccount(account: StoredSessionAccount): string {
@@ -187,48 +184,31 @@ export class Chats2MdSettingTab extends PluginSettingTab {
     }).open();
   }
 
-  private async validateSessions(): Promise<void> {
-    const accounts = this.plugin.getAccounts();
+  private async validateAccount(account: StoredSessionAccount): Promise<void> {
+    const label = account.email.trim().length > 0 ? account.email : account.accountId;
+    const raw = this.plugin.getSessionSecret(account.secretId);
 
-    if (accounts.length === 0) {
-      new Notice("No account sessions configured.");
+    if (!raw || raw.trim().length === 0) {
+      new Notice(`Validation failed for ${label}: missing secret payload.`);
       return;
     }
 
-    let validCount = 0;
-    const errors: string[] = [];
+    try {
+      const parsed = parseSessionJson(raw, this.plugin.manifest.version);
 
-    for (const account of accounts) {
-      const raw = this.plugin.getSessionSecret(account.secretId);
-
-      if (!raw || raw.trim().length === 0) {
-        errors.push(`${account.accountId}: missing secret payload`);
-        continue;
+      if (parsed.accountId !== account.accountId) {
+        throw new Error(`secret account mismatch (${parsed.accountId})`);
       }
 
-      try {
-        const parsed = parseSessionJson(raw, this.plugin.manifest.version);
-
-        if (parsed.accountId !== account.accountId) {
-          errors.push(`${account.accountId}: secret account mismatch (${parsed.accountId})`);
-          continue;
-        }
-
-        await validateConversationListAccess(parsed);
-        validCount += 1;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        errors.push(`${account.accountId}: ${message}`);
-      }
+      await validateConversationListAccess(parsed);
+      new Notice(`Session is valid for ${label}.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      new Notice(`Validation failed for ${label}: ${message}`);
+      console.error("[chats2md] Session validation error", {
+        accountId: account.accountId,
+        message
+      });
     }
-
-    if (errors.length === 0) {
-      new Notice(`All ${validCount} account sessions are valid.`);
-      return;
-    }
-
-    new Notice(`Validated ${validCount}/${accounts.length} accounts. Check console for details.`);
-    // Keep full failure details available for debugging without overflowing Notice UI.
-    console.error("[chats2md] Session validation errors", errors);
   }
 }
