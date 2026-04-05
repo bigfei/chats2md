@@ -26,6 +26,20 @@ Build a production bundle:
 npm run build
 ```
 
+Run code quality checks:
+
+```bash
+npm run lint
+npm run format:check
+```
+
+Auto-fix formatting and lint issues:
+
+```bash
+npm run format
+npm run lint:fix
+```
+
 This now also creates an installable zip at:
 `release/chats2md-<version>.zip`
 

@@ -11,7 +11,7 @@ import {
   getDateBucketFromTimestamp,
   normalizeConversationTimestamp,
   shouldFetchNextConversationListPage,
-  slugifyConversationTitle
+  slugifyConversationTitle,
 } from "../src/chatgpt/conversation-utils.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -44,9 +44,7 @@ function collectStringValues(value, output) {
 }
 
 function findMessageWithContentReferences(detailPayload) {
-  const mapping = detailPayload?.mapping && typeof detailPayload.mapping === "object"
-    ? detailPayload.mapping
-    : {};
+  const mapping = detailPayload?.mapping && typeof detailPayload.mapping === "object" ? detailPayload.mapping : {};
 
   for (const node of Object.values(mapping)) {
     const message = node?.message;
@@ -63,7 +61,7 @@ function findMessageWithContentReferences(detailPayload) {
 
     return {
       text: parts.join("\n"),
-      contentReferences
+      contentReferences,
     };
   }
 
@@ -102,11 +100,14 @@ test("extractConversationListPageInfo reads response limit metadata", () => {
 });
 
 test("conversation list pagination follows API limit metadata", () => {
-  const pageInfo = extractConversationListPageInfo({
-    limit: 28,
-    offset: 56,
-    total: 120
-  }, 50);
+  const pageInfo = extractConversationListPageInfo(
+    {
+      limit: 28,
+      offset: 56,
+      total: 120,
+    },
+    50,
+  );
 
   assert.equal(shouldFetchNextConversationListPage(28, pageInfo, 50), true);
   assert.equal(getNextConversationListOffset(56, pageInfo, 50), 84);
@@ -126,10 +127,7 @@ test("applyChatGptContentReferencesAsReferenceLinks uses matched_text replacemen
 
   assert.ok(message, "Fixture must include message content references.");
 
-  const { text, references } = applyChatGptContentReferencesAsReferenceLinks(
-    message.text,
-    message.contentReferences
-  );
+  const { text, references } = applyChatGptContentReferencesAsReferenceLinks(message.text, message.contentReferences);
 
   assert.match(text, /【文字】/);
   assert.doesNotMatch(text, /(?:cite|filecite)/);
@@ -140,18 +138,15 @@ test("applyChatGptContentReferencesAsReferenceLinks uses matched_text replacemen
 });
 
 test("applyChatGptContentReferencesAsReferenceLinks skips whitespace-only matched_text", () => {
-  const { text, references } = applyChatGptContentReferencesAsReferenceLinks(
-    "hello world",
-    [
-      {
-        matched_text: " ",
-        start_idx: 1,
-        end_idx: 2,
-        alt: "([Gist](https://example.com))",
-        safe_urls: ["https://example.com"]
-      }
-    ]
-  );
+  const { text, references } = applyChatGptContentReferencesAsReferenceLinks("hello world", [
+    {
+      matched_text: " ",
+      start_idx: 1,
+      end_idx: 2,
+      alt: "([Gist](https://example.com))",
+      safe_urls: ["https://example.com"],
+    },
+  ]);
 
   assert.equal(text, "hello world");
   assert.equal(references.length, 0);

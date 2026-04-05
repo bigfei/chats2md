@@ -97,9 +97,7 @@ function readContentReferenceLabelFromAlt(reference) {
     return markdownLinkMatch[1].trim();
   }
 
-  return alt
-    .replace(/^\(+|\)+$/g, "")
-    .trim();
+  return alt.replace(/^\(+|\)+$/g, "").trim();
 }
 
 function readContentReferenceLabel(reference, fallbackIndex) {
@@ -110,9 +108,10 @@ function readContentReferenceLabel(reference, fallbackIndex) {
 
   const items = Array.isArray(reference.items) ? reference.items : [];
   const firstItem = isRecord(items[0]) ? items[0] : null;
-  const label = readNonEmptyString(firstItem?.attribution)
-    || readNonEmptyString(firstItem?.title)
-    || readNonEmptyString(reference.type);
+  const label =
+    readNonEmptyString(firstItem?.attribution) ||
+    readNonEmptyString(firstItem?.title) ||
+    readNonEmptyString(reference.type);
   return label || `Source ${fallbackIndex}`;
 }
 
@@ -137,9 +136,7 @@ function replaceFirstOccurrence(text, matchedText, replacement) {
 function buildReferenceId(reference, fallbackIndex, usedIds) {
   const startIndex = toNonNegativeInteger(reference.start_idx);
   const endIndex = toNonNegativeInteger(reference.end_idx);
-  const baseId = startIndex !== null && endIndex !== null
-    ? `ref-${startIndex}-${endIndex}`
-    : `ref-${fallbackIndex}`;
+  const baseId = startIndex !== null && endIndex !== null ? `ref-${startIndex}-${endIndex}` : `ref-${fallbackIndex}`;
 
   let candidate = baseId;
   let suffix = 2;
@@ -159,7 +156,7 @@ export function applyChatGptContentReferencesAsReferenceLinks(text, contentRefer
   if (sortedReferences.length === 0) {
     return {
       text: sourceText,
-      references: []
+      references: [],
     };
   }
 
@@ -184,16 +181,12 @@ export function applyChatGptContentReferencesAsReferenceLinks(text, contentRefer
     const replacement = `[${escapeMarkdownLinkLabel(label)}][${referenceId}]`;
     referenceDefinitions.push(`[${referenceId}]: ${url}`);
 
-    transformedText = replaceFirstOccurrence(
-      transformedText,
-      matchedText,
-      replacement
-    );
+    transformedText = replaceFirstOccurrence(transformedText, matchedText, replacement);
   }
 
   return {
     text: transformedText,
-    references: referenceDefinitions
+    references: referenceDefinitions,
   };
 }
 
@@ -208,7 +201,9 @@ export function getDateBucketFromTimestamp(value) {
 }
 
 export function slugifyConversationTitle(title) {
-  const normalized = String(title ?? "").normalize("NFKC").trim();
+  const normalized = String(title ?? "")
+    .normalize("NFKC")
+    .trim();
 
   if (!normalized) {
     return "untitled-conversation";
@@ -231,7 +226,7 @@ export function extractConversationListPageInfo(payload, fallbackLimit = 100) {
     return {
       limit: normalizedFallbackLimit,
       offset: 0,
-      total: null
+      total: null,
     };
   }
 
@@ -242,7 +237,7 @@ export function extractConversationListPageInfo(payload, fallbackLimit = 100) {
   return {
     limit: Math.max(1, limit ?? normalizedFallbackLimit),
     offset: offset ?? 0,
-    total
+    total,
   };
 }
 

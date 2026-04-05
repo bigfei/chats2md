@@ -2,13 +2,7 @@ import { getDateBucketFromTimestamp, slugifyConversationTitle } from "../chatgpt
 import { sanitizePathPart } from "../main/helpers";
 import { normalizeObsidianPath } from "./normalization";
 
-const SUPPORTED_PLACEHOLDERS = new Set([
-  "date",
-  "slug",
-  "email",
-  "account_id",
-  "conversation_id"
-]);
+const SUPPORTED_PLACEHOLDERS = new Set(["date", "slug", "email", "account_id", "conversation_id"]);
 
 export interface ConversationPathTemplateContext {
   title: string;
@@ -42,7 +36,7 @@ function readPlaceholderValue(name: string, context: ConversationPathTemplateCon
 
 export function resolveConversationNoteRelativePath(
   template: string,
-  context: ConversationPathTemplateContext
+  context: ConversationPathTemplateContext,
 ): string {
   const normalizedTemplate = normalizeTemplate(template);
 
@@ -59,11 +53,13 @@ export function resolveConversationNoteRelativePath(
     .filter((name): name is string => typeof name === "string" && !SUPPORTED_PLACEHOLDERS.has(name));
 
   if (unknownPlaceholders.length > 0) {
-    throw new Error(`Conversation path template contains unsupported placeholder(s): ${unknownPlaceholders.join(", ")}`);
+    throw new Error(
+      `Conversation path template contains unsupported placeholder(s): ${unknownPlaceholders.join(", ")}`,
+    );
   }
 
   const resolvedPath = normalizeObsidianPath(
-    normalizedTemplate.replace(/\{([^}]+)\}/g, (_, name: string) => readPlaceholderValue(name, context))
+    normalizedTemplate.replace(/\{([^}]+)\}/g, (_, name: string) => readPlaceholderValue(name, context)),
   );
   const segments = resolvedPath.split("/");
 
@@ -83,5 +79,5 @@ export function resolveConversationNoteRelativePath(
 export const CONVERSATION_PATH_TEMPLATE_PRESETS = [
   "{date}/{slug}",
   "{email}/{account_id}/{date}/{slug}",
-  "{email}/{account_id}/{slug}"
+  "{email}/{account_id}/{slug}",
 ] as const;

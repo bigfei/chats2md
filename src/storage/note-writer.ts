@@ -8,7 +8,7 @@ import type {
   ConversationDetail,
   ConversationFileReference,
   ConversationFileReferenceKind,
-  ConversationUpsertResult
+  ConversationUpsertResult,
 } from "../shared/types";
 
 const CONVERSATION_ID_KEY = "chatgpt_conversation_id";
@@ -22,18 +22,9 @@ function quoteYaml(value: string): string {
   return JSON.stringify(value);
 }
 
-function getFolderPathFromFile(file: TFile): string {
-  const index = file.path.lastIndexOf("/");
-  return index === -1 ? "" : file.path.slice(0, index);
-}
-
 function getFolderPathFromFilePath(filePath: string): string {
   const index = filePath.lastIndexOf("/");
   return index === -1 ? "" : filePath.slice(0, index);
-}
-
-function joinPath(folder: string, fileName: string): string {
-  return normalizePath(`${folder}/${fileName}`);
 }
 
 function toRelativePath(fromFilePath: string, targetPath: string): string {
@@ -84,7 +75,7 @@ function buildReferenceIndex(conversation: ConversationDetail): Map<string, Conv
 function renderPlaceholderReplacement(
   reference: ConversationFileReference,
   notePath: string,
-  assetLinks: ConversationAssetLinkMap
+  assetLinks: ConversationAssetLinkMap,
 ): string {
   const resolved = assetLinks[reference.fileId];
 
@@ -106,7 +97,7 @@ function injectAssetLinksIntoMarkdown(
   markdown: string,
   notePath: string,
   references: Map<string, ConversationFileReference>,
-  assetLinks: ConversationAssetLinkMap
+  assetLinks: ConversationAssetLinkMap,
 ): string {
   let transformed = markdown;
 
@@ -115,9 +106,9 @@ function injectAssetLinksIntoMarkdown(
       continue;
     }
 
-    transformed = transformed.split(reference.placeholder).join(
-      renderPlaceholderReplacement(reference, notePath, assetLinks)
-    );
+    transformed = transformed
+      .split(reference.placeholder)
+      .join(renderPlaceholderReplacement(reference, notePath, assetLinks));
   }
 
   return transformed;
@@ -154,7 +145,7 @@ function buildFrontmatter(
   importedAt: string,
   account: { accountId: string; userId: string; userEmail: string },
   pluginVersion: string,
-  assetStorageMode: AssetStorageMode
+  assetStorageMode: AssetStorageMode,
 ): string {
   const rows = [
     "---",
@@ -171,7 +162,7 @@ function buildFrontmatter(
     `${CONVERSATION_ASSET_STORAGE_MODE_KEY}: ${quoteYaml(assetStorageMode)}`,
     `chats2md_source: ${quoteYaml("backend-api/conversation")}`,
     `chats2md_plugin_version: ${quoteYaml(pluginVersion)}`,
-    "---"
+    "---",
   ];
 
   return rows.join("\n");
@@ -180,7 +171,7 @@ function buildFrontmatter(
 function buildTranscript(
   conversation: ConversationDetail,
   notePath: string,
-  assetLinks: ConversationAssetLinkMap
+  assetLinks: ConversationAssetLinkMap,
 ): string {
   if (conversation.messages.length === 0) {
     return "_No visible user or assistant messages were available in this conversation._";
@@ -193,16 +184,8 @@ function buildTranscript(
     .join("\n\n");
 }
 
-function buildBody(
-  conversation: ConversationDetail,
-  notePath: string,
-  assetLinks: ConversationAssetLinkMap
-): string {
-  return [
-    `# ${conversation.title}`,
-    "",
-    buildTranscript(conversation, notePath, assetLinks)
-  ].join("\n");
+function buildBody(conversation: ConversationDetail, notePath: string, assetLinks: ConversationAssetLinkMap): string {
+  return [`# ${conversation.title}`, "", buildTranscript(conversation, notePath, assetLinks)].join("\n");
 }
 
 function buildNoteContent(
@@ -213,7 +196,7 @@ function buildNoteContent(
   pluginVersion: string,
   assetStorageMode: AssetStorageMode,
   notePath: string,
-  assetLinks: ConversationAssetLinkMap
+  assetLinks: ConversationAssetLinkMap,
 ): string {
   return `${buildFrontmatter(conversation, listUpdatedAt, importedAt, account, pluginVersion, assetStorageMode)}\n\n${buildBody(conversation, notePath, assetLinks)}\n`;
 }
@@ -227,14 +210,14 @@ function buildConversationDesiredPath(
   folder: string,
   conversationPathTemplate: string,
   conversation: { id: string; title: string; updatedAt: string },
-  account: { accountId: string; userId: string; userEmail: string }
+  account: { accountId: string; userId: string; userEmail: string },
 ): string {
   const relativePath = resolveConversationNoteRelativePath(conversationPathTemplate, {
     title: conversation.title,
     updatedAt: conversation.updatedAt,
     conversationId: conversation.id,
     email: account.userEmail,
-    accountId: account.accountId
+    accountId: account.accountId,
   });
   return normalizePath(`${folder}/${relativePath}`);
 }
@@ -276,8 +259,13 @@ export function getIndexedConversationSyncMetadata(
   app: App,
   noteIndex: Map<string, TFile>,
   accountId: string,
-  conversationId: string
-): { updatedAt: string | null; listUpdatedAt: string | null; title: string | null; assetStorageMode: AssetStorageMode | null } {
+  conversationId: string,
+): {
+  updatedAt: string | null;
+  listUpdatedAt: string | null;
+  title: string | null;
+  assetStorageMode: AssetStorageMode | null;
+} {
   const noteKey = buildConversationKey(accountId, conversationId);
   const legacyKey = buildConversationKey("", conversationId);
   const existing = noteIndex.get(noteKey) ?? noteIndex.get(legacyKey);
@@ -287,7 +275,7 @@ export function getIndexedConversationSyncMetadata(
       updatedAt: null,
       listUpdatedAt: null,
       title: null,
-      assetStorageMode: null
+      assetStorageMode: null,
     };
   }
 
@@ -300,7 +288,7 @@ export function getIndexedConversationSyncMetadata(
     updatedAt: updatedAt.length > 0 ? updatedAt : null,
     listUpdatedAt: listUpdatedAt.length > 0 ? listUpdatedAt : null,
     title: title.length > 0 ? title : null,
-    assetStorageMode: storedAssetMode.length > 0 ? normalizeAssetStorageMode(storedAssetMode) : null
+    assetStorageMode: storedAssetMode.length > 0 ? normalizeAssetStorageMode(storedAssetMode) : null,
   };
 }
 
@@ -326,7 +314,7 @@ export async function ensureConversationNotePath(
   conversation: { id: string; title: string; updatedAt: string },
   folder: string,
   account: { accountId: string; userId: string; userEmail: string },
-  conversationPathTemplate: string
+  conversationPathTemplate: string,
 ): Promise<{ moved: boolean; filePath: string | null; previousFilePath?: string }> {
   const noteKey = buildConversationKey(account.accountId, conversation.id);
   const legacyKey = buildConversationKey("", conversation.id);
@@ -335,7 +323,7 @@ export async function ensureConversationNotePath(
   if (!existing) {
     return {
       moved: false,
-      filePath: null
+      filePath: null,
     };
   }
 
@@ -355,7 +343,7 @@ export async function ensureConversationNotePath(
     normalizedFolder,
     conversationPathTemplate,
     conversation,
-    account
+    account,
   );
   const targetFolder = getFolderPathFromFilePath(desiredByTemplate);
   await ensureFolderExists(app, targetFolder);
@@ -364,7 +352,7 @@ export async function ensureConversationNotePath(
   if (desiredPath === existing.path) {
     return {
       moved: false,
-      filePath: existing.path
+      filePath: existing.path,
     };
   }
 
@@ -374,7 +362,7 @@ export async function ensureConversationNotePath(
   return {
     moved: true,
     filePath: desiredPath,
-    previousFilePath
+    previousFilePath,
   };
 }
 
@@ -390,7 +378,7 @@ export async function upsertConversationNote(
   listUpdatedAt?: string,
   assetLinks: ConversationAssetLinkMap = {},
   forceRewrite = false,
-  activeEditorContext?: { editor: Editor; filePath: string }
+  activeEditorContext?: { editor: Editor; filePath: string },
 ): Promise<ConversationUpsertResult> {
   const normalizedFolder = normalizeTargetFolder(folder);
   const normalizedListUpdatedAt = (listUpdatedAt ?? conversation.updatedAt).trim() || conversation.updatedAt;
@@ -403,7 +391,7 @@ export async function upsertConversationNote(
     normalizedFolder,
     conversationPathTemplate,
     conversation,
-    account
+    account,
   );
   const targetFolder = getFolderPathFromFilePath(desiredByTemplate);
   await ensureFolderExists(app, targetFolder);
@@ -415,14 +403,23 @@ export async function upsertConversationNote(
     const importedAt = new Date().toISOString();
     const createdFile = await app.vault.create(
       desiredPath,
-      buildNoteContent(conversation, normalizedListUpdatedAt, importedAt, account, pluginVersion, assetStorageMode, desiredPath, assetLinks)
+      buildNoteContent(
+        conversation,
+        normalizedListUpdatedAt,
+        importedAt,
+        account,
+        pluginVersion,
+        assetStorageMode,
+        desiredPath,
+        assetLinks,
+      ),
     );
     noteIndex.set(noteKey, createdFile);
 
     return {
       action: "created",
       filePath: createdFile.path,
-      moved: false
+      moved: false,
     };
   }
 
@@ -439,19 +436,22 @@ export async function upsertConversationNote(
   const existingUpdatedAt = readFrontmatterString(app, existing, CONVERSATION_UPDATED_AT_KEY);
   const existingTitle = readFrontmatterString(app, existing, CONVERSATION_TITLE_KEY);
   const existingListUpdatedAt = readFrontmatterString(app, existing, CONVERSATION_LIST_UPDATED_AT_KEY);
-  const existingAssetStorageMode = normalizeAssetStorageMode(readFrontmatterString(app, existing, CONVERSATION_ASSET_STORAGE_MODE_KEY));
-  const shouldRewrite = forceRewrite
-    || existingUpdatedAt !== conversation.updatedAt
-    || existingTitle !== conversation.title
-    || existingListUpdatedAt !== normalizedListUpdatedAt
-    || existingAssetStorageMode !== assetStorageMode;
+  const existingAssetStorageMode = normalizeAssetStorageMode(
+    readFrontmatterString(app, existing, CONVERSATION_ASSET_STORAGE_MODE_KEY),
+  );
+  const shouldRewrite =
+    forceRewrite ||
+    existingUpdatedAt !== conversation.updatedAt ||
+    existingTitle !== conversation.title ||
+    existingListUpdatedAt !== normalizedListUpdatedAt ||
+    existingAssetStorageMode !== assetStorageMode;
 
   if (!shouldRewrite) {
     return {
       action: "skipped",
       filePath: existing.path,
       moved,
-      previousFilePath
+      previousFilePath,
     };
   }
 
@@ -464,14 +464,12 @@ export async function upsertConversationNote(
     pluginVersion,
     assetStorageMode,
     existing.path,
-    assetLinks
+    assetLinks,
   );
   const canUseEditorForActiveNote = Boolean(
-    activeEditorContext
-    && (
-      activeEditorContext.filePath === existing.path
-      || (previousFilePath && activeEditorContext.filePath === previousFilePath)
-    )
+    activeEditorContext &&
+    (activeEditorContext.filePath === existing.path ||
+      (previousFilePath && activeEditorContext.filePath === previousFilePath)),
   );
 
   if (canUseEditorForActiveNote && activeEditorContext) {
@@ -484,6 +482,6 @@ export async function upsertConversationNote(
     action: "updated",
     filePath: existing.path,
     moved,
-    previousFilePath
+    previousFilePath,
   };
 }

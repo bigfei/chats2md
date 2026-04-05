@@ -8,7 +8,7 @@ import type {
   ImportFailure,
   ImportProgressCounts,
   StoredSessionAccount,
-  SyncModalValues
+  SyncModalValues,
 } from "../shared/types";
 
 export interface SyncProgressReporter {
@@ -42,7 +42,7 @@ function formatCounts(counts: ImportProgressCounts): string {
     `Updated: ${counts.updated}`,
     `Moved: ${counts.moved}`,
     `Skipped: ${counts.skipped}`,
-    `Failed: ${counts.failed}`
+    `Failed: ${counts.failed}`,
   ].join(" | ");
 }
 
@@ -52,7 +52,7 @@ function createEmptyCounts(): ImportProgressCounts {
     updated: 0,
     moved: 0,
     skipped: 0,
-    failed: 0
+    failed: 0,
   };
 }
 
@@ -122,15 +122,15 @@ class SyncDateRangeModal extends Modal {
 
     contentEl.createEl("p", {
       cls: "chats2md-modal__status",
-      text: `Found ${this.options.context.discoveredCount} conversations spanning more than 30 days.`
+      text: `Found ${this.options.context.discoveredCount} conversations spanning more than 30 days.`,
     });
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
-      text: `updated_at range: ${this.fullStartDate} to ${this.fullEndDate}.`
+      text: `updated_at range: ${this.fullStartDate} to ${this.fullEndDate}.`,
     });
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
-      text: "Choose an updated_at date range, or keep the full discovered range."
+      text: "Choose an updated_at date range, or keep the full discovered range.",
     });
 
     new Setting(contentEl)
@@ -161,9 +161,12 @@ class SyncDateRangeModal extends Modal {
 
     new Setting(contentEl)
       .addButton((button) => {
-        button.setButtonText("Continue").setCta().onClick(() => {
-          this.submit();
-        });
+        button
+          .setButtonText("Continue")
+          .setCta()
+          .onClick(() => {
+            this.submit();
+          });
       })
       .addButton((button) => {
         button.setButtonText("Skip account").onClick(() => {
@@ -211,7 +214,7 @@ class SyncDateRangeModal extends Modal {
     this.resolve({
       mode: "range",
       startDate: normalizedStartDate,
-      endDate: normalizedEndDate
+      endDate: normalizedEndDate,
     });
   }
 
@@ -231,12 +234,12 @@ class SyncDateRangeModal extends Modal {
 
 function openSyncDateRangeModal(
   app: App,
-  context: ConversationSyncDateRangePromptContext
+  context: ConversationSyncDateRangePromptContext,
 ): Promise<ConversationSyncDateRangeSelection> {
   return new Promise((resolve) => {
     new SyncDateRangeModal(app, {
       context,
-      onResolve: resolve
+      onResolve: resolve,
     }).open();
   });
 }
@@ -332,13 +335,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     this.appendDetail(`${title}: ${message}`);
   }
 
-  setProgress(
-    title: string,
-    index: number,
-    total: number,
-    processed: number,
-    counts: ImportProgressCounts
-  ): void {
+  setProgress(title: string, index: number, total: number, processed: number, counts: ImportProgressCounts): void {
     this.activeStatusText = `Sync ${title} (${index}/${total})`;
     this.latestCounts = { ...counts };
     this.setProgressValue(total === 0 ? 0 : Math.round((processed / total) * 100));
@@ -346,9 +343,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     this.applyStatusText();
   }
 
-  async selectDateRange(
-    context: ConversationSyncDateRangePromptContext
-  ): Promise<ConversationSyncDateRangeSelection> {
+  async selectDateRange(context: ConversationSyncDateRangePromptContext): Promise<ConversationSyncDateRangeSelection> {
     return openSyncDateRangeModal(this.app, context);
   }
 
@@ -393,37 +388,40 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
 
     contentEl.createEl("p", {
       cls: "chats2md-modal__status",
-      text: "Sync settings are configured from the plugin settings tab."
+      text: "Sync settings are configured from the plugin settings tab.",
     });
 
     const summaryList = contentEl.createEl("ul", {
-      cls: "chats2md-modal__summary"
+      cls: "chats2md-modal__summary",
     });
 
     summaryList.createEl("li", {
-      text: `Folder: ${this.options.folder}`
+      text: `Folder: ${this.options.folder}`,
     });
     summaryList.createEl("li", {
-      text: `Layout template: ${this.options.conversationPathTemplate}`
+      text: `Layout template: ${this.options.conversationPathTemplate}`,
     });
     summaryList.createEl("li", {
-      text: `Asset storage: ${formatAssetStorageMode(this.options.assetStorageMode)}`
+      text: `Asset storage: ${formatAssetStorageMode(this.options.assetStorageMode)}`,
     });
     summaryList.createEl("li", {
-      text: `Default latest conversation limit: ${this.options.defaultConversationListLatestLimit}`
+      text: `Default latest conversation limit: ${this.options.defaultConversationListLatestLimit}`,
     });
     summaryList.createEl("li", {
-      text: `Configured accounts: ${this.options.accounts.length}`
+      text: `Configured accounts: ${this.options.accounts.length}`,
     });
 
     if (this.options.accounts.length === 0) {
       contentEl.createEl("p", {
         cls: "chats2md-modal__hint",
-        text: "No accounts configured. Add at least one session in plugin settings."
+        text: "No accounts configured. Add at least one session in plugin settings.",
       });
 
       new Setting(contentEl).addButton((button) => {
-        button.setButtonText("Close").setCta().onClick(() => this.close());
+        button
+          .setButtonText("Close")
+          .setCta()
+          .onClick(() => this.close());
       });
       return;
     }
@@ -479,7 +477,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
 
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
-      text: "Continue to sync selected ChatGPT conversations into markdown notes."
+      text: "Continue to sync selected ChatGPT conversations into markdown notes.",
     });
 
     new Setting(contentEl)
@@ -509,7 +507,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
               accountId: this.syncScope === "single" ? this.selectedAccountId : undefined,
               forceRefresh: this.forceRefresh,
               fetchFullConversationList: this.fetchFullConversationList,
-              conversationLimitOverride: conversationLimitOverride ?? undefined
+              conversationLimitOverride: conversationLimitOverride ?? undefined,
             };
 
             try {
@@ -530,7 +528,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     if (this.syncScope !== "single") {
       this.accountSelectorContainer.createEl("p", {
         cls: "chats2md-modal__hint",
-        text: "All configured accounts will be synced sequentially."
+        text: "All configured accounts will be synced sequentially.",
       });
       return;
     }
@@ -540,22 +538,21 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
       .setDesc("Choose one account to sync.")
       .addDropdown((dropdown) => {
         for (const account of this.options.accounts) {
-          const label = account.email.trim().length > 0
-            ? `${account.email} (${account.accountId})`
-            : account.accountId;
+          const label = account.email.trim().length > 0 ? `${account.email} (${account.accountId})` : account.accountId;
           dropdown.addOption(account.accountId, label);
         }
 
         const fallbackAccountId = this.options.accounts[0]?.accountId ?? "";
-        if (!this.selectedAccountId || !this.options.accounts.some((account) => account.accountId === this.selectedAccountId)) {
+        if (
+          !this.selectedAccountId ||
+          !this.options.accounts.some((account) => account.accountId === this.selectedAccountId)
+        ) {
           this.selectedAccountId = fallbackAccountId;
         }
 
-        dropdown
-          .setValue(this.selectedAccountId)
-          .onChange((value) => {
-            this.selectedAccountId = value;
-          });
+        dropdown.setValue(this.selectedAccountId).onChange((value) => {
+          this.selectedAccountId = value;
+        });
       });
   }
 
@@ -597,11 +594,11 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     this.setTitle("Sync ChatGPT conversations");
 
     this.statusEl = contentEl.createEl("p", {
-      cls: "chats2md-modal__status"
+      cls: "chats2md-modal__status",
     });
 
     const progressWrapper = contentEl.createDiv({
-      cls: "chats2md-progress-modal__bar"
+      cls: "chats2md-progress-modal__bar",
     });
     this.progressEl = progressWrapper.createEl("progress");
     this.progressEl.max = 100;
@@ -609,11 +606,11 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
 
     this.countsEl = contentEl.createEl("p", {
       cls: "chats2md-progress-modal__counts",
-      text: formatCounts(this.latestCounts)
+      text: formatCounts(this.latestCounts),
     });
 
     this.detailEl = contentEl.createDiv({
-      cls: "chats2md-progress-modal__details"
+      cls: "chats2md-progress-modal__details",
     });
 
     for (const line of this.detailLines) {

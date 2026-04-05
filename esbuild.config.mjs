@@ -28,7 +28,7 @@ const context = await esbuild.context({
     "@lezer/common",
     "@lezer/highlight",
     "@lezer/lr",
-    ...builtinModules
+    ...builtinModules,
   ],
   format: "cjs",
   logLevel: "info",
@@ -36,7 +36,7 @@ const context = await esbuild.context({
   outfile: "main.js",
   sourcemap: prod ? false : "inline",
   target: "es2018",
-  treeShaking: true
+  treeShaking: true,
 });
 
 if (prod) {

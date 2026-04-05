@@ -1,14 +1,8 @@
-import { App, MarkdownView, Notice, Plugin, TFile, TFolder, addIcon, normalizePath } from "obsidian";
+import { MarkdownView, Notice, Plugin, TFile, TFolder, addIcon, normalizePath } from "obsidian";
 
-import {
-  fetchConversationDetailWithPayload,
-  parseSessionJson
-} from "../chatgpt/api";
+import { fetchConversationDetailWithPayload, parseSessionJson } from "../chatgpt/api";
 import { SyncChatGptModal, type SyncExecutionControl, type SyncProgressReporter } from "../ui/import-modal";
-import {
-  indexConversationNotes,
-  upsertConversationNote
-} from "../storage/note-writer";
+import { indexConversationNotes, upsertConversationNote } from "../storage/note-writer";
 import { Chats2MdSettingTab } from "../ui/settings";
 import { ForceSyncUiController } from "../ui/force-sync-ui";
 import {
@@ -19,7 +13,6 @@ import {
   CONVERSATION_TITLE_KEY,
   CONVERSATION_UPDATED_AT_KEY,
   CONVERSATION_USER_ID_KEY,
-  createEmptyCounts,
   DEFAULT_CONVERSATION_LIST_LATEST_LIMIT,
   formatActionLabel,
   normalizeAssetStorageMode,
@@ -31,25 +24,24 @@ import {
   resolveSyncReportFolder,
   readString,
   sortAccounts,
-  summarizeCounts,
-  SyncRunLogger
+  SyncRunLogger,
 } from "./helpers";
 import { syncConversationAssetsForConversation } from "./asset-sync";
 import { runRebuildNotesFromCachedJson } from "./rebuild";
 import {
   migrateLegacySessionIfNeeded as migrateLegacySessionIfNeededHelper,
   removeSessionAccount as removeSessionAccountHelper,
-  upsertSessionAccount as upsertSessionAccountHelper
+  upsertSessionAccount as upsertSessionAccountHelper,
 } from "./session-account";
 import {
   enableSettingsPaneIcon as enableSettingsPaneIconHelper,
-  syncSettingsPaneIconObserver as syncSettingsPaneIconObserverHelper
+  syncSettingsPaneIconObserver as syncSettingsPaneIconObserverHelper,
 } from "./settings-pane-icon";
 import { handleSync as handleSyncHelper, openSyncModal as openSyncModalHelper } from "./sync-modal";
 import {
   buildSyncStatusText as buildSyncStatusTextHelper,
   clearSyncStatusBar as clearSyncStatusBarHelper,
-  setSyncStatusBar as setSyncStatusBarHelper
+  setSyncStatusBar as setSyncStatusBarHelper,
 } from "./sync-status";
 import { renderSyncRunReport } from "../sync/report";
 import { configureNormalizePath } from "../path/normalization";
@@ -61,11 +53,9 @@ import {
   type ConversationAssetLinkMap,
   type ConversationDetail,
   type ConversationSummary,
-  type SyncReportConversationEntry,
   type SyncRunReport,
-  type SyncRunStatus,
   type StoredSessionAccount,
-  type SyncModalValues
+  type SyncModalValues,
 } from "../shared/types";
 
 const CHATGPT_IMPORT_SYNC_ICON_ID = "chats2md-chatgpt-import-sync";
@@ -108,7 +98,7 @@ export default class Chats2MdPlugin extends Plugin {
       name: "Sync ChatGPT conversations",
       callback: () => {
         this.openSyncModal();
-      }
+      },
     });
 
     const settingTab = new Chats2MdSettingTab(this.app, this);
@@ -130,30 +120,40 @@ export default class Chats2MdPlugin extends Plugin {
       isEligibleFile: (file) => this.isForceSyncEligibleFile(file),
       onForceSync: async (file) => {
         await this.forceSyncConversationNote(file);
-      }
+      },
     });
 
-    this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.forceSyncUiController?.refreshMarkdownSyncActions()));
-    this.registerEvent(this.app.workspace.on("file-open", () => this.forceSyncUiController?.refreshMarkdownSyncActions()));
-    this.registerEvent(this.app.metadataCache.on("changed", () => this.forceSyncUiController?.refreshMarkdownSyncActions()));
-    this.registerEvent(this.app.workspace.on("file-menu", (menu, file, _source, leaf) => {
-      if (!(file instanceof TFile) || !leaf || !(leaf.view instanceof MarkdownView)) {
-        return;
-      }
+    this.registerEvent(
+      this.app.workspace.on("active-leaf-change", () => this.forceSyncUiController?.refreshMarkdownSyncActions()),
+    );
+    this.registerEvent(
+      this.app.workspace.on("file-open", () => this.forceSyncUiController?.refreshMarkdownSyncActions()),
+    );
+    this.registerEvent(
+      this.app.metadataCache.on("changed", () => this.forceSyncUiController?.refreshMarkdownSyncActions()),
+    );
+    this.registerEvent(
+      this.app.workspace.on("file-menu", (menu, file, _source, leaf) => {
+        if (!(file instanceof TFile) || !leaf || !(leaf.view instanceof MarkdownView)) {
+          return;
+        }
 
-      if (leaf.view.file?.path !== file.path) {
-        return;
-      }
-      this.forceSyncUiController?.addForceSyncMenuItem(menu, file);
-    }));
-    this.registerEvent(this.app.workspace.on("editor-menu", (menu, _editor, info) => {
-      const file = info.file;
-      if (!(file instanceof TFile)) {
-        return;
-      }
+        if (leaf.view.file?.path !== file.path) {
+          return;
+        }
+        this.forceSyncUiController?.addForceSyncMenuItem(menu, file);
+      }),
+    );
+    this.registerEvent(
+      this.app.workspace.on("editor-menu", (menu, _editor, info) => {
+        const file = info.file;
+        if (!(file instanceof TFile)) {
+          return;
+        }
 
-      this.forceSyncUiController?.addForceSyncMenuItem(menu, file);
-    }));
+        this.forceSyncUiController?.addForceSyncMenuItem(menu, file);
+      }),
+    );
     this.registerEvent(this.app.workspace.on("layout-change", () => this.syncSettingsPaneIconObserver()));
     this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.syncSettingsPaneIconObserver()));
     this.app.workspace.onLayoutReady(() => {
@@ -171,30 +171,34 @@ export default class Chats2MdPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    const saved = await this.loadData() as LegacySettingsPayload | null;
+    const saved = (await this.loadData()) as LegacySettingsPayload | null;
     const savedAccounts = Array.isArray(saved?.accounts)
-      ? saved.accounts.map(normalizeStoredAccount).filter((account): account is StoredSessionAccount => account !== null)
+      ? saved.accounts
+          .map(normalizeStoredAccount)
+          .filter((account): account is StoredSessionAccount => account !== null)
       : [];
     const legacySessionJson = readString(saved?.legacySessionJson).trim() || readString(saved?.sessionJson);
 
     this.settings = {
       ...DEFAULT_SETTINGS,
       defaultFolder: readString(saved?.defaultFolder, DEFAULT_SETTINGS.defaultFolder),
-      conversationPathTemplate: readString(saved?.conversationPathTemplate, DEFAULT_SETTINGS.conversationPathTemplate).trim()
-        || DEFAULT_SETTINGS.conversationPathTemplate,
+      conversationPathTemplate:
+        readString(saved?.conversationPathTemplate, DEFAULT_SETTINGS.conversationPathTemplate).trim() ||
+        DEFAULT_SETTINGS.conversationPathTemplate,
       assetStorageMode: normalizeAssetStorageMode(saved?.assetStorageMode),
       generateSyncReport: saved?.generateSyncReport !== false,
-      syncReportFolder: readString(saved?.syncReportFolder, DEFAULT_SETTINGS.syncReportFolder).trim()
-        || DEFAULT_SETTINGS.syncReportFolder,
+      syncReportFolder:
+        readString(saved?.syncReportFolder, DEFAULT_SETTINGS.syncReportFolder).trim() ||
+        DEFAULT_SETTINGS.syncReportFolder,
       debugLogging: saved?.debugLogging === true,
       saveConversationJson: saved?.saveConversationJson === true,
       conversationListLatestLimit: normalizeConversationListLatestLimit(
         saved?.conversationListLatestLimit,
-        DEFAULT_CONVERSATION_LIST_LATEST_LIMIT
+        DEFAULT_CONVERSATION_LIST_LATEST_LIMIT,
       ),
       conversationListCacheByAccount: normalizeConversationListCacheByAccount(saved?.conversationListCacheByAccount),
       accounts: sortAccounts(savedAccounts),
-      legacySessionJson
+      legacySessionJson,
     };
 
     await this.migrateLegacySessionIfNeeded();
@@ -256,27 +260,34 @@ export default class Chats2MdPlugin extends Plugin {
   }
 
   async upsertSessionAccount(rawSessionJson: string, parsed?: ChatGptRequestConfig): Promise<StoredSessionAccount> {
-    return upsertSessionAccountHelper({
-      app: this.app,
-      manifestVersion: this.manifest.version,
-      settings: this.settings,
-      setLegacySessionMigrationWarning: (value) => {
-        this.legacySessionMigrationWarning = value;
+    return upsertSessionAccountHelper(
+      {
+        app: this.app,
+        manifestVersion: this.manifest.version,
+        settings: this.settings,
+        setLegacySessionMigrationWarning: (value) => {
+          this.legacySessionMigrationWarning = value;
+        },
+        saveSettings: () => this.saveSettings(),
       },
-      saveSettings: () => this.saveSettings()
-    }, rawSessionJson, parsed);
+      rawSessionJson,
+      parsed,
+    );
   }
 
   async removeSessionAccount(accountId: string): Promise<void> {
-    await removeSessionAccountHelper({
-      app: this.app,
-      manifestVersion: this.manifest.version,
-      settings: this.settings,
-      setLegacySessionMigrationWarning: (value) => {
-        this.legacySessionMigrationWarning = value;
+    await removeSessionAccountHelper(
+      {
+        app: this.app,
+        manifestVersion: this.manifest.version,
+        settings: this.settings,
+        setLegacySessionMigrationWarning: (value) => {
+          this.legacySessionMigrationWarning = value;
+        },
+        saveSettings: () => this.saveSettings(),
       },
-      saveSettings: () => this.saveSettings()
-    }, accountId);
+      accountId,
+    );
   }
 
   private async migrateLegacySessionIfNeeded(): Promise<void> {
@@ -287,7 +298,7 @@ export default class Chats2MdPlugin extends Plugin {
       setLegacySessionMigrationWarning: (value) => {
         this.legacySessionMigrationWarning = value;
       },
-      saveSettings: () => this.saveSettings()
+      saveSettings: () => this.saveSettings(),
     });
   }
 
@@ -331,7 +342,10 @@ export default class Chats2MdPlugin extends Plugin {
     return candidate;
   }
 
-  private async createSyncRunLogger(progressSink: { log(message: string): void }, syncFolder: string): Promise<SyncRunLogger> {
+  private async createSyncRunLogger(
+    progressSink: { log(message: string): void },
+    syncFolder: string,
+  ): Promise<SyncRunLogger> {
     const reportFolder = resolveSyncReportFolder(syncFolder, this.settings.syncReportFolder);
     await this.ensureFolderExists(reportFolder);
 
@@ -341,7 +355,7 @@ export default class Chats2MdPlugin extends Plugin {
       "# Chats2MD sync log",
       `started_at: ${new Date().toISOString()}`,
       `plugin_version: ${this.manifest.version}`,
-      ""
+      "",
     ].join("\n");
     await this.app.vault.create(filePath, header);
 
@@ -440,7 +454,7 @@ export default class Chats2MdPlugin extends Plugin {
       settings: {
         defaultFolder: this.settings.defaultFolder,
         conversationPathTemplate: this.settings.conversationPathTemplate,
-        assetStorageMode: this.settings.assetStorageMode
+        assetStorageMode: this.settings.assetStorageMode,
       },
       manifestVersion: this.manifest.version,
       isSyncWorkerActive: () => this.syncWorkerActive,
@@ -468,25 +482,26 @@ export default class Chats2MdPlugin extends Plugin {
         logger,
         accountLabel,
         conversationIndex,
-        totalConversations
-      ) => this.syncConversationAssets(
-        requestConfig,
-        conversation,
-        baseFolder,
-        conversationPathTemplate,
-        assetStorageMode,
-        logger,
-        accountLabel,
-        conversationIndex,
-        totalConversations
-      ),
+        totalConversations,
+      ) =>
+        this.syncConversationAssets(
+          requestConfig,
+          conversation,
+          baseFolder,
+          conversationPathTemplate,
+          assetStorageMode,
+          logger,
+          accountLabel,
+          conversationIndex,
+          totalConversations,
+        ),
       moveConversationJsonSidecar: (sourceNotePath, targetNotePath) =>
         this.moveConversationJsonSidecar(sourceNotePath, targetNotePath),
       writeSyncReport: (report) => this.writeSyncReport(report),
       getAccounts: () => this.getAccounts(),
       logInfo: (message, context) => this.logInfo(message, context),
       logWarn: (message, context) => this.logWarn(message, context),
-      logError: (message, context) => this.logError(message, context)
+      logError: (message, context) => this.logError(message, context),
     });
   }
 
@@ -499,22 +514,25 @@ export default class Chats2MdPlugin extends Plugin {
     logger: SyncRunLogger | null,
     accountLabel: string,
     conversationIndex: number,
-    totalConversations: number
+    totalConversations: number,
   ): Promise<ConversationAssetLinkMap> {
-    return syncConversationAssetsForConversation({
-      app: this.app,
-      ensureFolderExists: (folderPath) => this.ensureFolderExists(folderPath)
-    }, {
-      requestConfig,
-      conversation,
-      baseFolder,
-      conversationPathTemplate,
-      assetStorageMode,
-      logger,
-      accountLabel,
-      conversationIndex,
-      totalConversations
-    });
+    return syncConversationAssetsForConversation(
+      {
+        app: this.app,
+        ensureFolderExists: (folderPath) => this.ensureFolderExists(folderPath),
+      },
+      {
+        requestConfig,
+        conversation,
+        baseFolder,
+        conversationPathTemplate,
+        assetStorageMode,
+        logger,
+        accountLabel,
+        conversationIndex,
+        totalConversations,
+      },
+    );
   }
 
   private getSelectedAccounts(values: SyncModalValues): StoredSessionAccount[] {
@@ -565,7 +583,7 @@ export default class Chats2MdPlugin extends Plugin {
   private async saveConversationListCache(accountId: string, summaries: ConversationSummary[]): Promise<void> {
     this.settings.conversationListCacheByAccount[accountId] = {
       summaries: [...summaries],
-      cachedAt: new Date().toISOString()
+      cachedAt: new Date().toISOString(),
     };
     await this.saveSettings();
   }
@@ -583,7 +601,7 @@ export default class Chats2MdPlugin extends Plugin {
       updatedAt: this.readFrontmatterString(file, CONVERSATION_UPDATED_AT_KEY),
       listUpdatedAt: this.readFrontmatterString(file, CONVERSATION_LIST_UPDATED_AT_KEY),
       accountId: this.readFrontmatterString(file, CONVERSATION_ACCOUNT_ID_KEY),
-      userId: this.readFrontmatterString(file, CONVERSATION_USER_ID_KEY)
+      userId: this.readFrontmatterString(file, CONVERSATION_USER_ID_KEY),
     };
   }
 
@@ -623,7 +641,7 @@ export default class Chats2MdPlugin extends Plugin {
 
       if (byUserId.length > 1) {
         throw new Error(
-          `Multiple sessions match user_id "${frontmatter.userId}". Re-run full sync to refresh account_id in note frontmatter.`
+          `Multiple sessions match user_id "${frontmatter.userId}". Re-run full sync to refresh account_id in note frontmatter.`,
         );
       }
     }
@@ -680,17 +698,18 @@ export default class Chats2MdPlugin extends Plugin {
 
     const accountLabel = this.getAccountLabel(account);
     const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-    const activeEditorContext = activeView?.editor && activeView.file?.path === file.path
-      ? {
-        editor: activeView.editor,
-        filePath: activeView.file.path
-      }
-      : undefined;
+    const activeEditorContext =
+      activeView?.editor && activeView.file?.path === file.path
+        ? {
+            editor: activeView.editor,
+            filePath: activeView.file.path,
+          }
+        : undefined;
     const fallbackSummary = {
       id: frontmatter.conversationId,
       title: frontmatter.title || file.basename || "Untitled Conversation",
       createdAt: frontmatter.createdAt || frontmatter.updatedAt || "",
-      updatedAt: frontmatter.updatedAt || frontmatter.createdAt || ""
+      updatedAt: frontmatter.updatedAt || frontmatter.createdAt || "",
     };
 
     this.syncWorkerActive = true;
@@ -698,7 +717,11 @@ export default class Chats2MdPlugin extends Plugin {
     this.setSyncStatusBar(`ChatGPT sync: forcing ${fallbackSummary.title}`, true);
 
     try {
-      const detailResult = await fetchConversationDetailWithPayload(requestConfig, frontmatter.conversationId, fallbackSummary);
+      const detailResult = await fetchConversationDetailWithPayload(
+        requestConfig,
+        frontmatter.conversationId,
+        fallbackSummary,
+      );
       const detail = detailResult.detail;
       const assetLinks = await this.syncConversationAssets(
         requestConfig,
@@ -709,7 +732,7 @@ export default class Chats2MdPlugin extends Plugin {
         null,
         accountLabel,
         1,
-        1
+        1,
       );
       const noteIndex = indexConversationNotes(this.app);
       const result = await upsertConversationNote(
@@ -720,7 +743,7 @@ export default class Chats2MdPlugin extends Plugin {
         {
           accountId: requestConfig.accountId,
           userId: requestConfig.userId,
-          userEmail: requestConfig.userEmail
+          userEmail: requestConfig.userEmail,
         },
         this.manifest.version,
         this.settings.conversationPathTemplate,
@@ -728,7 +751,7 @@ export default class Chats2MdPlugin extends Plugin {
         frontmatter.listUpdatedAt || detail.updatedAt,
         assetLinks,
         true,
-        activeEditorContext
+        activeEditorContext,
       );
       if (result.moved && result.previousFilePath) {
         try {
@@ -737,7 +760,7 @@ export default class Chats2MdPlugin extends Plugin {
           const warning = error instanceof Error ? error.message : String(error);
           this.logWarn("JSON sidecar move warning", {
             conversationId: detail.id,
-            warning
+            warning,
           });
         }
       }
@@ -749,7 +772,7 @@ export default class Chats2MdPlugin extends Plugin {
           const warning = error instanceof Error ? error.message : String(error);
           this.logWarn("JSON sidecar save warning", {
             conversationId: detail.id,
-            warning
+            warning,
           });
         }
       }
@@ -787,7 +810,7 @@ export default class Chats2MdPlugin extends Plugin {
     values: SyncModalValues,
     progressModal: SyncProgressReporter,
     control: SyncExecutionControl,
-    modal: SyncChatGptModal
+    modal: SyncChatGptModal,
   ): Promise<void> {
     await handleSyncHelper(this, values, progressModal, control, modal);
   }

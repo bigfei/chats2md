@@ -4,12 +4,12 @@ import {
   extractConversationListPageInfo,
   getNextConversationListOffset,
   normalizeConversationTimestamp,
-  shouldFetchNextConversationListPage
+  shouldFetchNextConversationListPage,
 } from "./conversation-utils";
 import {
   getLatestWindowOldestTimestampMs,
   mergeFetchedAndCachedConversationSummaries,
-  shouldStopLatestListFetch
+  shouldStopLatestListFetch,
 } from "../sync/list-strategy";
 
 import type {
@@ -18,7 +18,7 @@ import type {
   ConversationFileReference,
   ConversationFileReferenceKind,
   ConversationMessage,
-  ConversationSummary
+  ConversationSummary,
 } from "../shared/types";
 
 const BASE_URL = "https://chatgpt.com";
@@ -28,14 +28,9 @@ const MAX_LIST_PAGE_REQUESTS = 100;
 const MAX_RATE_LIMIT_RETRIES = 6;
 const MIN_RATE_LIMIT_BACKOFF_MS = 60000;
 const MAX_RATE_LIMIT_BACKOFF_MS = 600000;
-const DEFAULT_FIREFOX_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:149.0) Gecko/20100101 Firefox/149.0";
-const RESERVED_HEADER_NAMES = new Set([
-  "accept",
-  "authorization",
-  "chatgpt-account-id",
-  "cookie",
-  "user-agent"
-]);
+const DEFAULT_FIREFOX_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:149.0) Gecko/20100101 Firefox/149.0";
+const RESERVED_HEADER_NAMES = new Set(["accept", "authorization", "chatgpt-account-id", "cookie", "user-agent"]);
 
 interface SessionPayload {
   accessToken?: string;
@@ -78,9 +73,7 @@ function readString(value: unknown, fallback = ""): string {
 }
 
 function toRecord(value: unknown): UnknownRecord | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as UnknownRecord
-    : null;
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as UnknownRecord) : null;
 }
 
 function extractConversationItems(payload: unknown): UnknownRecord[] {
@@ -130,16 +123,12 @@ function parseCustomHeaders(value: unknown): Record<string, string> {
 export function normalizeObsidianMathDelimiters(text: string): string {
   const withBlockMath = text.replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_match, expression: string) => {
     const normalizedExpression = expression.trim();
-    return normalizedExpression.length > 0
-      ? `$$\n${normalizedExpression}\n$$`
-      : "$$\n$$";
+    return normalizedExpression.length > 0 ? `$$\n${normalizedExpression}\n$$` : "$$\n$$";
   });
 
   return withBlockMath.replace(/\\\(\s*([\s\S]*?)\s*\\\)/g, (_match, expression: string) => {
     const normalizedExpression = expression.trim();
-    return normalizedExpression.length > 0
-      ? `$${normalizedExpression}$`
-      : "$$";
+    return normalizedExpression.length > 0 ? `$${normalizedExpression}$` : "$$";
   });
 }
 
@@ -174,14 +163,12 @@ function readPageInfo(payload: unknown, fallbackLimit = DEFAULT_LIST_PAGE_LIMIT)
 
   const limit = clampPageLimit(parsed?.limit ?? fallbackLimit);
   const offset = Number.isFinite(parsed?.offset) ? Math.max(0, Math.trunc(parsed.offset ?? 0)) : 0;
-  const total = Number.isFinite(parsed?.total) && (parsed.total ?? -1) >= 0
-    ? Math.trunc(parsed.total ?? 0)
-    : null;
+  const total = Number.isFinite(parsed?.total) && (parsed.total ?? -1) >= 0 ? Math.trunc(parsed.total ?? 0) : null;
 
   return {
     limit,
     offset,
-    total
+    total,
   };
 }
 
@@ -191,7 +178,7 @@ function buildListUrl(limit: number, offset = 0): string {
     limit: String(clampPageLimit(limit)),
     order: "updated",
     is_archived: "false",
-    is_starred: "false"
+    is_starred: "false",
   });
 
   return `${BASE_URL}/backend-api/conversations?${params.toString()}`;
@@ -215,16 +202,13 @@ function shouldIncludeSessionHeadersForBinaryDownload(url: string): boolean {
   }
 }
 
-function buildHeaders(
-  config: ChatGptRequestConfig,
-  extraHeaders: Record<string, string>
-): Record<string, string> {
+function buildHeaders(config: ChatGptRequestConfig, extraHeaders: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = {
     ...config.headers,
     ...extraHeaders,
     Accept: "application/json",
     Authorization: `Bearer ${config.accessToken}`,
-    "User-Agent": config.userAgent
+    "User-Agent": config.userAgent,
   };
 
   if (config.accountId) {
@@ -285,7 +269,7 @@ function computeRateLimitDelayMs(attempt: number, retryAfterMs: number | null): 
     return Math.min(MAX_RATE_LIMIT_BACKOFF_MS, Math.max(MIN_RATE_LIMIT_BACKOFF_MS, retryAfterMs));
   }
 
-  const baseDelay = Math.min(MAX_RATE_LIMIT_BACKOFF_MS, MIN_RATE_LIMIT_BACKOFF_MS * (2 ** attempt));
+  const baseDelay = Math.min(MAX_RATE_LIMIT_BACKOFF_MS, MIN_RATE_LIMIT_BACKOFF_MS * 2 ** attempt);
   const jitter = Math.round(baseDelay * 0.2 * Math.random());
   return Math.min(MAX_RATE_LIMIT_BACKOFF_MS, baseDelay + jitter);
 }
@@ -293,13 +277,13 @@ function computeRateLimitDelayMs(attempt: number, retryAfterMs: number | null): 
 async function requestJson(
   url: string,
   config: ChatGptRequestConfig,
-  extraHeaders: Record<string, string>
+  extraHeaders: Record<string, string>,
 ): Promise<unknown> {
   for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
     const response = await requestUrl({
       url,
       method: "GET",
-      headers: buildHeaders(config, extraHeaders)
+      headers: buildHeaders(config, extraHeaders),
     });
 
     if (response.status < 400) {
@@ -313,9 +297,10 @@ async function requestJson(
       continue;
     }
 
-    const bodyText = typeof response.text === "string" && response.text.trim().length > 0
-      ? response.text
-      : JSON.stringify(response.json);
+    const bodyText =
+      typeof response.text === "string" && response.text.trim().length > 0
+        ? response.text
+        : JSON.stringify(response.json);
 
     throw new Error(`ChatGPT request failed with HTTP ${response.status}: ${bodyText}`);
   }
@@ -327,30 +312,32 @@ async function requestArrayBuffer(
   url: string,
   config: ChatGptRequestConfig,
   extraHeaders: Record<string, string>,
-  options: { includeSessionHeaders?: boolean } = {}
+  options: { includeSessionHeaders?: boolean } = {},
 ): Promise<DownloadedFileContent> {
-  const headers = options.includeSessionHeaders === false
-    ? {
-      ...extraHeaders,
-      "User-Agent": config.userAgent
-    }
-    : buildHeaders(config, extraHeaders);
+  const headers =
+    options.includeSessionHeaders === false
+      ? {
+          ...extraHeaders,
+          "User-Agent": config.userAgent,
+        }
+      : buildHeaders(config, extraHeaders);
   const response = await requestUrl({
     url,
     method: "GET",
-    headers
+    headers,
   });
 
   if (response.status >= 400) {
-    const bodyText = typeof response.text === "string" && response.text.trim().length > 0
-      ? response.text
-      : JSON.stringify(response.json);
+    const bodyText =
+      typeof response.text === "string" && response.text.trim().length > 0
+        ? response.text
+        : JSON.stringify(response.json);
     throw new Error(`ChatGPT binary request failed with HTTP ${response.status}: ${bodyText}`);
   }
 
   return {
     data: response.arrayBuffer,
-    contentType: readHeader(response.headers, "content-type")
+    contentType: readHeader(response.headers, "content-type"),
   };
 }
 
@@ -363,17 +350,14 @@ function normalizeSummary(item: UnknownRecord): ConversationSummary {
 
   const title = readString(item.title, "Untitled Conversation");
   const createdAt = normalizeConversationTimestamp(item.create_time);
-  const updatedAt = normalizeConversationTimestamp(
-    item.update_time ?? item.updated_time,
-    createdAt
-  );
+  const updatedAt = normalizeConversationTimestamp(item.update_time ?? item.updated_time, createdAt);
 
   return {
     id,
     title,
     createdAt,
     updatedAt,
-    url: `${BASE_URL}/c/${id}`
+    url: `${BASE_URL}/c/${id}`,
   };
 }
 
@@ -475,7 +459,7 @@ function registerFileReference(
   refs: Map<string, ConversationFileReference>,
   kind: ConversationFileReferenceKind,
   fileId: string,
-  logicalName: string
+  logicalName: string,
 ): ConversationFileReference {
   const key = `${kind}:${fileId}`;
   const existing = refs.get(key);
@@ -489,16 +473,13 @@ function registerFileReference(
     fileId,
     kind,
     logicalName: normalizedName,
-    placeholder: buildFilePlaceholder(kind, fileId)
+    placeholder: buildFilePlaceholder(kind, fileId),
   };
   refs.set(key, reference);
   return reference;
 }
 
-function extractMetadataPlaceholders(
-  message: UnknownRecord,
-  refs: Map<string, ConversationFileReference>
-): string[] {
+function extractMetadataPlaceholders(message: UnknownRecord, refs: Map<string, ConversationFileReference>): string[] {
   const metadata = toRecord(message.metadata);
   const placeholders: string[] = [];
   const seen = new Set<string>();
@@ -593,10 +574,7 @@ function renderThoughts(content: UnknownRecord): string {
     .join("\n\n");
 }
 
-function renderMessageBody(
-  message: UnknownRecord,
-  refs: Map<string, ConversationFileReference>
-): string {
+function renderMessageBody(message: UnknownRecord, refs: Map<string, ConversationFileReference>): string {
   const content = toRecord(message.content);
 
   if (!content) {
@@ -607,9 +585,13 @@ function renderMessageBody(
 
   switch (contentType) {
     case "text":
-      return normalizeMessageText(wrapHtmlTagsInBackticks(
-        Array.isArray(content.parts) ? content.parts.filter((part): part is string => typeof part === "string").join("\n") : ""
-      ));
+      return normalizeMessageText(
+        wrapHtmlTagsInBackticks(
+          Array.isArray(content.parts)
+            ? content.parts.filter((part): part is string => typeof part === "string").join("\n")
+            : "",
+        ),
+      );
     case "code":
       return `\`\`\`${readString(content.language).replace("unknown", "")}\n${readString(content.text)}\n\`\`\``;
     case "execution_output":
@@ -625,9 +607,9 @@ function renderMessageBody(
       return `\`\`\`\n${summary ? `${summary}\n` : ""}${result}\n\`\`\``;
     }
     case "tether_quote":
-      return normalizeMessageText(blockquoteMarkdown(
-        `${readString(content.title)} (${readString(content.url)})\n\n${readString(content.text)}`
-      ));
+      return normalizeMessageText(
+        blockquoteMarkdown(`${readString(content.title)} (${readString(content.url)})\n\n${readString(content.text)}`),
+      );
     case "system_error":
       return [readString(content.name), readString(content.text)].filter((part) => part.length > 0).join("\n\n");
     case "user_editable_context":
@@ -637,7 +619,9 @@ function renderMessageBody(
     case "reasoning_recap":
       return normalizeMessageText(blockquoteMarkdown(readString(content.content)));
     case "sonic_webpage":
-      return normalizeMessageText(`\`\`\`\n${readString(content.title)} (${readString(content.url)})\n\n${readString(content.text)}\n\`\`\``);
+      return normalizeMessageText(
+        `\`\`\`\n${readString(content.title)} (${readString(content.url)})\n\n${readString(content.text)}\n\`\`\``,
+      );
     default:
       return extractMessageContent(message);
   }
@@ -646,7 +630,7 @@ function renderMessageBody(
 function renderMessageMarkdown(
   message: UnknownRecord,
   nodeId: string,
-  refs: Map<string, ConversationFileReference>
+  refs: Map<string, ConversationFileReference>,
 ): string {
   const author = toRecord(message.author);
   const role = readString(author?.role, readString(author?.name, "message")).toLowerCase();
@@ -728,20 +712,20 @@ function extractMessagesFromMapping(payload: UnknownRecord): MappingExtractionRe
     messages.push({
       id: readString(message.id, nodeId),
       role,
-      markdown
+      markdown,
     });
   }
 
   return {
     messages,
-    fileReferences: Array.from(fileReferences.values())
+    fileReferences: Array.from(fileReferences.values()),
   };
 }
 
 function normalizeConversationDetail(
   payload: unknown,
   conversationId: string,
-  fallback?: Pick<ConversationSummary, "title" | "createdAt" | "updatedAt">
+  fallback?: Pick<ConversationSummary, "title" | "createdAt" | "updatedAt">,
 ): ConversationDetail {
   const record = toRecord(payload);
 
@@ -753,7 +737,7 @@ function normalizeConversationDetail(
   const createdAt = normalizeConversationTimestamp(record.create_time, fallback?.createdAt ?? "");
   const updatedAt = normalizeConversationTimestamp(
     record.update_time ?? record.updated_time,
-    fallback?.updatedAt ?? createdAt
+    fallback?.updatedAt ?? createdAt,
   );
 
   const mappingData = extractMessagesFromMapping(record);
@@ -765,14 +749,14 @@ function normalizeConversationDetail(
     updatedAt,
     url: `${BASE_URL}/c/${conversationId}`,
     messages: mappingData.messages,
-    fileReferences: mappingData.fileReferences
+    fileReferences: mappingData.fileReferences,
   };
 }
 
 export function parseConversationDetailPayload(
   payload: unknown,
   conversationId: string,
-  fallback?: Pick<ConversationSummary, "title" | "createdAt" | "updatedAt">
+  fallback?: Pick<ConversationSummary, "title" | "createdAt" | "updatedAt">,
 ): ConversationDetail {
   return normalizeConversationDetail(payload, conversationId, fallback);
 }
@@ -810,7 +794,7 @@ export function parseSessionJson(raw: string, pluginVersion = "0.1.0"): ChatGptR
     cookie,
     headers,
     userAgent: buildDefaultUserAgent(pluginVersion),
-    expiresAt: readString(payload.expires)
+    expiresAt: readString(payload.expires),
   };
 }
 
@@ -837,14 +821,13 @@ function normalizeLatestLimit(limit: number | undefined): number {
 
 export async function fetchConversationSummaries(
   config: ChatGptRequestConfig,
-  options: FetchConversationSummariesOptions = {}
+  options: FetchConversationSummariesOptions = {},
 ): Promise<FetchConversationSummariesResult> {
   const mode = options.mode === "full" ? "full" : "latest";
   const latestLimit = normalizeLatestLimit(options.limit);
   const cachedSummaries = Array.isArray(options.cachedSummaries) ? options.cachedSummaries : [];
-  const staleCutoffTimestampMs = mode === "latest"
-    ? getLatestWindowOldestTimestampMs(cachedSummaries, latestLimit)
-    : null;
+  const staleCutoffTimestampMs =
+    mode === "latest" ? getLatestWindowOldestTimestampMs(cachedSummaries, latestLimit) : null;
   const listPageLimit = 99;
   const summaries: ConversationSummary[] = [];
   const seenConversationIds = new Set<string>();
@@ -856,7 +839,7 @@ export async function fetchConversationSummaries(
   for (let page = 0; page < MAX_LIST_PAGE_REQUESTS; page += 1) {
     const payload = await requestJson(buildListUrl(listPageLimit, offset), config, {
       "X-OpenAI-Target-Path": "/backend-api/conversations",
-      "X-OpenAI-Target-Route": "/backend-api/conversations"
+      "X-OpenAI-Target-Route": "/backend-api/conversations",
     });
     pagesFetched += 1;
     const pageInfo = readPageInfo(payload, listPageLimit);
@@ -873,9 +856,7 @@ export async function fetchConversationSummaries(
     }
 
     if (pageInfo.total !== null) {
-      expectedTotal = expectedTotal === null
-        ? pageInfo.total
-        : Math.max(expectedTotal, pageInfo.total);
+      expectedTotal = expectedTotal === null ? pageInfo.total : Math.max(expectedTotal, pageInfo.total);
     }
 
     if (pageSummaries.length === 0) {
@@ -900,33 +881,35 @@ export async function fetchConversationSummaries(
       break;
     }
 
-    if (mode === "latest" && shouldStopLatestListFetch({
-      fetchedSummaries: summaries,
-      limit: latestLimit,
-      staleCutoffTimestampMs
-    })) {
+    if (
+      mode === "latest" &&
+      shouldStopLatestListFetch({
+        fetchedSummaries: summaries,
+        limit: latestLimit,
+        staleCutoffTimestampMs,
+      })
+    ) {
       break;
     }
 
     offset = getNextConversationListOffset(offset, pageInfo, listPageLimit);
   }
 
-  const finalSummaries = mode === "latest"
-    ? mergeFetchedAndCachedConversationSummaries(summaries, cachedSummaries, latestLimit)
-    : summaries;
+  const finalSummaries =
+    mode === "latest" ? mergeFetchedAndCachedConversationSummaries(summaries, cachedSummaries, latestLimit) : summaries;
 
   return {
     summaries: finalSummaries,
     mode,
     pagesFetched,
-    fetchedCount: summaries.length
+    fetchedCount: summaries.length,
   };
 }
 
 export async function validateConversationListAccess(config: ChatGptRequestConfig): Promise<void> {
   const payload = await requestJson(buildListUrl(1, 0), config, {
     "X-OpenAI-Target-Path": "/backend-api/conversations",
-    "X-OpenAI-Target-Route": "/backend-api/conversations"
+    "X-OpenAI-Target-Route": "/backend-api/conversations",
   });
   extractConversationItems(payload);
 }
@@ -934,7 +917,7 @@ export async function validateConversationListAccess(config: ChatGptRequestConfi
 export async function fetchConversationDetail(
   config: ChatGptRequestConfig,
   conversationId: string,
-  fallback?: Pick<ConversationSummary, "title" | "createdAt" | "updatedAt">
+  fallback?: Pick<ConversationSummary, "title" | "createdAt" | "updatedAt">,
 ): Promise<ConversationDetail> {
   const result = await fetchConversationDetailWithPayload(config, conversationId, fallback);
   return result.detail;
@@ -943,18 +926,18 @@ export async function fetchConversationDetail(
 export async function fetchConversationDetailWithPayload(
   config: ChatGptRequestConfig,
   conversationId: string,
-  fallback?: Pick<ConversationSummary, "title" | "createdAt" | "updatedAt">
+  fallback?: Pick<ConversationSummary, "title" | "createdAt" | "updatedAt">,
 ): Promise<ConversationDetailFetchResult> {
   const targetPath = `/backend-api/conversation/${conversationId}`;
   const payload = await requestJson(buildDetailUrl(conversationId), config, {
     Referer: `${BASE_URL}/c/${conversationId}`,
     "X-OpenAI-Target-Path": targetPath,
-    "X-OpenAI-Target-Route": "/backend-api/conversation/{conversation_id}"
+    "X-OpenAI-Target-Route": "/backend-api/conversation/{conversation_id}",
   });
 
   return {
     detail: normalizeConversationDetail(payload, conversationId, fallback),
-    rawPayload: payload
+    rawPayload: payload,
   };
 }
 
@@ -973,18 +956,18 @@ function normalizeFileDownloadInfo(payload: unknown, fileId: string): FileDownlo
   const fileName = readString(record.file_name);
   return {
     downloadUrl,
-    fileName: fileName || fileId
+    fileName: fileName || fileId,
   };
 }
 
 export async function fetchConversationFileDownloadInfo(
   config: ChatGptRequestConfig,
-  fileId: string
+  fileId: string,
 ): Promise<FileDownloadInfo> {
   const targetPath = `/backend-api/files/download/${fileId}`;
   const payload = await requestJson(buildFileDownloadUrl(fileId), config, {
     "X-OpenAI-Target-Path": targetPath,
-    "X-OpenAI-Target-Route": "/backend-api/files/download/{file_id}"
+    "X-OpenAI-Target-Route": "/backend-api/files/download/{file_id}",
   });
 
   return normalizeFileDownloadInfo(payload, fileId);
@@ -992,12 +975,17 @@ export async function fetchConversationFileDownloadInfo(
 
 export async function fetchSignedFileContent(
   config: ChatGptRequestConfig,
-  url: string
+  url: string,
 ): Promise<DownloadedFileContent> {
   const includeSessionHeaders = shouldIncludeSessionHeadersForBinaryDownload(url);
-  return requestArrayBuffer(url, config, {
-    Accept: "*/*"
-  }, {
-    includeSessionHeaders
-  });
+  return requestArrayBuffer(
+    url,
+    config,
+    {
+      Accept: "*/*",
+    },
+    {
+      includeSessionHeaders,
+    },
+  );
 }

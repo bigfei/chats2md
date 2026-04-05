@@ -44,7 +44,7 @@ export function syncSettingsPaneIconObserver(host: any, iconId: string): void {
   host.settingsPaneIconObserver.disconnect();
   host.settingsPaneIconObserver.observe(settingsRoot, {
     childList: true,
-    subtree: true
+    subtree: true,
   });
   host.settingsPaneIconObserverRoot = settingsRoot;
 }
@@ -75,7 +75,7 @@ function applySettingsPaneIcon(host: any, iconId: string): void {
   const matchedItems = new Set<HTMLElement>();
   for (const selector of [
     `.vertical-tab-nav-item[data-tab-id="${host.manifest.id}"]`,
-    `.vertical-tab-nav-item[data-tab-id="community-plugins-${host.manifest.id}"]`
+    `.vertical-tab-nav-item[data-tab-id="community-plugins-${host.manifest.id}"]`,
   ]) {
     for (const matchedEl of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
       matchedItems.add(matchedEl);

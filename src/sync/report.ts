@@ -79,7 +79,7 @@ export function renderSyncRunReport(report: SyncRunReport): string {
     renderConversationSection("Created", report.created),
     renderConversationSection("Updated", report.updated),
     renderConversationSection("Moved", report.moved),
-    renderConversationSection("Failed", report.failed)
+    renderConversationSection("Failed", report.failed),
   ];
 
   return `${lines.join("\n")}\n`;

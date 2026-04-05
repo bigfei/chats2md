@@ -4,7 +4,7 @@ import { parseSessionJson, validateConversationListAccess } from "../chatgpt/api
 import {
   DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE,
   formatAssetStorageMode,
-  normalizeConversationListLatestLimit
+  normalizeConversationListLatestLimit,
 } from "../main/helpers";
 import { CONVERSATION_PATH_TEMPLATE_PRESETS } from "../path/template";
 import { FolderSuggest } from "./folder-suggest";
@@ -52,9 +52,8 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           .addOption("with_conversation", "With conversation")
           .setValue(this.plugin.settings.assetStorageMode)
           .onChange(async (value) => {
-            this.plugin.settings.assetStorageMode = value === "with_conversation"
-              ? "with_conversation"
-              : "global_by_conversation";
+            this.plugin.settings.assetStorageMode =
+              value === "with_conversation" ? "with_conversation" : "global_by_conversation";
             await this.plugin.saveSettings();
             new Notice(`Asset storage preset: ${formatAssetStorageMode(this.plugin.settings.assetStorageMode)}`);
           });
@@ -62,7 +61,9 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Conversation path template")
-      .setDesc("Relative note path template (without .md). Placeholders: {date}, {slug}, {email}, {account_id}, {conversation_id}.")
+      .setDesc(
+        "Relative note path template (without .md). Placeholders: {date}, {slug}, {email}, {account_id}, {conversation_id}.",
+      )
       .addDropdown((dropdown) => {
         dropdown
           .addOption(CONVERSATION_PATH_TEMPLATE_PRESETS[0], CONVERSATION_PATH_TEMPLATE_PRESETS[0])
@@ -72,7 +73,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           .setValue(
             isKnownTemplatePreset(this.plugin.settings.conversationPathTemplate)
               ? this.plugin.settings.conversationPathTemplate
-              : CUSTOM_TEMPLATE_OPTION
+              : CUSTOM_TEMPLATE_OPTION,
           )
           .onChange(async (value) => {
             if (value === CUSTOM_TEMPLATE_OPTION) {
@@ -112,15 +113,16 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         component.inputEl.min = "1";
         component.setValue(String(this.plugin.settings.conversationListLatestLimit));
         component.onChange(async (value) => {
-          const normalized = normalizeConversationListLatestLimit(value, this.plugin.settings.conversationListLatestLimit);
+          const normalized = normalizeConversationListLatestLimit(
+            value,
+            this.plugin.settings.conversationListLatestLimit,
+          );
           this.plugin.settings.conversationListLatestLimit = normalized;
           await this.plugin.saveSettings();
         });
       });
 
-    new Setting(containerEl)
-      .setName("Sync report")
-      .setHeading();
+    new Setting(containerEl).setName("Sync report").setHeading();
 
     new Setting(containerEl)
       .setName("Generate sync report")
@@ -147,13 +149,13 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         });
     }
 
-    new Setting(containerEl)
-      .setName("Cached detail JSON")
-      .setHeading();
+    new Setting(containerEl).setName("Cached detail JSON").setHeading();
 
     new Setting(containerEl)
       .setName("Save conversation detail JSON sidecar")
-      .setDesc("Save raw /backend-api/conversation/{id} JSON next to each note as <note>.json whenever detail is fetched.")
+      .setDesc(
+        "Save raw /backend-api/conversation/{id} JSON next to each note as <note>.json whenever detail is fetched.",
+      )
       .addToggle((toggle) => {
         toggle.setValue(this.plugin.settings.saveConversationJson).onChange(async (value) => {
           this.plugin.settings.saveConversationJson = value;
@@ -163,28 +165,31 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Rebuild markdown from cached JSON")
-      .setDesc("Rebuild existing synced notes from local sidecar JSON without calling /conversation/{id}. Missing sidecars are skipped.")
+      .setDesc(
+        "Rebuild existing synced notes from local sidecar JSON without calling /conversation/{id}. Missing sidecars are skipped.",
+      )
       .addButton((button) => {
-        button.setButtonText("Rebuild now").setCta().onClick(async () => {
-          button.setDisabled(true);
-          try {
-            await this.plugin.rebuildNotesFromCachedJson();
-          } finally {
-            button.setDisabled(false);
-          }
-        });
+        button
+          .setButtonText("Rebuild now")
+          .setCta()
+          .onClick(async () => {
+            button.setDisabled(true);
+            try {
+              await this.plugin.rebuildNotesFromCachedJson();
+            } finally {
+              button.setDisabled(false);
+            }
+          });
       });
 
-    new Setting(containerEl)
-      .setName("Account sessions")
-      .setHeading();
+    new Setting(containerEl).setName("Account sessions").setHeading();
 
     const migrationWarning = this.plugin.getLegacySessionMigrationWarning();
 
     if (migrationWarning) {
       containerEl.createEl("p", {
         cls: "chats2md-settings__warning",
-        text: migrationWarning
+        text: migrationWarning,
       });
     }
 
@@ -192,9 +197,12 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       .setName("Manage sessions")
       .setDesc("Add a session JSON payload per account. Payloads are stored in Obsidian Secret Storage.")
       .addButton((button) => {
-        button.setButtonText("Add account").setCta().onClick(() => {
-          this.openSessionEditor();
-        });
+        button
+          .setButtonText("Add account")
+          .setCta()
+          .onClick(() => {
+            this.openSessionEditor();
+          });
       });
 
     const accounts = this.plugin.getAccounts();
@@ -202,7 +210,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
     if (accounts.length === 0) {
       containerEl.createEl("p", {
         cls: "chats2md-settings__status",
-        text: "No account sessions configured."
+        text: "No account sessions configured.",
       });
     }
 
@@ -211,34 +219,44 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         .setName(account.email.trim().length > 0 ? account.email : account.accountId)
         .setDesc(this.describeAccount(account))
         .addButton((button) => {
-          button.setIcon("shield-check").setTooltip("Validate session").onClick(async () => {
-            button.setDisabled(true);
+          button
+            .setIcon("shield-check")
+            .setTooltip("Validate session")
+            .onClick(async () => {
+              button.setDisabled(true);
 
-            try {
-              await this.validateAccount(account);
-            } finally {
-              button.setDisabled(false);
-            }
-          });
+              try {
+                await this.validateAccount(account);
+              } finally {
+                button.setDisabled(false);
+              }
+            });
         })
         .addButton((button) => {
-          button.setIcon("pencil").setTooltip("Edit session").onClick(() => {
-            this.openSessionEditor(account);
-          });
+          button
+            .setIcon("pencil")
+            .setTooltip("Edit session")
+            .onClick(() => {
+              this.openSessionEditor(account);
+            });
         })
         .addButton((button) => {
-          button.setIcon("trash-2").setWarning().setTooltip("Delete session").onClick(async () => {
-            const label = account.email.trim().length > 0 ? account.email : account.accountId;
-            const confirmed = window.confirm(`Delete account session for ${label}?`);
+          button
+            .setIcon("trash-2")
+            .setWarning()
+            .setTooltip("Delete session")
+            .onClick(async () => {
+              const label = account.email.trim().length > 0 ? account.email : account.accountId;
+              const confirmed = window.confirm(`Delete account session for ${label}?`);
 
-            if (!confirmed) {
-              return;
-            }
+              if (!confirmed) {
+                return;
+              }
 
-            await this.plugin.removeSessionAccount(account.accountId);
-            new Notice(`Deleted account session for ${label}.`);
-            this.display();
-          });
+              await this.plugin.removeSessionAccount(account.accountId);
+              new Notice(`Deleted account session for ${label}.`);
+              this.display();
+            });
         });
     }
   }
@@ -248,7 +266,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
     const lines = [
       `User ID: ${account.userId || "Unavailable"}`,
       `Account ID: ${account.accountId}`,
-      `Expires: ${account.expiresAt || "Unavailable"}`
+      `Expires: ${account.expiresAt || "Unavailable"}`,
     ];
 
     lines.forEach((line, index) => {
@@ -275,7 +293,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         const label = saved.email.trim().length > 0 ? saved.email : saved.accountId;
         new Notice(`Saved session for ${label}.`);
         this.display();
-      }
+      },
     }).open();
   }
 
@@ -302,7 +320,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       new Notice(`Validation failed for ${label}: ${message}`);
       this.plugin.logError("Session validation error", {
         accountId: account.accountId,
-        message
+        message,
       });
     }
   }

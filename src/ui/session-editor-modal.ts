@@ -31,16 +31,16 @@ export class SessionEditorModal extends Modal {
 
     contentEl.createEl("p", {
       cls: "chats2md-modal__status",
-      text: "Paste a complete session JSON payload. It should include accessToken, account.id, user.id, and user.email."
+      text: "Paste a complete session JSON payload. It should include accessToken, account.id, user.id, and user.email.",
     });
 
     const sessionHint = contentEl.createEl("p", {
-      cls: "chats2md-modal__hint"
+      cls: "chats2md-modal__hint",
     });
     sessionHint.createSpan({ text: "Get the payload by signing into ChatGPT, then opening " });
     sessionHint.createEl("a", {
       text: CHATGPT_SESSION_JSON_URL,
-      href: CHATGPT_SESSION_JSON_URL
+      href: CHATGPT_SESSION_JSON_URL,
     });
     sessionHint.createSpan({ text: " and copying the full JSON response." });
 
@@ -49,31 +49,32 @@ export class SessionEditorModal extends Modal {
     const editorSection = contentEl.createDiv({ cls: "chats2md-session-modal__editor" });
     editorSection.createEl("label", {
       cls: "chats2md-session-modal__editor-label",
-      text: "Session JSON"
+      text: "Session JSON",
     });
     editorSection.createEl("p", {
       cls: "chats2md-session-modal__editor-desc",
-      text: "The raw session payload will be stored in Obsidian Secret Storage."
+      text: "The raw session payload will be stored in Obsidian Secret Storage.",
     });
     const textarea = editorSection.createEl("textarea", {
-      cls: "chats2md-settings__textarea"
+      cls: "chats2md-settings__textarea",
     });
     textarea.rows = 16;
     textarea.wrap = "off";
     textarea.spellcheck = false;
-    textarea.placeholder = "{\n  \"accessToken\": \"...\",\n  \"user\": {\n    \"id\": \"...\",\n    \"email\": \"...\"\n  },\n  \"account\": {\n    \"id\": \"...\"\n  },\n  \"cookie\": \"...\"\n}";
+    textarea.placeholder =
+      '{\n  "accessToken": "...",\n  "user": {\n    "id": "...",\n    "email": "..."\n  },\n  "account": {\n    "id": "..."\n  },\n  "cookie": "..."\n}';
     textarea.value = rawValue;
     textarea.addEventListener("input", () => {
       rawValue = textarea.value;
     });
 
     const docs = contentEl.createEl("p", {
-      cls: "chats2md-modal__hint"
+      cls: "chats2md-modal__hint",
     });
     docs.createSpan({ text: "Use " });
     docs.createEl("a", {
       text: "Obsidian Secret Storage",
-      href: SECRET_STORAGE_DOCS_URL
+      href: SECRET_STORAGE_DOCS_URL,
     });
     docs.createSpan({ text: " for sensitive plugin credentials." });
 

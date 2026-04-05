@@ -6,7 +6,7 @@ import type {
   ConversationListCacheByAccount,
   ConversationSummary,
   ImportProgressCounts,
-  StoredSessionAccount
+  StoredSessionAccount,
 } from "../shared/types";
 import { normalizeObsidianPath } from "../path/normalization";
 
@@ -41,7 +41,7 @@ const MIME_TO_EXTENSION: Record<string, string> = {
   "message/rfc822": ".eml",
   "text/csv": ".csv",
   "text/html": ".html",
-  "text/plain": ".txt"
+  "text/plain": ".txt",
 };
 
 type SyncLogLevel = "info" | "warn" | "error";
@@ -80,9 +80,7 @@ export class SyncRunLogger {
     }
 
     const line = `[${new Date().toISOString()}] [${level.toUpperCase()}] ${message}`;
-    this.appendQueue = this.appendQueue
-      .then(() => this.appendLine(line))
-      .catch(() => undefined);
+    this.appendQueue = this.appendQueue.then(() => this.appendLine(line)).catch(() => undefined);
   }
 
   private async appendLine(line: string): Promise<void> {
@@ -122,7 +120,7 @@ export function createEmptyCounts(): ImportProgressCounts {
     updated: 0,
     moved: 0,
     skipped: 0,
-    failed: 0
+    failed: 0,
   };
 }
 
@@ -133,7 +131,7 @@ export function summarizeCounts(total: number, counts: ImportProgressCounts): st
     `${counts.updated} updated`,
     `${counts.moved} moved`,
     `${counts.skipped} skipped`,
-    `${counts.failed} failed`
+    `${counts.failed} failed`,
   ].join(" ");
 }
 
@@ -182,9 +180,7 @@ export function normalizeAssetStorageMode(value: unknown): AssetStorageMode {
 }
 
 export function formatAssetStorageMode(mode: AssetStorageMode): string {
-  return mode === "with_conversation"
-    ? "With conversation folder"
-    : "Global by conversation";
+  return mode === "with_conversation" ? "With conversation folder" : "Global by conversation";
 }
 
 export function readString(value: unknown, fallback = ""): string {
@@ -210,7 +206,7 @@ function toPositiveInteger(value: unknown): number | null {
 
 export function normalizeConversationListLatestLimit(
   value: unknown,
-  fallback = DEFAULT_CONVERSATION_LIST_LATEST_LIMIT
+  fallback = DEFAULT_CONVERSATION_LIST_LATEST_LIMIT,
 ): number {
   const normalizedFallback = toPositiveInteger(fallback) ?? DEFAULT_CONVERSATION_LIST_LATEST_LIMIT;
   return toPositiveInteger(value) ?? normalizedFallback;
@@ -240,7 +236,7 @@ function normalizeCachedConversationSummary(value: unknown): ConversationSummary
     title,
     createdAt,
     updatedAt,
-    url
+    url,
   };
 }
 
@@ -259,14 +255,14 @@ export function normalizeConversationListCacheByAccount(value: unknown): Convers
 
     const summaries = Array.isArray(entry.summaries)
       ? entry.summaries
-        .map((summary) => normalizeCachedConversationSummary(summary))
-        .filter((summary): summary is ConversationSummary => summary !== null)
+          .map((summary) => normalizeCachedConversationSummary(summary))
+          .filter((summary): summary is ConversationSummary => summary !== null)
       : [];
     const cachedAt = readString(entry.cachedAt).trim();
 
     normalized[normalizedAccountId] = {
       summaries,
-      cachedAt: cachedAt || new Date().toISOString()
+      cachedAt: cachedAt || new Date().toISOString(),
     };
   }
 
@@ -344,7 +340,7 @@ export function normalizeStoredAccount(value: unknown): StoredSessionAccount | n
     expiresAt: expiresAt.length > 0 ? expiresAt : undefined,
     secretId,
     addedAt: readString(value.addedAt, timestamp),
-    updatedAt: readString(value.updatedAt, timestamp)
+    updatedAt: readString(value.updatedAt, timestamp),
   };
 }
 

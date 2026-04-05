@@ -29,14 +29,13 @@ export function openSyncModal(host: any): void {
     return;
   }
 
-  let modal: SyncChatGptModal;
-  modal = new SyncChatGptModal(host.app, {
+  const modal: SyncChatGptModal = new SyncChatGptModal(host.app, {
     folder: host.settings.defaultFolder,
     conversationPathTemplate: host.settings.conversationPathTemplate,
     assetStorageMode: host.settings.assetStorageMode,
     defaultConversationListLatestLimit: host.settings.conversationListLatestLimit,
     accounts,
-    onSubmit: async (values, progress, control) => handleSync(host, values, progress, control, modal),
+    onSubmit: async (values, progress, control): Promise<void> => handleSync(host, values, progress, control, modal),
     onSyncDialogHidden: (reason) => {
       if (reason === "close") {
         host.suppressSyncStatusBarUpdates = true;
@@ -45,7 +44,7 @@ export function openSyncModal(host: any): void {
       }
 
       host.suppressSyncStatusBarUpdates = false;
-    }
+    },
   });
 
   host.activeSyncModal = modal;
@@ -57,7 +56,7 @@ export async function handleSync(
   values: SyncModalValues,
   progressModal: SyncProgressReporter,
   control: SyncExecutionControl,
-  modal: SyncChatGptModal
+  modal: SyncChatGptModal,
 ): Promise<void> {
   host.settings.defaultFolder = values.folder;
   host.settings.assetStorageMode = values.assetStorageMode;
@@ -67,46 +66,52 @@ export async function handleSync(
   host.suppressSyncStatusBarUpdates = false;
 
   try {
-    await runFullSync({
-      app: host.app,
-      manifestVersion: host.manifest.version,
-      createSyncRunLogger: (reporter) => host.createSyncRunLogger(reporter, values.folder),
-      getSelectedAccounts: (syncValues) => host.getSelectedAccounts(syncValues),
-      getRequestConfig: (account) => host.getRequestConfig(account),
-      getAccountLabel: (account) => host.getAccountLabel(account),
-      getDefaultConversationListLatestLimit: () => host.settings.conversationListLatestLimit,
-      getConversationListCache: (accountId) => host.getConversationListCache(accountId),
-      saveConversationListCache: (accountId, summaries) => host.saveConversationListCache(accountId, summaries),
-      shouldSaveConversationJson: () => host.settings.saveConversationJson,
-      saveConversationJsonSidecar: (notePath, payload) => host.saveConversationJsonSidecar(notePath, payload),
-      moveConversationJsonSidecar: (sourceNotePath, targetNotePath) =>
-        host.moveConversationJsonSidecar(sourceNotePath, targetNotePath),
-      syncConversationAssets: (
-        requestConfig,
-        conversation,
-        baseFolder,
-        conversationPathTemplate,
-        assetStorageMode,
-        logger,
-        accountLabel,
-        conversationIndex,
-        totalConversations
-      ) => host.syncConversationAssets(
-        requestConfig,
-        conversation,
-        baseFolder,
-        conversationPathTemplate,
-        assetStorageMode,
-        logger,
-        accountLabel,
-        conversationIndex,
-        totalConversations
-      ),
-      writeSyncReport: (report) => host.writeSyncReport(report),
-      buildSyncStatusText: (processed, total, phase) => host.buildSyncStatusText(processed, total, phase),
-      setSyncStatusBar: (text, active) => host.setSyncStatusBar(text, active),
-      clearSyncStatusBar: (delayMs) => host.clearSyncStatusBar(delayMs)
-    }, values, progressModal, control);
+    await runFullSync(
+      {
+        app: host.app,
+        manifestVersion: host.manifest.version,
+        createSyncRunLogger: (reporter) => host.createSyncRunLogger(reporter, values.folder),
+        getSelectedAccounts: (syncValues) => host.getSelectedAccounts(syncValues),
+        getRequestConfig: (account) => host.getRequestConfig(account),
+        getAccountLabel: (account) => host.getAccountLabel(account),
+        getDefaultConversationListLatestLimit: () => host.settings.conversationListLatestLimit,
+        getConversationListCache: (accountId) => host.getConversationListCache(accountId),
+        saveConversationListCache: (accountId, summaries) => host.saveConversationListCache(accountId, summaries),
+        shouldSaveConversationJson: () => host.settings.saveConversationJson,
+        saveConversationJsonSidecar: (notePath, payload) => host.saveConversationJsonSidecar(notePath, payload),
+        moveConversationJsonSidecar: (sourceNotePath, targetNotePath) =>
+          host.moveConversationJsonSidecar(sourceNotePath, targetNotePath),
+        syncConversationAssets: (
+          requestConfig,
+          conversation,
+          baseFolder,
+          conversationPathTemplate,
+          assetStorageMode,
+          logger,
+          accountLabel,
+          conversationIndex,
+          totalConversations,
+        ) =>
+          host.syncConversationAssets(
+            requestConfig,
+            conversation,
+            baseFolder,
+            conversationPathTemplate,
+            assetStorageMode,
+            logger,
+            accountLabel,
+            conversationIndex,
+            totalConversations,
+          ),
+        writeSyncReport: (report) => host.writeSyncReport(report),
+        buildSyncStatusText: (processed, total, phase) => host.buildSyncStatusText(processed, total, phase),
+        setSyncStatusBar: (text, active) => host.setSyncStatusBar(text, active),
+        clearSyncStatusBar: (delayMs) => host.clearSyncStatusBar(delayMs),
+      },
+      values,
+      progressModal,
+      control,
+    );
   } finally {
     host.syncWorkerActive = false;
     host.suppressSyncStatusBarUpdates = false;

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import {
   resolveEffectiveConversationListLimit,
-  shouldPromptConversationRangeSelection
+  shouldPromptConversationRangeSelection,
 } from "../src/sync/selection.ts";
 import type { ConversationUpdatedAtSpan } from "../src/sync/date-range.ts";
 
@@ -12,7 +12,7 @@ function createSpan(spanMs: number): ConversationUpdatedAtSpan {
     minUpdatedAt: "2026-01-01T00:00:00.000Z",
     maxUpdatedAt: "2026-01-31T00:00:00.000Z",
     spanMs,
-    validCount: 2
+    validCount: 2,
   };
 }
 

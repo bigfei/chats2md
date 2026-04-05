@@ -1,0 +1,7 @@
+node_modules
+release
+sample-vault
+assets
+.beads
+main.js
+package-lock.json

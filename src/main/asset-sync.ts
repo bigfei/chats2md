@@ -2,18 +2,13 @@ import { App, TFile, TFolder, normalizePath } from "obsidian";
 
 import { resolveAssetFolderPaths } from "../storage/asset-storage";
 import { fetchConversationFileDownloadInfo, fetchSignedFileContent } from "../chatgpt/api";
-import {
-  appendExtensionIfMissing,
-  formatAssetStorageMode,
-  sanitizePathPart,
-  type SyncRunLogger
-} from "./helpers";
+import { appendExtensionIfMissing, formatAssetStorageMode, sanitizePathPart, type SyncRunLogger } from "./helpers";
 import type {
   AssetStorageMode,
   ChatGptRequestConfig,
   ConversationAssetLinkMap,
   ConversationDetail,
-  ConversationFileReference
+  ConversationFileReference,
 } from "../shared/types";
 
 export interface MainAssetSyncHost {
@@ -84,7 +79,7 @@ function extractKnownExtension(fileName: string): string | null {
 }
 
 function collectConversationDownloadRefs(
-  references: ConversationFileReference[]
+  references: ConversationFileReference[],
 ): Array<{ fileId: string; logicalName: string }> {
   const refsById = new Map<string, { fileId: string; logicalName: string }>();
 
@@ -92,7 +87,7 @@ function collectConversationDownloadRefs(
     if (!refsById.has(reference.fileId)) {
       refsById.set(reference.fileId, {
         fileId: reference.fileId,
-        logicalName: reference.logicalName
+        logicalName: reference.logicalName,
       });
     }
   }
@@ -106,7 +101,7 @@ async function migrateConversationAssetFiles(
   sourceFolderPaths: string[],
   usedNames: Set<string>,
   logger: SyncRunLogger | null,
-  logPrefix: string
+  logPrefix: string,
 ): Promise<void> {
   for (const sourceFolderPath of sourceFolderPaths) {
     const sourceFolder = app.vault.getAbstractFileByPath(sourceFolderPath);
@@ -130,7 +125,7 @@ async function migrateConversationAssetFiles(
 
 export async function syncConversationAssetsForConversation(
   host: MainAssetSyncHost,
-  params: SyncConversationAssetsParams
+  params: SyncConversationAssetsParams,
 ): Promise<ConversationAssetLinkMap> {
   const {
     requestConfig,
@@ -141,7 +136,7 @@ export async function syncConversationAssetsForConversation(
     logger,
     accountLabel,
     conversationIndex,
-    totalConversations
+    totalConversations,
   } = params;
   const linkMap: ConversationAssetLinkMap = {};
   const downloadRefs = collectConversationDownloadRefs(conversation.fileReferences);
@@ -157,12 +152,12 @@ export async function syncConversationAssetsForConversation(
     conversation: {
       id: conversation.id,
       title: conversation.title,
-      updatedAt: conversation.updatedAt
+      updatedAt: conversation.updatedAt,
     },
     account: {
       accountId: requestConfig.accountId,
-      email: requestConfig.userEmail
-    }
+      email: requestConfig.userEmail,
+    },
   });
   const assetFolderPath = folderPaths.targetFolderPath;
   const logPrefix = `[${accountLabel}] (${conversationIndex}/${totalConversations})`;
@@ -198,7 +193,7 @@ export async function syncConversationAssetsForConversation(
       if (preferredExisting instanceof TFile) {
         linkMap[ref.fileId] = {
           path: preferredExisting.path,
-          fileName: preferredExisting.name
+          fileName: preferredExisting.name,
         };
         usedNames.add(preferredExisting.name);
         logger?.info(`${perAssetPrefix} Reusing existing file: ${preferredExisting.path}`);
@@ -214,7 +209,7 @@ export async function syncConversationAssetsForConversation(
           await host.app.vault.rename(legacyExisting, migratedPath);
           linkMap[ref.fileId] = {
             path: migratedPath,
-            fileName: migratedFileName
+            fileName: migratedFileName,
           };
           logger?.info(`${perAssetPrefix} Renamed legacy asset: ${legacyPath} -> ${migratedPath}`);
           continue;
@@ -231,7 +226,7 @@ export async function syncConversationAssetsForConversation(
       if (existingAtFinalPath instanceof TFile) {
         linkMap[ref.fileId] = {
           path: existingAtFinalPath.path,
-          fileName: existingAtFinalPath.name
+          fileName: existingAtFinalPath.name,
         };
         logger?.info(`${perAssetPrefix} Reusing existing file: ${existingAtFinalPath.path}`);
         continue;
@@ -240,7 +235,7 @@ export async function syncConversationAssetsForConversation(
       const created = await host.app.vault.createBinary(finalPath, fileContent.data);
       linkMap[ref.fileId] = {
         path: created.path,
-        fileName: created.name
+        fileName: created.name,
       };
       logger?.info(`${perAssetPrefix} Saved asset: ${created.path}`);
     } catch (error) {

@@ -33,7 +33,7 @@ function computeOldestTimestampMs(summaries: ConversationSummary[]): number | nu
 function pickPreferredSummary(
   existing: ConversationSummary,
   candidate: ConversationSummary,
-  preferCandidateOnTie: boolean
+  preferCandidateOnTie: boolean,
 ): ConversationSummary {
   const existingTimestamp = parseTimestamp(existing.updatedAt);
   const candidateTimestamp = parseTimestamp(candidate.updatedAt);
@@ -52,14 +52,12 @@ function pickPreferredSummary(
   return preferCandidateOnTie ? candidate : existing;
 }
 
-export function rankConversationSummariesByUpdatedAt(
-  summaries: ConversationSummary[]
-): ConversationSummary[] {
+export function rankConversationSummariesByUpdatedAt(summaries: ConversationSummary[]): ConversationSummary[] {
   return summaries
     .map((summary, index) => ({
       summary,
       index,
-      timestamp: parseTimestamp(summary.updatedAt)
+      timestamp: parseTimestamp(summary.updatedAt),
     }))
     .sort((left, right) => {
       const leftRank = left.timestamp ?? Number.NEGATIVE_INFINITY;
@@ -74,10 +72,7 @@ export function rankConversationSummariesByUpdatedAt(
     .map((entry) => entry.summary);
 }
 
-export function trimConversationSummaries(
-  summaries: ConversationSummary[],
-  limit: number
-): ConversationSummary[] {
+export function trimConversationSummaries(summaries: ConversationSummary[], limit: number): ConversationSummary[] {
   if (!Number.isFinite(limit)) {
     return [];
   }
@@ -87,14 +82,13 @@ export function trimConversationSummaries(
     return [];
   }
 
-  return rankConversationSummariesByUpdatedAt(summaries)
-    .slice(0, Math.min(normalizedLimit, summaries.length));
+  return rankConversationSummariesByUpdatedAt(summaries).slice(0, Math.min(normalizedLimit, summaries.length));
 }
 
 export function mergeFetchedAndCachedConversationSummaries(
   fetchedSummaries: ConversationSummary[],
   cachedSummaries: ConversationSummary[],
-  limit: number
+  limit: number,
 ): ConversationSummary[] {
   if (!Number.isFinite(limit)) {
     return [];
@@ -130,16 +124,11 @@ export function mergeFetchedAndCachedConversationSummaries(
   return trimConversationSummaries(Array.from(merged.values()), normalizedLimit);
 }
 
-export function getLatestWindowOldestTimestampMs(
-  summaries: ConversationSummary[],
-  limit: number
-): number | null {
+export function getLatestWindowOldestTimestampMs(summaries: ConversationSummary[], limit: number): number | null {
   return computeOldestTimestampMs(trimConversationSummaries(summaries, limit));
 }
 
-export function shouldStopLatestListFetch(
-  options: ShouldStopLatestListFetchOptions
-): boolean {
+export function shouldStopLatestListFetch(options: ShouldStopLatestListFetchOptions): boolean {
   const normalizedLimit = Math.max(1, Math.trunc(options.limit));
 
   if (options.fetchedSummaries.length >= normalizedLimit) {

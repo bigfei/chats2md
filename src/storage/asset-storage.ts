@@ -45,24 +45,23 @@ export function resolveAssetFolderPaths(context: AssetFolderPathContext): Resolv
     updatedAt: context.conversation.updatedAt,
     conversationId: context.conversation.id,
     email: context.account.email,
-    accountId: context.account.accountId
+    accountId: context.account.accountId,
   });
   const noteRelativeFolder = getFolderPath(noteRelativePath);
-  const noteFolderPath = noteRelativeFolder.length > 0
-    ? normalizeObsidianPath(`${normalizedBaseFolder}/${noteRelativeFolder}`)
-    : normalizedBaseFolder;
+  const noteFolderPath =
+    noteRelativeFolder.length > 0
+      ? normalizeObsidianPath(`${normalizedBaseFolder}/${noteRelativeFolder}`)
+      : normalizedBaseFolder;
   const localFolderPath = normalizeObsidianPath(`${noteFolderPath}/${ASSET_FOLDER_NAME}`);
   const legacyGlobalFolderPath = normalizeObsidianPath(`${globalFolderPath}/${conversationFolder}`);
   const legacyLocalFolderPath = normalizeObsidianPath(`${localFolderPath}/${conversationFolder}`);
-  const targetFolderPath = context.mode === "with_conversation"
-    ? localFolderPath
-    : globalFolderPath;
+  const targetFolderPath = context.mode === "with_conversation" ? localFolderPath : globalFolderPath;
   const candidateFolderPaths = Array.from(new Set([legacyGlobalFolderPath, legacyLocalFolderPath]));
 
   return {
     targetFolderPath,
     globalFolderPath,
     localFolderPath,
-    candidateFolderPaths
+    candidateFolderPaths,
   };
 }

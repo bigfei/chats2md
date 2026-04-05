@@ -7,7 +7,7 @@ import {
   formatActionLabel,
   summarizeCounts,
   type ConversationFrontmatterInfo,
-  type SyncRunLogger
+  type SyncRunLogger,
 } from "./helpers";
 import { indexConversationNotes, upsertConversationNote } from "../storage/note-writer";
 import type {
@@ -17,7 +17,7 @@ import type {
   SyncReportConversationEntry,
   SyncRunReport,
   SyncRunStatus,
-  StoredSessionAccount
+  StoredSessionAccount,
 } from "../shared/types";
 
 export interface MainRebuildHost {
@@ -54,7 +54,7 @@ export interface MainRebuildHost {
     logger: SyncRunLogger | null,
     accountLabel: string,
     conversationIndex: number,
-    totalConversations: number
+    totalConversations: number,
   ): Promise<ConversationAssetLinkMap>;
   moveConversationJsonSidecar(sourceNotePath: string, targetNotePath: string): Promise<boolean>;
   writeSyncReport(report: SyncRunReport): Promise<string | null>;
@@ -120,9 +120,12 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
 
   try {
     try {
-      syncLogger = await host.createSyncRunLogger({
-        log: (message) => host.logInfo(message)
-      }, host.settings.defaultFolder);
+      syncLogger = await host.createSyncRunLogger(
+        {
+          log: (message) => host.logInfo(message),
+        },
+        host.settings.defaultFolder,
+      );
       syncLogger.info(`Rebuild log file: ${syncLogger.filePath}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -132,10 +135,7 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
     for (const [noteIndexValue, note] of notes.entries()) {
       const frontmatter = host.getConversationFrontmatter(note);
       const displayTitle = frontmatter.title || note.basename || frontmatter.conversationId || note.path;
-      host.setSyncStatusBar(
-        host.buildSyncStatusText(noteIndexValue, notes.length, `rebuilding ${displayTitle}`),
-        true
-      );
+      host.setSyncStatusBar(host.buildSyncStatusText(noteIndexValue, notes.length, `rebuilding ${displayTitle}`), true);
 
       if (!frontmatter.conversationId) {
         counts.failed += 1;
@@ -146,7 +146,7 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
           title: displayTitle,
           conversationUrl: null,
           notePath: note.path,
-          message: `Missing ${CONVERSATION_ID_KEY} in note frontmatter.`
+          message: `Missing ${CONVERSATION_ID_KEY} in note frontmatter.`,
         });
         logError(`Skipping ${note.path}: missing ${CONVERSATION_ID_KEY}.`);
         continue;
@@ -155,7 +155,7 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
       const fallbackSummary = {
         title: frontmatter.title || note.basename || "Untitled Conversation",
         createdAt: frontmatter.createdAt || frontmatter.updatedAt || "",
-        updatedAt: frontmatter.updatedAt || frontmatter.createdAt || ""
+        updatedAt: frontmatter.updatedAt || frontmatter.createdAt || "",
       };
 
       let account: StoredSessionAccount;
@@ -171,7 +171,7 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
           title: fallbackSummary.title,
           conversationUrl: null,
           notePath: note.path,
-          message
+          message,
         });
         logError(`Skipping ${note.path}: ${message}`);
         continue;
@@ -191,7 +191,7 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
           title: fallbackSummary.title,
           conversationUrl: null,
           notePath: note.path,
-          message
+          message,
         });
         logError(`[${accountLabel}] Failed to load session for ${note.path}: ${message}`);
         continue;
@@ -233,7 +233,7 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
           syncLogger,
           accountLabel,
           noteIndexValue + 1,
-          notes.length
+          notes.length,
         );
 
         const result = await upsertConversationNote(
@@ -244,14 +244,14 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
           {
             accountId: requestConfig.accountId,
             userId: requestConfig.userId,
-            userEmail: requestConfig.userEmail
+            userEmail: requestConfig.userEmail,
           },
           host.manifestVersion,
           host.settings.conversationPathTemplate,
           host.settings.assetStorageMode,
           frontmatter.listUpdatedAt || detail.updatedAt,
           assetLinks,
-          true
+          true,
         );
 
         counts[result.action] += 1;
@@ -261,7 +261,7 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
           conversationId: detail.id,
           title: detail.title,
           conversationUrl: detail.url,
-          notePath: result.filePath
+          notePath: result.filePath,
         };
         const warnings: string[] = [];
 
@@ -295,12 +295,12 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
             : "Moved to match current layout template.";
           movedEntries.push({
             ...reportEntry,
-            message: moveMessage
+            message: moveMessage,
           });
         }
 
         logInfo(
-          `[${accountLabel}] (${noteIndexValue + 1}/${notes.length}) ${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}: "${detail.title}".`
+          `[${accountLabel}] (${noteIndexValue + 1}/${notes.length}) ${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}: "${detail.title}".`,
         );
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -312,9 +312,11 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
           title: fallbackSummary.title,
           conversationUrl: null,
           notePath: note.path,
-          message
+          message,
         });
-        logError(`[${accountLabel}] (${noteIndexValue + 1}/${notes.length}) Failed to rebuild "${displayTitle}": ${message}`);
+        logError(
+          `[${accountLabel}] (${noteIndexValue + 1}/${notes.length}) Failed to rebuild "${displayTitle}": ${message}`,
+        );
       }
     }
 
@@ -341,14 +343,14 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
         scope: "all",
         accounts: host.getAccounts().map((account) => ({
           accountId: account.accountId,
-          label: host.getAccountLabel(account)
+          label: host.getAccountLabel(account),
         })),
         total: notes.length,
         counts: { ...counts },
         created: createdEntries,
         updated: updatedEntries,
         moved: movedEntries,
-        failed: failedEntries
+        failed: failedEntries,
       });
       if (reportPath) {
         syncLogger?.info(`Rebuild report saved: ${reportPath}`);

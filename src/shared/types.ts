@@ -42,7 +42,7 @@ export const DEFAULT_SETTINGS: Chats2MdSettings = {
   conversationListLatestLimit: 200,
   conversationListCacheByAccount: {},
   accounts: [],
-  legacySessionJson: ""
+  legacySessionJson: "",
 };
 
 export interface ChatGptRequestConfig {

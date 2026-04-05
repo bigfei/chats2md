@@ -7,9 +7,7 @@
       "id": "client-created-root",
       "message": null,
       "parent": null,
-      "children": [
-        "d4f63c81-aa80-43f4-b705-dc837b04ab8f"
-      ]
+      "children": ["d4f63c81-aa80-43f4-b705-dc837b04ab8f"]
     },
     "d4f63c81-aa80-43f4-b705-dc837b04ab8f": {
       "id": "d4f63c81-aa80-43f4-b705-dc837b04ab8f",
@@ -24,9 +22,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": true,
@@ -39,9 +35,7 @@
         "channel": null
       },
       "parent": "client-created-root",
-      "children": [
-        "b38468ac-bd51-4b53-84cd-49912ce6b7c6"
-      ]
+      "children": ["b38468ac-bd51-4b53-84cd-49912ce6b7c6"]
     },
     "b38468ac-bd51-4b53-84cd-49912ce6b7c6": {
       "id": "b38468ac-bd51-4b53-84cd-49912ce6b7c6",
@@ -56,9 +50,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": true,
@@ -72,9 +64,7 @@
         "channel": null
       },
       "parent": "d4f63c81-aa80-43f4-b705-dc837b04ab8f",
-      "children": [
-        "f8d006fa-6ded-4177-863c-91882938a5ac"
-      ]
+      "children": ["f8d006fa-6ded-4177-863c-91882938a5ac"]
     },
     "f8d006fa-6ded-4177-863c-91882938a5ac": {
       "id": "f8d006fa-6ded-4177-863c-91882938a5ac",
@@ -89,9 +79,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -106,9 +94,7 @@
         "channel": null
       },
       "parent": "b38468ac-bd51-4b53-84cd-49912ce6b7c6",
-      "children": [
-        "562c50b3-9b21-4df0-b841-e37a90d6be9e"
-      ]
+      "children": ["562c50b3-9b21-4df0-b841-e37a90d6be9e"]
     },
     "562c50b3-9b21-4df0-b841-e37a90d6be9e": {
       "id": "562c50b3-9b21-4df0-b841-e37a90d6be9e",
@@ -123,9 +109,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            "https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5\n是否会不能正常处理【】中的文字?"
-          ]
+          "parts": ["https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5\n是否会不能正常处理【】中的文字?"]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -147,9 +131,7 @@
         "channel": null
       },
       "parent": "f8d006fa-6ded-4177-863c-91882938a5ac",
-      "children": [
-        "cb488a46-7aba-499b-8244-5de662913e6d"
-      ]
+      "children": ["cb488a46-7aba-499b-8244-5de662913e6d"]
     },
     "cb488a46-7aba-499b-8244-5de662913e6d": {
       "id": "cb488a46-7aba-499b-8244-5de662913e6d",
@@ -164,9 +146,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -190,9 +170,7 @@
         "channel": null
       },
       "parent": "562c50b3-9b21-4df0-b841-e37a90d6be9e",
-      "children": [
-        "9378b159-532d-4ef1-9dc4-6bd0abc446b9"
-      ]
+      "children": ["9378b159-532d-4ef1-9dc4-6bd0abc446b9"]
     },
     "9378b159-532d-4ef1-9dc4-6bd0abc446b9": {
       "id": "9378b159-532d-4ef1-9dc4-6bd0abc446b9",
@@ -232,9 +210,7 @@
         "channel": null
       },
       "parent": "cb488a46-7aba-499b-8244-5de662913e6d",
-      "children": [
-        "45b028fb-f6be-4b08-a16c-bfeec6b3b806"
-      ]
+      "children": ["45b028fb-f6be-4b08-a16c-bfeec6b3b806"]
     },
     "45b028fb-f6be-4b08-a16c-bfeec6b3b806": {
       "id": "45b028fb-f6be-4b08-a16c-bfeec6b3b806",
@@ -280,9 +256,7 @@
         "channel": null
       },
       "parent": "9378b159-532d-4ef1-9dc4-6bd0abc446b9",
-      "children": [
-        "b11dcd62-1be0-4655-8d5d-a242cb90136c"
-      ]
+      "children": ["b11dcd62-1be0-4655-8d5d-a242cb90136c"]
     },
     "b11dcd62-1be0-4655-8d5d-a242cb90136c": {
       "id": "b11dcd62-1be0-4655-8d5d-a242cb90136c",
@@ -297,9 +271,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            "我先看一下你发的 gist 里具体是什么实现，再判断它对 `【】` 这类全角括号里的文字会不会有问题。"
-          ]
+          "parts": ["我先看一下你发的 gist 里具体是什么实现，再判断它对 `【】` 这类全角括号里的文字会不会有问题。"]
         },
         "status": "finished_successfully",
         "end_turn": false,
@@ -327,9 +299,7 @@
         "channel": "commentary"
       },
       "parent": "45b028fb-f6be-4b08-a16c-bfeec6b3b806",
-      "children": [
-        "f6374cd7-dc74-4513-a1f3-c9a4003f6611"
-      ]
+      "children": ["f6374cd7-dc74-4513-a1f3-c9a4003f6611"]
     },
     "f6374cd7-dc74-4513-a1f3-c9a4003f6611": {
       "id": "f6374cd7-dc74-4513-a1f3-c9a4003f6611",
@@ -354,9 +324,7 @@
         "metadata": {
           "finish_details": {
             "type": "stop",
-            "stop_tokens": [
-              200012
-            ]
+            "stop_tokens": [200012]
           },
           "is_complete": true,
           "citations": [],
@@ -383,9 +351,7 @@
         "channel": null
       },
       "parent": "b11dcd62-1be0-4655-8d5d-a242cb90136c",
-      "children": [
-        "861fe5d2-e883-4e3c-9aae-971033977ffb"
-      ]
+      "children": ["861fe5d2-e883-4e3c-9aae-971033977ffb"]
     },
     "861fe5d2-e883-4e3c-9aae-971033977ffb": {
       "id": "861fe5d2-e883-4e3c-9aae-971033977ffb",
@@ -402,9 +368,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -452,9 +416,7 @@
         "channel": null
       },
       "parent": "f6374cd7-dc74-4513-a1f3-c9a4003f6611",
-      "children": [
-        "9dfc0e04-08a7-40f3-97f4-7131c218d85d"
-      ]
+      "children": ["9dfc0e04-08a7-40f3-97f4-7131c218d85d"]
     },
     "9dfc0e04-08a7-40f3-97f4-7131c218d85d": {
       "id": "9dfc0e04-08a7-40f3-97f4-7131c218d85d",
@@ -512,9 +474,7 @@
         "channel": null
       },
       "parent": "861fe5d2-e883-4e3c-9aae-971033977ffb",
-      "children": [
-        "afc15ab7-0c12-4fbb-830e-5f35b112872f"
-      ]
+      "children": ["afc15ab7-0c12-4fbb-830e-5f35b112872f"]
     },
     "afc15ab7-0c12-4fbb-830e-5f35b112872f": {
       "id": "afc15ab7-0c12-4fbb-830e-5f35b112872f",
@@ -539,9 +499,7 @@
         "metadata": {
           "finish_details": {
             "type": "stop",
-            "stop_tokens": [
-              200012
-            ]
+            "stop_tokens": [200012]
           },
           "is_complete": true,
           "citations": [],
@@ -568,9 +526,7 @@
         "channel": null
       },
       "parent": "9dfc0e04-08a7-40f3-97f4-7131c218d85d",
-      "children": [
-        "49831915-322a-4058-9680-3c423e6363f0"
-      ]
+      "children": ["49831915-322a-4058-9680-3c423e6363f0"]
     },
     "49831915-322a-4058-9680-3c423e6363f0": {
       "id": "49831915-322a-4058-9680-3c423e6363f0",
@@ -587,9 +543,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -689,9 +643,7 @@
         "channel": null
       },
       "parent": "afc15ab7-0c12-4fbb-830e-5f35b112872f",
-      "children": [
-        "0c04c237-09ec-4f04-a951-ffdc7b56862b"
-      ]
+      "children": ["0c04c237-09ec-4f04-a951-ffdc7b56862b"]
     },
     "0c04c237-09ec-4f04-a951-ffdc7b56862b": {
       "id": "0c04c237-09ec-4f04-a951-ffdc7b56862b",
@@ -730,9 +682,7 @@
         "channel": null
       },
       "parent": "49831915-322a-4058-9680-3c423e6363f0",
-      "children": [
-        "e057cdde-6a76-460d-999b-9fc729c47e95"
-      ]
+      "children": ["e057cdde-6a76-460d-999b-9fc729c47e95"]
     },
     "e057cdde-6a76-460d-999b-9fc729c47e95": {
       "id": "e057cdde-6a76-460d-999b-9fc729c47e95",
@@ -759,9 +709,7 @@
         "metadata": {
           "finish_details": {
             "type": "stop",
-            "stop_tokens": [
-              200002
-            ]
+            "stop_tokens": [200002]
           },
           "is_complete": true,
           "content_references": [
@@ -770,9 +718,7 @@
               "prefix": null,
               "start_idx": 221,
               "end_idx": 259,
-              "safe_urls": [
-                "https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5"
-              ],
+              "safe_urls": ["https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5"],
               "refs": [],
               "alt": "([Gist](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5))",
               "prompt_text": null,
@@ -820,9 +766,7 @@
               "prefix": null,
               "start_idx": 372,
               "end_idx": 394,
-              "safe_urls": [
-                "https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5"
-              ],
+              "safe_urls": ["https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5"],
               "refs": [],
               "alt": "([Gist](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5))",
               "prompt_text": null,
@@ -857,9 +801,7 @@
               "prefix": null,
               "start_idx": 461,
               "end_idx": 483,
-              "safe_urls": [
-                "https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5"
-              ],
+              "safe_urls": ["https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5"],
               "refs": [],
               "alt": "([Gist](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5))",
               "prompt_text": null,
@@ -894,9 +836,7 @@
               "prefix": null,
               "start_idx": 529,
               "end_idx": 567,
-              "safe_urls": [
-                "https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5"
-              ],
+              "safe_urls": ["https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5"],
               "refs": [],
               "alt": "([Gist](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5))",
               "prompt_text": null,
@@ -967,9 +907,7 @@
               "has_images": false
             }
           ],
-          "safe_urls": [
-            "https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5"
-          ],
+          "safe_urls": ["https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5"],
           "citations": [
             {
               "start_ix": 597,

@@ -25,7 +25,7 @@ export function setSyncStatusBar(host: any, text: string, active = false): void 
   host.syncStatusBarEl.style.display = "";
   host.syncStatusBarEl.setAttribute(
     "aria-label",
-    active && host.activeSyncModal?.isSyncInProgress() ? `${text} (click to reopen dialog)` : text
+    active && host.activeSyncModal?.isSyncInProgress() ? `${text} (click to reopen dialog)` : text,
   );
 }
 

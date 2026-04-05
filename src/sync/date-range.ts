@@ -50,9 +50,7 @@ export function toIsoUtcDate(value: string): string | null {
   return new Date(parsed).toISOString().slice(0, 10);
 }
 
-export function getConversationUpdatedAtSpan(
-  summaries: ConversationSummary[]
-): ConversationUpdatedAtSpan | null {
+export function getConversationUpdatedAtSpan(summaries: ConversationSummary[]): ConversationUpdatedAtSpan | null {
   let minTimestamp = Number.POSITIVE_INFINITY;
   let maxTimestamp = Number.NEGATIVE_INFINITY;
   let minUpdatedAt = "";
@@ -86,7 +84,7 @@ export function getConversationUpdatedAtSpan(
     minUpdatedAt,
     maxUpdatedAt,
     spanMs: Math.max(0, maxTimestamp - minTimestamp),
-    validCount
+    validCount,
   };
 }
 
@@ -97,7 +95,7 @@ export function shouldPromptForDateRange(span: ConversationUpdatedAtSpan | null)
 export function filterConversationSummariesByUpdatedDateRange(
   summaries: ConversationSummary[],
   startDate: string,
-  endDate: string
+  endDate: string,
 ): ConversationSummary[] {
   const startTimestamp = parseIsoDateStart(startDate);
   const endTimestamp = parseIsoDateEnd(endDate);
@@ -118,7 +116,7 @@ export function filterConversationSummariesByUpdatedDateRange(
 
 export function filterConversationSummariesByLatestCount(
   summaries: ConversationSummary[],
-  count: number
+  count: number,
 ): ConversationSummary[] {
   if (!Number.isFinite(count)) {
     throw new Error("Latest note count must be a positive integer.");
@@ -137,7 +135,7 @@ export function filterConversationSummariesByLatestCount(
     .map((summary, index) => ({
       summary,
       index,
-      timestamp: parseTimestamp(summary.updatedAt)
+      timestamp: parseTimestamp(summary.updatedAt),
     }))
     .sort((left, right) => {
       const leftRank = left.timestamp ?? Number.NEGATIVE_INFINITY;
@@ -150,7 +148,5 @@ export function filterConversationSummariesByLatestCount(
       return left.index - right.index;
     });
 
-  return rankedSummaries
-    .slice(0, Math.min(normalizedCount, rankedSummaries.length))
-    .map((item) => item.summary);
+  return rankedSummaries.slice(0, Math.min(normalizedCount, rankedSummaries.length)).map((item) => item.summary);
 }

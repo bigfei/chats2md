@@ -11,24 +11,21 @@ import {
   hasMatchingUpdatedAt,
   sleep,
   summarizeCounts,
-  type SyncRunLogger
+  type SyncRunLogger,
 } from "../main/helpers";
 import {
   ensureConversationNotePath,
   getIndexedConversationSyncMetadata,
   indexConversationNotes,
-  upsertConversationNote
+  upsertConversationNote,
 } from "../storage/note-writer";
 import {
   filterConversationSummariesByUpdatedDateRange,
   getConversationUpdatedAtSpan,
-  toIsoUtcDate
+  toIsoUtcDate,
 } from "./date-range";
 import { trimConversationSummaries } from "./list-strategy";
-import {
-  resolveEffectiveConversationListLimit,
-  shouldPromptConversationRangeSelection
-} from "./selection";
+import { resolveEffectiveConversationListLimit, shouldPromptConversationRangeSelection } from "./selection";
 import type {
   AssetStorageMode,
   ChatGptRequestConfig,
@@ -41,7 +38,7 @@ import type {
   ImportFailure,
   ImportProgressCounts,
   StoredSessionAccount,
-  SyncModalValues
+  SyncModalValues,
 } from "../shared/types";
 
 export interface FullSyncContext {
@@ -66,7 +63,7 @@ export interface FullSyncContext {
     logger: SyncRunLogger | null,
     accountLabel: string,
     conversationIndex: number,
-    totalConversations: number
+    totalConversations: number,
   ): Promise<ConversationAssetLinkMap>;
   writeSyncReport(report: SyncRunReport): Promise<string | null>;
   buildSyncStatusText(processed: number, total: number, phase: string): string;
@@ -78,7 +75,7 @@ export async function runFullSync(
   context: FullSyncContext,
   values: SyncModalValues,
   progressModal: SyncProgressReporter,
-  control: SyncExecutionControl
+  control: SyncExecutionControl,
 ): Promise<void> {
   const counts = createEmptyCounts();
   const failures: ImportFailure[] = [];
@@ -91,11 +88,11 @@ export async function runFullSync(
   const forceRefresh = values.forceRefresh === true;
   const fetchFullConversationList = values.fetchFullConversationList === true;
   const defaultConversationListLimit = resolveEffectiveConversationListLimit(
-    context.getDefaultConversationListLatestLimit()
+    context.getDefaultConversationListLatestLimit(),
   );
   const effectiveConversationListLimit = resolveEffectiveConversationListLimit(
     defaultConversationListLimit,
-    values.conversationLimitOverride
+    values.conversationLimitOverride,
   );
   const startedAt = new Date().toISOString();
   let runStatus: SyncRunStatus = "completed";
@@ -154,7 +151,7 @@ export async function runFullSync(
     logInfo(`Force refresh is ${forceRefresh ? "enabled" : "disabled"}.`);
     logInfo(
       `Conversation list mode: ${fetchFullConversationList ? "full-history" : "latest-window"} ` +
-      `(latest limit ${effectiveConversationListLimit}, default ${defaultConversationListLimit}).`
+        `(latest limit ${effectiveConversationListLimit}, default ${defaultConversationListLimit}).`,
     );
     context.setSyncStatusBar(context.buildSyncStatusText(processedConversations, totalConversations, "starting"), true);
 
@@ -164,15 +161,17 @@ export async function runFullSync(
       }
 
       const accountLabel = context.getAccountLabel(account);
-      progressModal.setPreparing(`Syncing ${accountLabel} (${accountIndex + 1}/${selectedAccounts.length}): fetching conversation list...`);
+      progressModal.setPreparing(
+        `Syncing ${accountLabel} (${accountIndex + 1}/${selectedAccounts.length}): fetching conversation list...`,
+      );
       logInfo(`[${accountIndex + 1}/${selectedAccounts.length}] Fetching conversation list for ${accountLabel}.`);
       context.setSyncStatusBar(
         context.buildSyncStatusText(
           processedConversations,
           totalConversations,
-          `fetching list for ${accountLabel} (${accountIndex + 1}/${selectedAccounts.length})`
+          `fetching list for ${accountLabel} (${accountIndex + 1}/${selectedAccounts.length})`,
         ),
-        true
+        true,
       );
 
       let requestConfig: ChatGptRequestConfig;
@@ -186,7 +185,7 @@ export async function runFullSync(
           id: account.accountId,
           title: accountLabel,
           message,
-          attempts: 1
+          attempts: 1,
         });
         failedEntries.push({
           accountId: account.accountId,
@@ -195,7 +194,7 @@ export async function runFullSync(
           title: accountLabel,
           conversationUrl: null,
           notePath: null,
-          message
+          message,
         });
         logError(`[${accountLabel}] Failed to load session: ${message}`);
         continue;
@@ -214,7 +213,7 @@ export async function runFullSync(
         const listFetchResult = await fetchConversationSummaries(requestConfig, {
           mode: fetchFullConversationList ? "full" : "latest",
           limit: effectiveConversationListLimit,
-          cachedSummaries
+          cachedSummaries,
         });
         summaries = listFetchResult.summaries;
         listPagesFetched = listFetchResult.pagesFetched;
@@ -226,7 +225,7 @@ export async function runFullSync(
           id: account.accountId,
           title: accountLabel,
           message,
-          attempts: 1
+          attempts: 1,
         });
         failedEntries.push({
           accountId: requestConfig.accountId,
@@ -235,7 +234,7 @@ export async function runFullSync(
           title: `${accountLabel} conversation list`,
           conversationUrl: null,
           notePath: null,
-          message
+          message,
         });
         logError(`[${accountLabel}] Failed to fetch conversation list: ${message}`);
         continue;
@@ -252,7 +251,7 @@ export async function runFullSync(
       const discoveredCount = summaries.length;
       logInfo(
         `[${accountLabel}] Found ${discoveredCount} conversation(s) ` +
-        `(list pages: ${listPagesFetched}, api items: ${listApiCount}, cache items: ${refreshedCache.length}).`
+          `(list pages: ${listPagesFetched}, api items: ${listApiCount}, cache items: ${refreshedCache.length}).`,
       );
       if (discoveredCount === 0) {
         continue;
@@ -261,16 +260,15 @@ export async function runFullSync(
       if (!fetchFullConversationList) {
         logInfo(
           `[${accountLabel}] Latest-window mode syncing ${discoveredCount} conversation(s) ` +
-          `with effective limit ${effectiveConversationListLimit}.`
+            `with effective limit ${effectiveConversationListLimit}.`,
         );
       }
 
       const updatedAtSpan = getConversationUpdatedAtSpan(summaries);
       const discoveredStartDate = toIsoUtcDate(updatedAtSpan?.minUpdatedAt ?? "");
       const discoveredEndDate = toIsoUtcDate(updatedAtSpan?.maxUpdatedAt ?? "");
-      const discoveredRangeLabel = discoveredStartDate && discoveredEndDate
-        ? `${discoveredStartDate} to ${discoveredEndDate}`
-        : "unknown";
+      const discoveredRangeLabel =
+        discoveredStartDate && discoveredEndDate ? `${discoveredStartDate} to ${discoveredEndDate}` : "unknown";
 
       if (shouldPromptConversationRangeSelection(fetchFullConversationList, updatedAtSpan) && updatedAtSpan) {
         if (!(await ensureCanContinue())) {
@@ -278,17 +276,15 @@ export async function runFullSync(
         }
 
         progressModal.setPreparing(
-          `Syncing ${accountLabel} (${accountIndex + 1}/${selectedAccounts.length}): choose conversation filter...`
+          `Syncing ${accountLabel} (${accountIndex + 1}/${selectedAccounts.length}): choose conversation filter...`,
         );
-        logInfo(
-          `[${accountLabel}] updated_at span exceeds 30 days (${discoveredRangeLabel}). Waiting for selection.`
-        );
+        logInfo(`[${accountLabel}] updated_at span exceeds 30 days (${discoveredRangeLabel}). Waiting for selection.`);
 
         const selection = await progressModal.selectDateRange({
           accountLabel,
           discoveredCount,
           minUpdatedAt: updatedAtSpan.minUpdatedAt,
-          maxUpdatedAt: updatedAtSpan.maxUpdatedAt
+          maxUpdatedAt: updatedAtSpan.maxUpdatedAt,
         });
 
         if (!(await ensureCanContinue())) {
@@ -305,7 +301,7 @@ export async function runFullSync(
             summaries = filterConversationSummariesByUpdatedDateRange(
               summaries,
               selection.startDate,
-              selection.endDate
+              selection.endDate,
             );
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
@@ -314,7 +310,7 @@ export async function runFullSync(
               id: account.accountId,
               title: `${accountLabel} date range`,
               message,
-              attempts: 1
+              attempts: 1,
             });
             failedEntries.push({
               accountId: requestConfig.accountId,
@@ -323,7 +319,7 @@ export async function runFullSync(
               title: `${accountLabel} date range`,
               conversationUrl: null,
               notePath: null,
-              message
+              message,
             });
             logError(`[${accountLabel}] Invalid date range selection: ${message}`);
             continue;
@@ -331,12 +327,12 @@ export async function runFullSync(
 
           logInfo(
             `[${accountLabel}] Selected updated_at range ${selection.startDate} to ${selection.endDate}. ` +
-            `Syncing ${summaries.length}/${discoveredCount} conversation(s).`
+              `Syncing ${summaries.length}/${discoveredCount} conversation(s).`,
           );
         } else {
           logInfo(
             `[${accountLabel}] Using full discovered updated_at range ${discoveredRangeLabel}. ` +
-            `Syncing ${discoveredCount}/${discoveredCount} conversation(s).`
+              `Syncing ${discoveredCount}/${discoveredCount} conversation(s).`,
           );
         }
       }
@@ -353,7 +349,7 @@ export async function runFullSync(
       totalConversations += summaries.length;
       context.setSyncStatusBar(
         context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
-        true
+        true,
       );
       let processedForAccount = 0;
       let detailApiCallsSinceWait = 0;
@@ -372,15 +368,20 @@ export async function runFullSync(
           context.app,
           noteIndex,
           requestConfig.accountId,
-          summary.id
+          summary.id,
         );
 
         const localListUpdatedAt = existingSyncMetadata.listUpdatedAt ?? existingSyncMetadata.updatedAt;
         const hasMatchingTitle = (existingSyncMetadata.title ?? "") === summary.title;
-        const hasMatchingAssetStorageMode = (existingSyncMetadata.assetStorageMode ?? "global_by_conversation")
-          === values.assetStorageMode;
+        const hasMatchingAssetStorageMode =
+          (existingSyncMetadata.assetStorageMode ?? "global_by_conversation") === values.assetStorageMode;
 
-        if (!forceRefresh && hasMatchingTitle && hasMatchingUpdatedAt(localListUpdatedAt, summary.updatedAt) && hasMatchingAssetStorageMode) {
+        if (
+          !forceRefresh &&
+          hasMatchingTitle &&
+          hasMatchingUpdatedAt(localListUpdatedAt, summary.updatedAt) &&
+          hasMatchingAssetStorageMode
+        ) {
           try {
             const renameResult = await ensureConversationNotePath(
               context.app,
@@ -388,15 +389,15 @@ export async function runFullSync(
               {
                 id: summary.id,
                 title: summary.title,
-                updatedAt: summary.updatedAt
+                updatedAt: summary.updatedAt,
               },
               values.folder,
               {
                 accountId: requestConfig.accountId,
                 userId: requestConfig.userId,
-                userEmail: requestConfig.userEmail
+                userEmail: requestConfig.userEmail,
               },
-              values.conversationPathTemplate
+              values.conversationPathTemplate,
             );
 
             counts.skipped += 1;
@@ -414,7 +415,7 @@ export async function runFullSync(
                   const warning = error instanceof Error ? error.message : String(error);
                   moveMessage = `${moveMessage} JSON sidecar move failed: ${warning}`;
                   logWarn(
-                    `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar move warning for "${summary.title}": ${warning}`
+                    `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar move warning for "${summary.title}": ${warning}`,
                   );
                 }
               }
@@ -427,12 +428,12 @@ export async function runFullSync(
                 title: summary.title,
                 conversationUrl: summary.url,
                 notePath: renameResult.filePath,
-                message: moveMessage
+                message: moveMessage,
               });
             }
 
             logInfo(
-              `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Skipped (up-to-date)${renameResult.moved ? " + moved" : ""}: "${summary.title}".`
+              `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Skipped (up-to-date)${renameResult.moved ? " + moved" : ""}: "${summary.title}".`,
             );
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
@@ -441,7 +442,7 @@ export async function runFullSync(
               id: `${account.accountId}/${summary.id}`,
               title: `${accountLabel}: ${summary.title}`,
               message,
-              attempts: 1
+              attempts: 1,
             });
             failedEntries.push({
               accountId: requestConfig.accountId,
@@ -450,9 +451,11 @@ export async function runFullSync(
               title: summary.title,
               conversationUrl: summary.url,
               notePath: null,
-              message
+              message,
             });
-            logError(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed while reconciling note path: "${summary.title}" - ${message}`);
+            logError(
+              `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed while reconciling note path: "${summary.title}" - ${message}`,
+            );
           }
         } else {
           const mismatchReasons: string[] = [];
@@ -471,7 +474,7 @@ export async function runFullSync(
           }
 
           logInfo(
-            `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Calling /conversation/${summary.id} for "${summary.title}" (${mismatchReasons.join(", ")}).`
+            `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Calling /conversation/${summary.id} for "${summary.title}" (${mismatchReasons.join(", ")}).`,
           );
 
           try {
@@ -486,7 +489,7 @@ export async function runFullSync(
               syncLogger,
               () => {
                 detailApiCallsSinceWait += 1;
-              }
+              },
             );
             if (!detailResult) {
               runStatus = "stopped";
@@ -508,7 +511,7 @@ export async function runFullSync(
               syncLogger,
               accountLabel,
               conversationIndex + 1,
-              summaries.length
+              summaries.length,
             );
 
             const result = await upsertConversationNote(
@@ -519,14 +522,14 @@ export async function runFullSync(
               {
                 accountId: requestConfig.accountId,
                 userId: requestConfig.userId,
-                userEmail: requestConfig.userEmail
+                userEmail: requestConfig.userEmail,
               },
               context.manifestVersion,
               values.conversationPathTemplate,
               values.assetStorageMode,
               summary.updatedAt,
               assetLinks,
-              forceRefresh
+              forceRefresh,
             );
 
             counts[result.action] += 1;
@@ -536,13 +539,16 @@ export async function runFullSync(
               conversationId: detail.id,
               title: detail.title,
               conversationUrl: detail.url,
-              notePath: result.filePath
+              notePath: result.filePath,
             };
             const reportWarnings: string[] = [];
 
             if (result.moved && result.previousFilePath) {
               try {
-                const movedSidecar = await context.moveConversationJsonSidecar(result.previousFilePath, result.filePath);
+                const movedSidecar = await context.moveConversationJsonSidecar(
+                  result.previousFilePath,
+                  result.filePath,
+                );
                 if (movedSidecar) {
                   reportWarnings.push("JSON sidecar moved with note.");
                 }
@@ -550,7 +556,7 @@ export async function runFullSync(
                 const warning = error instanceof Error ? error.message : String(error);
                 reportWarnings.push(`JSON sidecar move failed: ${warning}`);
                 logWarn(
-                  `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar move warning for "${summary.title}": ${warning}`
+                  `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar move warning for "${summary.title}": ${warning}`,
                 );
               }
             }
@@ -562,7 +568,7 @@ export async function runFullSync(
                 const warning = error instanceof Error ? error.message : String(error);
                 reportWarnings.push(`JSON sidecar save failed: ${warning}`);
                 logWarn(
-                  `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar save warning for "${summary.title}": ${warning}`
+                  `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar save warning for "${summary.title}": ${warning}`,
                 );
               }
             }
@@ -584,11 +590,11 @@ export async function runFullSync(
                 : "Moved to match current layout template.";
               movedEntries.push({
                 ...reportEntry,
-                message: moveMessage
+                message: moveMessage,
               });
             }
             logInfo(
-              `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) ${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}: "${summary.title}".`
+              `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) ${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}: "${summary.title}".`,
             );
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
@@ -597,7 +603,7 @@ export async function runFullSync(
               id: `${account.accountId}/${summary.id}`,
               title: `${accountLabel}: ${summary.title}`,
               message,
-              attempts: DETAIL_FETCH_MAX_ATTEMPTS
+              attempts: DETAIL_FETCH_MAX_ATTEMPTS,
             });
             failedEntries.push({
               accountId: requestConfig.accountId,
@@ -606,39 +612,35 @@ export async function runFullSync(
               title: summary.title,
               conversationUrl: summary.url,
               notePath: null,
-              message
+              message,
             });
-            logError(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed: "${summary.title}" - ${message}`);
+            logError(
+              `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed: "${summary.title}" - ${message}`,
+            );
           }
         }
 
         processedConversations += 1;
         processedForAccount += 1;
 
-        progressModal.setProgress(
-          displayTitle,
-          conversationIndex + 1,
-          summaries.length,
-          conversationIndex + 1,
-          counts
-        );
+        progressModal.setProgress(displayTitle, conversationIndex + 1, summaries.length, conversationIndex + 1, counts);
         context.setSyncStatusBar(
           context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
-          true
+          true,
         );
 
         const hasRemainingInAccount = processedForAccount < summaries.length;
         while (hasRemainingInAccount && detailApiCallsSinceWait >= ACCOUNT_SYNC_BATCH_SIZE) {
           logInfo(
-            `[${accountLabel}] Called /conversation/{id} ${ACCOUNT_SYNC_BATCH_SIZE} times. Waiting 30s before next batch.`
+            `[${accountLabel}] Called /conversation/{id} ${ACCOUNT_SYNC_BATCH_SIZE} times. Waiting 30s before next batch.`,
           );
           context.setSyncStatusBar(
             context.buildSyncStatusText(
               processedConversations,
               totalConversations,
-              `waiting 30s before next ${accountLabel} batch`
+              `waiting 30s before next ${accountLabel} batch`,
             ),
-            true
+            true,
           );
 
           let remainingDelayMs = ACCOUNT_SYNC_BATCH_DELAY_MS;
@@ -654,7 +656,7 @@ export async function runFullSync(
 
           context.setSyncStatusBar(
             context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
-            true
+            true,
           );
 
           detailApiCallsSinceWait -= ACCOUNT_SYNC_BATCH_SIZE;
@@ -665,7 +667,10 @@ export async function runFullSync(
     logInfo("Sync complete.");
     progressModal.complete(totalConversations, counts, failures);
     new Notice(summarizeCounts(totalConversations, counts));
-    context.setSyncStatusBar(context.buildSyncStatusText(processedConversations, totalConversations, "complete"), false);
+    context.setSyncStatusBar(
+      context.buildSyncStatusText(processedConversations, totalConversations, "complete"),
+      false,
+    );
     context.clearSyncStatusBar(8000);
   } catch (error) {
     runStatus = "failed";
@@ -689,14 +694,14 @@ export async function runFullSync(
         scope: values.scope,
         accounts: selectedAccounts.map((account) => ({
           accountId: account.accountId,
-          label: context.getAccountLabel(account)
+          label: context.getAccountLabel(account),
         })),
         total: totalConversations,
         counts: { ...counts },
         created: createdEntries,
         updated: updatedEntries,
         moved: movedEntries,
-        failed: failedEntries
+        failed: failedEntries,
       });
       if (reportPath) {
         logInfo(`Sync report saved: ${reportPath}`);
@@ -723,7 +728,7 @@ async function fetchConversationDetailWithRetries(
   displayTitle: string,
   control: SyncExecutionControl,
   logger: SyncRunLogger | null,
-  onRequest?: () => void
+  onRequest?: () => void,
 ): Promise<{ detail: ConversationDetail; rawPayload: unknown } | null> {
   let lastError: unknown;
 
@@ -749,9 +754,7 @@ async function fetchConversationDetailWithRetries(
       }
 
       const message = error instanceof Error ? error.message : String(error);
-      logger?.warn(
-        `${displayTitle} detail fetch retry ${attempt + 1}/${DETAIL_FETCH_MAX_ATTEMPTS}: ${message}`
-      );
+      logger?.warn(`${displayTitle} detail fetch retry ${attempt + 1}/${DETAIL_FETCH_MAX_ATTEMPTS}: ${message}`);
       progressModal.setRetry(displayTitle, index, total, attempt + 1, message);
       await sleep(attempt * 750);
     }
@@ -768,7 +771,7 @@ async function fetchConversationDetailWithRetries(
 async function ensureSyncCanContinue(
   control: SyncExecutionControl,
   progressModal: SyncProgressReporter,
-  counts: ImportProgressCounts
+  counts: ImportProgressCounts,
 ): Promise<boolean> {
   await control.waitIfPaused();
 

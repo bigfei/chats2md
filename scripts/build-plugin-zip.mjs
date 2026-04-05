@@ -44,7 +44,7 @@ async function main() {
   const zipBytes = await zip.generateAsync({
     type: "nodebuffer",
     compression: "DEFLATE",
-    compressionOptions: { level: 9 }
+    compressionOptions: { level: 9 },
   });
 
   await writeFile(outputPath, zipBytes);

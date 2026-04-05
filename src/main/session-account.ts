@@ -19,7 +19,7 @@ export interface MainSessionAccountHost {
 function upsertAccountMetadata(
   settings: Chats2MdSettings,
   requestConfig: ChatGptRequestConfig,
-  secretId: string
+  secretId: string,
 ): StoredSessionAccount {
   const now = new Date().toISOString();
   const existing = settings.accounts.find((account) => account.accountId === requestConfig.accountId);
@@ -31,12 +31,12 @@ function upsertAccountMetadata(
     expiresAt: requestConfig.expiresAt,
     secretId,
     addedAt: existing?.addedAt ?? now,
-    updatedAt: now
+    updatedAt: now,
   };
 
   settings.accounts = sortAccounts([
     ...settings.accounts.filter((item) => item.accountId !== requestConfig.accountId),
-    account
+    account,
   ]);
 
   return account;
@@ -55,7 +55,7 @@ function buildSecretId(accountId: string): string {
 export async function upsertSessionAccount(
   host: MainSessionAccountHost,
   rawSessionJson: string,
-  parsed?: ChatGptRequestConfig
+  parsed?: ChatGptRequestConfig,
 ): Promise<StoredSessionAccount> {
   const normalizedRaw = rawSessionJson.trim();
 

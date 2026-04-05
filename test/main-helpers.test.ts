@@ -18,7 +18,7 @@ import {
   resolveSyncReportFolder,
   sanitizePathPart,
   sortAccounts,
-  summarizeCounts
+  summarizeCounts,
 } from "../src/main/helpers.ts";
 
 test("createEmptyCounts initializes all counters to zero", () => {
@@ -27,7 +27,7 @@ test("createEmptyCounts initializes all counters to zero", () => {
     updated: 0,
     moved: 0,
     skipped: 0,
-    failed: 0
+    failed: 0,
   });
 });
 
@@ -37,7 +37,7 @@ test("summarizeCounts renders a compact summary line", () => {
     updated: 3,
     moved: 1,
     skipped: 5,
-    failed: 1
+    failed: 1,
   });
 
   assert.equal(summary, "Synced 12 conversations. 2 created 3 updated 1 moved 5 skipped 1 failed");
@@ -87,17 +87,17 @@ test("normalizeConversationListCacheByAccount keeps valid entries and drops inva
           title: "Conversation 1",
           createdAt: "2026-04-01T00:00:00.000Z",
           updatedAt: "2026-04-02T00:00:00.000Z",
-          url: "https://chatgpt.com/c/conv-1"
+          url: "https://chatgpt.com/c/conv-1",
         },
         {
           id: "",
           title: "invalid",
           createdAt: "2026-04-01T00:00:00.000Z",
           updatedAt: "2026-04-02T00:00:00.000Z",
-          url: "https://chatgpt.com/c/invalid"
-        }
-      ]
-    }
+          url: "https://chatgpt.com/c/invalid",
+        },
+      ],
+    },
   });
 
   assert.equal(Object.keys(normalized).length, 1);
@@ -121,25 +121,16 @@ test("normalizeTargetFolder trims outer slashes and whitespace", () => {
 });
 
 test("resolveSyncReportFolder defaults to <syncFolder>/sync-result", () => {
-  assert.equal(
-    resolveSyncReportFolder("Imports/ChatGPT", ""),
-    "Imports/ChatGPT/sync-result"
-  );
+  assert.equal(resolveSyncReportFolder("Imports/ChatGPT", ""), "Imports/ChatGPT/sync-result");
   assert.equal(DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE, "<syncFolder>/sync-result");
 });
 
 test("resolveSyncReportFolder supports <syncFolder> placeholder in custom folder", () => {
-  assert.equal(
-    resolveSyncReportFolder("Imports/ChatGPT", "<syncFolder>/reports"),
-    "Imports/ChatGPT/reports"
-  );
+  assert.equal(resolveSyncReportFolder("Imports/ChatGPT", "<syncFolder>/reports"), "Imports/ChatGPT/reports");
 });
 
 test("resolveSyncReportFolder uses a static folder when no placeholder is configured", () => {
-  assert.equal(
-    resolveSyncReportFolder("Imports/ChatGPT", "Shared/SyncReports"),
-    "Shared/SyncReports"
-  );
+  assert.equal(resolveSyncReportFolder("Imports/ChatGPT", "Shared/SyncReports"), "Shared/SyncReports");
 });
 
 test("sanitizePathPart strips invalid path characters and preserves length limit", () => {
@@ -165,7 +156,7 @@ test("normalizeStoredAccount validates and normalizes account metadata", () => {
     expiresAt: "2026-12-31",
     secretId: "secret-1",
     addedAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-02T00:00:00.000Z"
+    updatedAt: "2026-01-02T00:00:00.000Z",
   });
 
   assert.deepEqual(normalized, {
@@ -175,7 +166,7 @@ test("normalizeStoredAccount validates and normalizes account metadata", () => {
     expiresAt: "2026-12-31",
     secretId: "secret-1",
     addedAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-02T00:00:00.000Z"
+    updatedAt: "2026-01-02T00:00:00.000Z",
   });
 });
 
@@ -187,7 +178,7 @@ test("sortAccounts orders by email then account id", () => {
       email: "z@example.com",
       secretId: "s2",
       addedAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-01T00:00:00.000Z"
+      updatedAt: "2026-01-01T00:00:00.000Z",
     },
     {
       accountId: "a",
@@ -195,7 +186,7 @@ test("sortAccounts orders by email then account id", () => {
       email: "a@example.com",
       secretId: "s1",
       addedAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-01T00:00:00.000Z"
+      updatedAt: "2026-01-01T00:00:00.000Z",
     },
     {
       accountId: "c",
@@ -203,12 +194,12 @@ test("sortAccounts orders by email then account id", () => {
       email: "a@example.com",
       secretId: "s3",
       addedAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-01T00:00:00.000Z"
-    }
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
   ]);
 
   assert.deepEqual(
     sorted.map((account) => `${account.email}/${account.accountId}`),
-    ["a@example.com/a", "a@example.com/c", "z@example.com/b"]
+    ["a@example.com/a", "a@example.com/c", "z@example.com/b"],
   );
 });

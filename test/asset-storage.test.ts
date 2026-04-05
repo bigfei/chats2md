@@ -11,12 +11,12 @@ test("resolveAssetFolderPaths returns global target for global mode", () => {
     conversation: {
       id: "conv-123",
       title: "Asset Test",
-      updatedAt: "2026-04-05T08:00:00.000Z"
+      updatedAt: "2026-04-05T08:00:00.000Z",
     },
     account: {
       accountId: "acc-1",
-      email: "user@example.com"
-    }
+      email: "user@example.com",
+    },
   });
 
   assert.equal(paths.targetFolderPath, "Imports/ChatGPT/_assets/acc-1");
@@ -24,7 +24,7 @@ test("resolveAssetFolderPaths returns global target for global mode", () => {
   assert.equal(paths.localFolderPath, "Imports/ChatGPT/user@example.com/acc-1/_assets");
   assert.deepEqual(paths.candidateFolderPaths, [
     "Imports/ChatGPT/_assets/acc-1/conv-123",
-    "Imports/ChatGPT/user@example.com/acc-1/_assets/conv-123"
+    "Imports/ChatGPT/user@example.com/acc-1/_assets/conv-123",
   ]);
 });
 
@@ -36,12 +36,12 @@ test("resolveAssetFolderPaths returns local target for with_conversation mode", 
     conversation: {
       id: "conv-456",
       title: "Another Asset Test",
-      updatedAt: "2026-04-05T08:00:00.000Z"
+      updatedAt: "2026-04-05T08:00:00.000Z",
     },
     account: {
       accountId: "acc-2",
-      email: "owner@example.com"
-    }
+      email: "owner@example.com",
+    },
   });
 
   assert.equal(paths.targetFolderPath, "Imports/ChatGPT/2026-04-05/_assets");
@@ -49,6 +49,6 @@ test("resolveAssetFolderPaths returns local target for with_conversation mode", 
   assert.equal(paths.localFolderPath, "Imports/ChatGPT/2026-04-05/_assets");
   assert.deepEqual(paths.candidateFolderPaths, [
     "Imports/ChatGPT/_assets/acc-2/conv-456",
-    "Imports/ChatGPT/2026-04-05/_assets/conv-456"
+    "Imports/ChatGPT/2026-04-05/_assets/conv-456",
   ]);
 });
