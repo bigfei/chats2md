@@ -186,13 +186,23 @@ export class Chats2MdSettingTab extends PluginSettingTab {
     }
   }
 
-  private describeAccount(account: StoredSessionAccount): string {
-    return [
+  private describeAccount(account: StoredSessionAccount): DocumentFragment {
+    const fragment = document.createDocumentFragment();
+    const lines = [
       `User ID: ${account.userId || "Unavailable"}`,
-      `Email: ${account.email || "Unavailable"}`,
       `Account ID: ${account.accountId}`,
       `Expires: ${account.expiresAt || "Unavailable"}`
-    ].join(" | ");
+    ];
+
+    lines.forEach((line, index) => {
+      if (index > 0) {
+        fragment.appendChild(document.createElement("br"));
+      }
+
+      fragment.append(line);
+    });
+
+    return fragment;
   }
 
   private openSessionEditor(account?: StoredSessionAccount): void {
