@@ -160,11 +160,6 @@ export default class Chats2MdPlugin extends Plugin {
     });
   }
 
-  refreshSettingsPaneIcon(): void {
-    this.syncSettingsPaneIconObserver();
-    this.applySettingsPaneIcon();
-  }
-
   private syncSettingsPaneIconObserver(): void {
     if (typeof document === "undefined") {
       return;
@@ -226,32 +221,19 @@ export default class Chats2MdPlugin extends Plugin {
     }
 
     const matchedItems = new Set<HTMLElement>();
-    const selectorPrefixes = [".vertical-tab-nav-item", ".tree-item", ".nav-item"];
-    const tabIdCandidates = [
-      this.manifest.id,
-      `community-plugins-${this.manifest.id}`,
-      `community-plugin-${this.manifest.id}`,
-      `plugin-${this.manifest.id}`
-    ];
-
-    for (const tabId of tabIdCandidates) {
-      for (const prefix of selectorPrefixes) {
-        for (const selector of [`${prefix}[data-tab-id="${tabId}"]`, `${prefix}[data-id="${tabId}"]`]) {
-          for (const matchedEl of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
-            matchedItems.add(matchedEl);
-          }
-        }
+    for (const selector of [
+      `.vertical-tab-nav-item[data-tab-id="${this.manifest.id}"]`,
+      `.vertical-tab-nav-item[data-tab-id="community-plugins-${this.manifest.id}"]`
+    ]) {
+      for (const matchedEl of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
+        matchedItems.add(matchedEl);
       }
     }
 
     if (matchedItems.size === 0) {
-      const navItems = document.querySelectorAll<HTMLElement>(".vertical-tab-nav-item, .tree-item, .nav-item");
-      for (const itemEl of Array.from(navItems)) {
-        const titleEl = itemEl.querySelector<HTMLElement>(
-          ".vertical-tab-nav-item-title, .tree-item-inner, .nav-item-title, .setting-item-name"
-        );
-        const titleText = (titleEl?.textContent ?? itemEl.textContent ?? "").trim();
-        if (titleText !== pluginName) {
+      for (const itemEl of Array.from(document.querySelectorAll<HTMLElement>(".vertical-tab-nav-item"))) {
+        const titleEl = itemEl.querySelector<HTMLElement>(".vertical-tab-nav-item-title");
+        if (titleEl?.textContent?.trim() !== pluginName) {
           continue;
         }
         matchedItems.add(itemEl);
@@ -260,25 +242,15 @@ export default class Chats2MdPlugin extends Plugin {
 
     for (const itemEl of matchedItems) {
       itemEl.classList.add("mod-has-icon");
-      itemEl.classList.add("chats2md-settings-nav-item");
 
-      let iconContainer = itemEl.querySelector<HTMLElement>(
-        ".vertical-tab-nav-item-icon, .tree-item-icon, .nav-item-icon"
-      );
+      let iconContainer = itemEl.querySelector<HTMLElement>(".vertical-tab-nav-item-icon");
       if (!iconContainer) {
         iconContainer = document.createElement("div");
         iconContainer.className = "vertical-tab-nav-item-icon";
-
-        const titleEl = itemEl.querySelector<HTMLElement>(
-          ".vertical-tab-nav-item-title, .tree-item-inner, .nav-item-title, .setting-item-name"
-        );
-        if (titleEl?.parentElement) {
-          titleEl.parentElement.insertBefore(iconContainer, titleEl);
-        } else {
-          itemEl.prepend(iconContainer);
-        }
+        itemEl.prepend(iconContainer);
       }
 
+      itemEl.classList.add("chats2md-settings-nav-item");
       setIcon(iconContainer, CHATGPT_IMPORT_SYNC_ICON_ID);
     }
   }

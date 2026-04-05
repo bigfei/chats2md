@@ -25,7 +25,6 @@ export class Chats2MdSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    this.plugin.refreshSettingsPaneIcon();
 
     new Setting(containerEl)
       .setName("Default sync folder")
