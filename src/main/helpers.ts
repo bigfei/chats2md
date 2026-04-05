@@ -51,6 +51,7 @@ export class SyncRunLogger {
   private readonly app: App;
   private readonly dialogLogger: (message: string) => void;
   private appendQueue: Promise<void> = Promise.resolve();
+  private pendingLines: string[] = [];
 
   constructor(app: App, filePath: string, dialogLogger: (message: string) => void) {
     this.app = app;
@@ -71,6 +72,7 @@ export class SyncRunLogger {
   }
 
   async flush(): Promise<void> {
+    this.queuePendingLines();
     await this.appendQueue;
   }
 
@@ -80,19 +82,29 @@ export class SyncRunLogger {
     }
 
     const line = `[${new Date().toISOString()}] [${level.toUpperCase()}] ${message}`;
-    this.appendQueue = this.appendQueue.then(() => this.appendLine(line)).catch(() => undefined);
+    this.pendingLines.push(line);
   }
 
-  private async appendLine(line: string): Promise<void> {
+  private queuePendingLines(): void {
+    if (this.pendingLines.length === 0) {
+      return;
+    }
+
+    const block = `${this.pendingLines.join("\n")}\n`;
+    this.pendingLines = [];
+    this.appendQueue = this.appendQueue.then(() => this.appendBlock(block)).catch(() => undefined);
+  }
+
+  private async appendBlock(block: string): Promise<void> {
     const existing = this.app.vault.getFileByPath(this.filePath);
 
     if (existing) {
-      await this.app.vault.process(existing, (content) => `${content}${line}\n`);
+      await this.app.vault.process(existing, (content) => `${content}${block}`);
       return;
     }
 
     if (!this.app.vault.getAbstractFileByPath(this.filePath)) {
-      await this.app.vault.create(this.filePath, `${line}\n`);
+      await this.app.vault.create(this.filePath, block);
       return;
     }
 
