@@ -9,6 +9,11 @@ function escapeWikiLinkLabel(value: string): string {
   return value.replace(/\|/g, "\\|").replace(/]]/g, "\\]\\]");
 }
 
+function formatFileWikiLink(path: string): string {
+  const label = path.split("/").pop() || path;
+  return `[[${path}|${escapeWikiLinkLabel(label)}]]`;
+}
+
 function formatConversationReference(entry: SyncReportConversationEntry): string {
   if (!entry.notePath) {
     return `${entry.title} (\`${entry.conversationId}\`)`;
@@ -46,6 +51,7 @@ function renderConversationSection(title: string, entries: SyncReportConversatio
 }
 
 export function renderSyncRunReport(report: SyncRunReport): string {
+  const logReference = report.logPath ? formatFileWikiLink(report.logPath) : "_Unavailable_";
   const lines = [
     "# Chats2MD Sync Report",
     "",
@@ -54,6 +60,7 @@ export function renderSyncRunReport(report: SyncRunReport): string {
     `- Started: ${report.startedAt}`,
     `- Finished: ${report.finishedAt}`,
     `- Status: ${report.status}`,
+    `- Sync log: ${logReference}`,
     `- Scope: ${report.scope}`,
     `- Sync folder: ${report.folder}`,
     `- Layout template: ${report.conversationPathTemplate}`,

@@ -70,6 +70,17 @@ function parseIsoDateInput(date: string): number | null {
   return new Date(parsed).toISOString().slice(0, 10) === date ? parsed : null;
 }
 
+function parsePositiveIntegerInput(value: string): number | null {
+  if (!/^\d+$/.test(value)) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+type SyncDateRangeSelectionMode = "range" | "latest";
+
 interface SyncDateRangeModalOptions {
   context: ConversationSyncDateRangePromptContext;
   onResolve(selection: ConversationSyncDateRangeSelection): void;
@@ -81,6 +92,10 @@ class SyncDateRangeModal extends Modal {
   private readonly fullEndDate: string;
   private startDate: string;
   private endDate: string;
+  private selectionMode: SyncDateRangeSelectionMode = "range";
+  private latestCount: string;
+  private dateRangeSectionEl: HTMLDivElement | null = null;
+  private latestCountSectionEl: HTMLDivElement | null = null;
   private resolved = false;
 
   constructor(app: App, options: SyncDateRangeModalOptions) {
@@ -100,6 +115,7 @@ class SyncDateRangeModal extends Modal {
 
     this.startDate = this.fullStartDate;
     this.endDate = this.fullEndDate;
+    this.latestCount = String(Math.min(100, Math.max(1, this.options.context.discoveredCount)));
   }
 
   onOpen(): void {
@@ -108,7 +124,7 @@ class SyncDateRangeModal extends Modal {
     contentEl.addClass("chats2md-modal");
     contentEl.addClass("chats2md-date-range-modal");
 
-    this.setTitle(`Choose date range (${this.options.context.accountLabel})`);
+    this.setTitle(`Choose sync subset (${this.options.context.accountLabel})`);
 
     contentEl.createEl("p", {
       cls: "chats2md-modal__status",
@@ -120,10 +136,26 @@ class SyncDateRangeModal extends Modal {
     });
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
-      text: "Dates are inclusive. Keep defaults to sync the full discovered range."
+      text: "Choose either an updated_at date range or only the latest N notes."
     });
 
     new Setting(contentEl)
+      .setName("Selection mode")
+      .setDesc("Pick how to narrow this account's conversation list.")
+      .addDropdown((component) => {
+        component
+          .addOption("range", "Date range (updated_at)")
+          .addOption("latest", "Latest N notes")
+          .setValue(this.selectionMode)
+          .onChange((value) => {
+            this.selectionMode = value === "latest" ? "latest" : "range";
+            this.updateSelectionSections();
+          });
+      });
+
+    this.dateRangeSectionEl = contentEl.createDiv();
+
+    new Setting(this.dateRangeSectionEl)
       .setName("Start date")
       .setDesc("Inclusive lower bound, based on updated_at.")
       .addText((component) => {
@@ -136,7 +168,7 @@ class SyncDateRangeModal extends Modal {
         });
       });
 
-    new Setting(contentEl)
+    new Setting(this.dateRangeSectionEl)
       .setName("End date")
       .setDesc("Inclusive upper bound, based on updated_at.")
       .addText((component) => {
@@ -148,6 +180,23 @@ class SyncDateRangeModal extends Modal {
           this.endDate = value.trim();
         });
       });
+
+    this.latestCountSectionEl = contentEl.createDiv();
+
+    new Setting(this.latestCountSectionEl)
+      .setName("Latest notes")
+      .setDesc(`Sync only the most recently updated notes (1-${this.options.context.discoveredCount}).`)
+      .addText((component) => {
+        component.inputEl.type = "number";
+        component.inputEl.min = "1";
+        component.inputEl.max = String(this.options.context.discoveredCount);
+        component.setValue(this.latestCount);
+        component.onChange((value) => {
+          this.latestCount = value.trim();
+        });
+      });
+
+    this.updateSelectionSections();
 
     new Setting(contentEl)
       .addButton((button) => {
@@ -171,6 +220,20 @@ class SyncDateRangeModal extends Modal {
   }
 
   private submit(): void {
+    if (this.selectionMode === "latest") {
+      const normalizedCount = parsePositiveIntegerInput(this.latestCount);
+      if (normalizedCount === null || normalizedCount > this.options.context.discoveredCount) {
+        new Notice(`Latest note count must be a whole number from 1 to ${this.options.context.discoveredCount}.`);
+        return;
+      }
+
+      this.resolve({
+        mode: "latest",
+        count: normalizedCount
+      });
+      return;
+    }
+
     const normalizedStartDate = this.startDate;
     const normalizedEndDate = this.endDate;
     const startMs = parseIsoDateInput(normalizedStartDate);
@@ -203,6 +266,16 @@ class SyncDateRangeModal extends Modal {
       startDate: normalizedStartDate,
       endDate: normalizedEndDate
     });
+  }
+
+  private updateSelectionSections(): void {
+    if (!this.dateRangeSectionEl || !this.latestCountSectionEl) {
+      return;
+    }
+
+    const showDateRange = this.selectionMode === "range";
+    this.dateRangeSectionEl.style.display = showDateRange ? "" : "none";
+    this.latestCountSectionEl.style.display = showDateRange ? "none" : "";
   }
 
   private resolve(selection: ConversationSyncDateRangeSelection, shouldClose = true): void {

@@ -6,6 +6,7 @@ import type {
   ImportProgressCounts,
   StoredSessionAccount
 } from "./types";
+import { normalizeObsidianPath } from "./path-normalization";
 
 export const DETAIL_FETCH_MAX_ATTEMPTS = 3;
 export const ACCOUNT_SYNC_BATCH_SIZE = 30;
@@ -77,8 +78,24 @@ export class SyncRunLogger {
 
     const line = `[${new Date().toISOString()}] [${level.toUpperCase()}] ${message}`;
     this.appendQueue = this.appendQueue
-      .then(() => this.app.vault.adapter.append(this.filePath, `${line}\n`))
+      .then(() => this.appendLine(line))
       .catch(() => undefined);
+  }
+
+  private async appendLine(line: string): Promise<void> {
+    const existing = this.app.vault.getFileByPath(this.filePath);
+
+    if (existing) {
+      await this.app.vault.process(existing, (content) => `${content}${line}\n`);
+      return;
+    }
+
+    if (!this.app.vault.getAbstractFileByPath(this.filePath)) {
+      await this.app.vault.create(this.filePath, `${line}\n`);
+      return;
+    }
+
+    throw new Error(`Sync log path conflicts with a folder: ${this.filePath}`);
   }
 }
 
@@ -171,16 +188,9 @@ export function readString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
 
-function normalizeVaultPath(path: string): string {
-  return path
-    .replace(/\\/g, "/")
-    .replace(/\/+/g, "/")
-    .replace(/^\.\//, "")
-    .replace(/\/$/, "");
-}
-
 export function normalizeTargetFolder(folder: string): string {
-  return normalizeVaultPath(folder.trim().replace(/^\/+|\/+$/g, ""));
+  const trimmed = folder.trim().replace(/^\/+|\/+$/g, "");
+  return trimmed.length > 0 ? normalizeObsidianPath(trimmed) : "";
 }
 
 export function resolveSyncReportFolder(syncFolder: string, configuredFolder: string): string {

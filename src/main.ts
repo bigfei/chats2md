@@ -41,6 +41,7 @@ import {
 } from "./main-helpers";
 import { runFullSync } from "./full-sync";
 import { renderSyncRunReport } from "./sync-report";
+import { configureNormalizePath } from "./path-normalization";
 import {
   type AssetStorageMode,
   DEFAULT_SETTINGS,
@@ -66,6 +67,8 @@ const CHATGPT_IMPORT_SYNC_ICON_SVG = `
     <path d="M68 77L74 83L80 77"/>
   </g>
 `;
+
+configureNormalizePath(normalizePath);
 
 export default class Chats2MdPlugin extends Plugin {
   settings: Chats2MdSettings = DEFAULT_SETTINGS;
@@ -442,45 +445,34 @@ export default class Chats2MdPlugin extends Plugin {
     }
   }
 
-  private async ensureAdapterFolderExists(folderPath: string): Promise<void> {
-    const normalized = normalizePath(folderPath);
+  private nextAvailablePath(basePath: string): string {
+    let candidate = normalizePath(basePath);
+    let suffix = 2;
 
-    if (!normalized) {
-      return;
+    while (this.app.vault.getAbstractFileByPath(candidate)) {
+      const dotIndex = basePath.lastIndexOf(".");
+      const stem = dotIndex > 0 ? basePath.slice(0, dotIndex) : basePath;
+      const extension = dotIndex > 0 ? basePath.slice(dotIndex) : "";
+      candidate = normalizePath(`${stem}-${suffix}${extension}`);
+      suffix += 1;
     }
 
-    const parts = normalized.split("/");
-    let current = "";
-
-    for (const part of parts) {
-      current = current.length === 0 ? part : `${current}/${part}`;
-      if (await this.app.vault.adapter.exists(current)) {
-        continue;
-      }
-
-      try {
-        await this.app.vault.adapter.mkdir(current);
-      } catch {
-        if (!(await this.app.vault.adapter.exists(current))) {
-          throw new Error(`Failed to create log folder: ${current}`);
-        }
-      }
-    }
+    return candidate;
   }
 
-  private async createSyncRunLogger(progressSink: { log(message: string): void }): Promise<SyncRunLogger> {
-    const logFolder = normalizePath(`${this.app.vault.configDir}/plugins/${this.manifest.id}/logs`);
-    await this.ensureAdapterFolderExists(logFolder);
+  private async createSyncRunLogger(progressSink: { log(message: string): void }, syncFolder: string): Promise<SyncRunLogger> {
+    const reportFolder = resolveSyncReportFolder(syncFolder, this.settings.syncReportFolder);
+    await this.ensureFolderExists(reportFolder);
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filePath = normalizePath(`${logFolder}/sync-${timestamp}.log`);
+    const filePath = this.nextAvailablePath(`${reportFolder}/sync-${timestamp}.log`);
     const header = [
       "# Chats2MD sync log",
       `started_at: ${new Date().toISOString()}`,
       `plugin_version: ${this.manifest.version}`,
       ""
     ].join("\n");
-    await this.app.vault.adapter.write(filePath, header);
+    await this.app.vault.create(filePath, header);
 
     return new SyncRunLogger(this.app, filePath, (message) => progressSink.log(message));
   }
@@ -493,14 +485,7 @@ export default class Chats2MdPlugin extends Plugin {
     const reportFolder = resolveSyncReportFolder(report.folder, this.settings.syncReportFolder);
     await this.ensureFolderExists(reportFolder);
     const timestamp = report.finishedAt.replace(/[:.]/g, "-");
-    const basePath = normalizePath(`${reportFolder}/sync-${timestamp}.md`);
-    let reportPath = basePath;
-    let suffix = 2;
-
-    while (this.app.vault.getAbstractFileByPath(reportPath)) {
-      reportPath = normalizePath(`${reportFolder}/sync-${timestamp}-${suffix}.md`);
-      suffix += 1;
-    }
+    const reportPath = this.nextAvailablePath(`${reportFolder}/sync-${timestamp}.md`);
 
     await this.app.vault.create(reportPath, renderSyncRunReport(report));
     return reportPath;
@@ -636,7 +621,7 @@ export default class Chats2MdPlugin extends Plugin {
       try {
         syncLogger = await this.createSyncRunLogger({
           log: (message) => this.logInfo(message)
-        });
+        }, this.settings.defaultFolder);
         syncLogger.info(`Rebuild log file: ${syncLogger.filePath}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -848,6 +833,7 @@ export default class Chats2MdPlugin extends Plugin {
           startedAt,
           finishedAt,
           status: runStatus,
+          logPath: syncLogger?.filePath ?? null,
           folder: this.settings.defaultFolder,
           conversationPathTemplate: this.settings.conversationPathTemplate,
           assetStorageMode: this.settings.assetStorageMode,
@@ -1241,6 +1227,13 @@ export default class Chats2MdPlugin extends Plugin {
     }
 
     const accountLabel = this.getAccountLabel(account);
+    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+    const activeEditorContext = activeView?.editor && activeView.file?.path === file.path
+      ? {
+        editor: activeView.editor,
+        filePath: activeView.file.path
+      }
+      : undefined;
     const fallbackSummary = {
       id: frontmatter.conversationId,
       title: frontmatter.title || file.basename || "Untitled Conversation",
@@ -1282,7 +1275,8 @@ export default class Chats2MdPlugin extends Plugin {
         this.settings.assetStorageMode,
         frontmatter.listUpdatedAt || detail.updatedAt,
         assetLinks,
-        true
+        true,
+        activeEditorContext
       );
       if (result.moved && result.previousFilePath) {
         try {
@@ -1451,7 +1445,7 @@ export default class Chats2MdPlugin extends Plugin {
       await runFullSync({
         app: this.app,
         manifestVersion: this.manifest.version,
-        createSyncRunLogger: (reporter) => this.createSyncRunLogger(reporter),
+        createSyncRunLogger: (reporter) => this.createSyncRunLogger(reporter, values.folder),
         getSelectedAccounts: (syncValues) => this.getSelectedAccounts(syncValues),
         getRequestConfig: (account) => this.getRequestConfig(account),
         getAccountLabel: (account) => this.getAccountLabel(account),

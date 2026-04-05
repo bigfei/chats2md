@@ -115,3 +115,42 @@ export function filterConversationSummariesByUpdatedDateRange(
     return timestamp !== null && timestamp >= startTimestamp && timestamp <= endTimestamp;
   });
 }
+
+export function filterConversationSummariesByLatestCount(
+  summaries: ConversationSummary[],
+  count: number
+): ConversationSummary[] {
+  if (!Number.isFinite(count)) {
+    throw new Error("Latest note count must be a positive integer.");
+  }
+
+  const normalizedCount = Math.trunc(count);
+  if (normalizedCount < 1) {
+    throw new Error("Latest note count must be a positive integer.");
+  }
+
+  if (summaries.length === 0) {
+    return [];
+  }
+
+  const rankedSummaries = summaries
+    .map((summary, index) => ({
+      summary,
+      index,
+      timestamp: parseTimestamp(summary.updatedAt)
+    }))
+    .sort((left, right) => {
+      const leftRank = left.timestamp ?? Number.NEGATIVE_INFINITY;
+      const rightRank = right.timestamp ?? Number.NEGATIVE_INFINITY;
+
+      if (leftRank !== rightRank) {
+        return rightRank - leftRank;
+      }
+
+      return left.index - right.index;
+    });
+
+  return rankedSummaries
+    .slice(0, Math.min(normalizedCount, rankedSummaries.length))
+    .map((item) => item.summary);
+}

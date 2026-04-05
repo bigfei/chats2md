@@ -1,5 +1,6 @@
 import { getDateBucketFromTimestamp, slugifyConversationTitle } from "./conversation-utils";
 import { sanitizePathPart } from "./main-helpers";
+import { normalizeObsidianPath } from "./path-normalization";
 
 const SUPPORTED_PLACEHOLDERS = new Set([
   "date",
@@ -18,15 +19,8 @@ export interface ConversationPathTemplateContext {
 }
 
 function normalizeTemplate(template: string): string {
-  return normalizeVaultPath(template.trim().replace(/^\/+|\/+$/g, ""));
-}
-
-function normalizeVaultPath(path: string): string {
-  return path
-    .replace(/\\/g, "/")
-    .replace(/\/+/g, "/")
-    .replace(/^\.\//, "")
-    .replace(/\/$/, "");
+  const trimmed = template.trim().replace(/^\/+|\/+$/g, "");
+  return trimmed.length > 0 ? normalizeObsidianPath(trimmed) : "";
 }
 
 function readPlaceholderValue(name: string, context: ConversationPathTemplateContext): string {
@@ -68,7 +62,7 @@ export function resolveConversationNoteRelativePath(
     throw new Error(`Conversation path template contains unsupported placeholder(s): ${unknownPlaceholders.join(", ")}`);
   }
 
-  const resolvedPath = normalizeVaultPath(
+  const resolvedPath = normalizeObsidianPath(
     normalizedTemplate.replace(/\{([^}]+)\}/g, (_, name: string) => readPlaceholderValue(name, context))
   );
   const segments = resolvedPath.split("/");
@@ -77,7 +71,7 @@ export function resolveConversationNoteRelativePath(
     throw new Error("Conversation path template produced an invalid empty path segment.");
   }
 
-  const sanitizedPath = normalizeVaultPath(segments.map((segment) => sanitizePathPart(segment)).join("/"));
+  const sanitizedPath = normalizeObsidianPath(segments.map((segment) => sanitizePathPart(segment)).join("/"));
 
   if (!sanitizedPath || sanitizedPath === "." || sanitizedPath === "..") {
     throw new Error("Conversation path template produced an invalid output path.");

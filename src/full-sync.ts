@@ -20,6 +20,7 @@ import {
   upsertConversationNote
 } from "./note-writer";
 import {
+  filterConversationSummariesByLatestCount,
   filterConversationSummariesByUpdatedDateRange,
   getConversationUpdatedAtSpan,
   shouldPromptForDateRange,
@@ -231,10 +232,10 @@ export async function runFullSync(
         }
 
         progressModal.setPreparing(
-          `Syncing ${accountLabel} (${accountIndex + 1}/${selectedAccounts.length}): choose updated_at date range...`
+          `Syncing ${accountLabel} (${accountIndex + 1}/${selectedAccounts.length}): choose conversation filter...`
         );
         logInfo(
-          `[${accountLabel}] updated_at span exceeds 30 days (${discoveredRangeLabel}). Waiting for date range selection.`
+          `[${accountLabel}] updated_at span exceeds 30 days (${discoveredRangeLabel}). Waiting for selection.`
         );
 
         const selection = await progressModal.selectDateRange({
@@ -249,7 +250,7 @@ export async function runFullSync(
         }
 
         if (selection.mode === "skip-account") {
-          logInfo(`[${accountLabel}] Date range selection canceled. Skipping account.`);
+          logInfo(`[${accountLabel}] Selection canceled. Skipping account.`);
           continue;
         }
 
@@ -286,6 +287,35 @@ export async function runFullSync(
             `[${accountLabel}] Selected updated_at range ${selection.startDate} to ${selection.endDate}. ` +
             `Syncing ${summaries.length}/${discoveredCount} conversation(s).`
           );
+        } else if (selection.mode === "latest") {
+          try {
+            summaries = filterConversationSummariesByLatestCount(summaries, selection.count);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            counts.failed += 1;
+            failures.push({
+              id: account.accountId,
+              title: `${accountLabel} latest notes`,
+              message,
+              attempts: 1
+            });
+            failedEntries.push({
+              accountId: requestConfig.accountId,
+              accountLabel,
+              conversationId: account.accountId,
+              title: `${accountLabel} latest notes`,
+              conversationUrl: null,
+              notePath: null,
+              message
+            });
+            logError(`[${accountLabel}] Invalid latest-note selection: ${message}`);
+            continue;
+          }
+
+          logInfo(
+            `[${accountLabel}] Selected latest ${selection.count} notes by updated_at. ` +
+            `Syncing ${summaries.length}/${discoveredCount} conversation(s).`
+          );
         } else {
           logInfo(
             `[${accountLabel}] Using full discovered updated_at range ${discoveredRangeLabel}. ` +
@@ -295,7 +325,7 @@ export async function runFullSync(
       }
 
       if (summaries.length === 0) {
-        logInfo(`[${accountLabel}] No conversations selected for sync after date range filtering.`);
+        logInfo(`[${accountLabel}] No conversations selected for sync after filtering.`);
         continue;
       }
 
@@ -635,6 +665,7 @@ export async function runFullSync(
         startedAt,
         finishedAt,
         status: runStatus,
+        logPath: syncLogger?.filePath ?? null,
         folder: values.folder,
         conversationPathTemplate: values.conversationPathTemplate,
         assetStorageMode: values.assetStorageMode,

@@ -104,6 +104,7 @@ export interface ConversationSyncDateRangePromptContext {
 export type ConversationSyncDateRangeSelection =
   | { mode: "all" }
   | { mode: "range"; startDate: string; endDate: string }
+  | { mode: "latest"; count: number }
   | { mode: "skip-account" };
 
 export type UpsertAction = "created" | "updated" | "skipped";
@@ -151,6 +152,7 @@ export interface SyncRunReport {
   startedAt: string;
   finishedAt: string;
   status: SyncRunStatus;
+  logPath: string | null;
   folder: string;
   conversationPathTemplate: string;
   assetStorageMode: AssetStorageMode;

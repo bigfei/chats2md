@@ -1,4 +1,4 @@
-import { App, normalizePath, TFile, TFolder } from "obsidian";
+import { App, normalizePath, type Editor, TFile, TFolder } from "obsidian";
 import { normalizeAssetStorageMode } from "./main-helpers";
 import { resolveConversationNoteRelativePath } from "./path-template";
 
@@ -219,7 +219,8 @@ function buildNoteContent(
 }
 
 function normalizeTargetFolder(folder: string): string {
-  return normalizePath(folder.trim().replace(/^\/+|\/+$/g, ""));
+  const trimmed = folder.trim().replace(/^\/+|\/+$/g, "");
+  return trimmed.length > 0 ? normalizePath(trimmed) : "";
 }
 
 function buildConversationDesiredPath(
@@ -388,7 +389,8 @@ export async function upsertConversationNote(
   assetStorageMode: AssetStorageMode,
   listUpdatedAt?: string,
   assetLinks: ConversationAssetLinkMap = {},
-  forceRewrite = false
+  forceRewrite = false,
+  activeEditorContext?: { editor: Editor; filePath: string }
 ): Promise<ConversationUpsertResult> {
   const normalizedFolder = normalizeTargetFolder(folder);
   const normalizedListUpdatedAt = (listUpdatedAt ?? conversation.updatedAt).trim() || conversation.updatedAt;
@@ -454,10 +456,29 @@ export async function upsertConversationNote(
   }
 
   const importedAt = new Date().toISOString();
-  await app.vault.modify(
-    existing,
-    buildNoteContent(conversation, normalizedListUpdatedAt, importedAt, account, pluginVersion, assetStorageMode, existing.path, assetLinks)
+  const nextContent = buildNoteContent(
+    conversation,
+    normalizedListUpdatedAt,
+    importedAt,
+    account,
+    pluginVersion,
+    assetStorageMode,
+    existing.path,
+    assetLinks
   );
+  const canUseEditorForActiveNote = Boolean(
+    activeEditorContext
+    && (
+      activeEditorContext.filePath === existing.path
+      || (previousFilePath && activeEditorContext.filePath === previousFilePath)
+    )
+  );
+
+  if (canUseEditorForActiveNote && activeEditorContext) {
+    activeEditorContext.editor.setValue(nextContent);
+  } else {
+    await app.vault.process(existing, () => nextContent);
+  }
 
   return {
     action: "updated",

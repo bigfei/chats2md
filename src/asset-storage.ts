@@ -1,4 +1,5 @@
 import { ASSET_FOLDER_NAME, normalizeTargetFolder, sanitizePathPart } from "./main-helpers";
+import { normalizeObsidianPath } from "./path-normalization";
 import { resolveConversationNoteRelativePath } from "./path-template";
 import type { AssetStorageMode } from "./types";
 
@@ -24,14 +25,6 @@ export interface ResolvedAssetFolderPaths {
   candidateFolderPaths: string[];
 }
 
-function normalizeVaultPath(path: string): string {
-  return path
-    .replace(/\\/g, "/")
-    .replace(/\/+/g, "/")
-    .replace(/^\.\//, "")
-    .replace(/\/$/, "");
-}
-
 function getFolderPath(filePath: string): string {
   const index = filePath.lastIndexOf("/");
   return index === -1 ? "" : filePath.slice(0, index);
@@ -46,7 +39,7 @@ export function resolveAssetFolderPaths(context: AssetFolderPathContext): Resolv
 
   const conversationFolder = sanitizePathPart(context.conversation.id);
   const accountFolder = sanitizePathPart(context.account.accountId || "account");
-  const globalFolderPath = normalizeVaultPath(`${normalizedBaseFolder}/${ASSET_FOLDER_NAME}/${accountFolder}`);
+  const globalFolderPath = normalizeObsidianPath(`${normalizedBaseFolder}/${ASSET_FOLDER_NAME}/${accountFolder}`);
   const noteRelativePath = resolveConversationNoteRelativePath(context.conversationPathTemplate, {
     title: context.conversation.title,
     updatedAt: context.conversation.updatedAt,
@@ -56,11 +49,11 @@ export function resolveAssetFolderPaths(context: AssetFolderPathContext): Resolv
   });
   const noteRelativeFolder = getFolderPath(noteRelativePath);
   const noteFolderPath = noteRelativeFolder.length > 0
-    ? normalizeVaultPath(`${normalizedBaseFolder}/${noteRelativeFolder}`)
+    ? normalizeObsidianPath(`${normalizedBaseFolder}/${noteRelativeFolder}`)
     : normalizedBaseFolder;
-  const localFolderPath = normalizeVaultPath(`${noteFolderPath}/${ASSET_FOLDER_NAME}`);
-  const legacyGlobalFolderPath = normalizeVaultPath(`${globalFolderPath}/${conversationFolder}`);
-  const legacyLocalFolderPath = normalizeVaultPath(`${localFolderPath}/${conversationFolder}`);
+  const localFolderPath = normalizeObsidianPath(`${noteFolderPath}/${ASSET_FOLDER_NAME}`);
+  const legacyGlobalFolderPath = normalizeObsidianPath(`${globalFolderPath}/${conversationFolder}`);
+  const legacyLocalFolderPath = normalizeObsidianPath(`${localFolderPath}/${conversationFolder}`);
   const targetFolderPath = context.mode === "with_conversation"
     ? localFolderPath
     : globalFolderPath;

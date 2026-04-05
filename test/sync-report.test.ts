@@ -9,6 +9,7 @@ test("renderSyncRunReport includes run metadata and wikilinks", () => {
     startedAt: "2026-04-04T10:00:00.000Z",
     finishedAt: "2026-04-04T10:05:00.000Z",
     status: "completed",
+    logPath: "Imports/ChatGPT/sync-result/sync-2026-04-04T10-05-00-000Z.log",
     folder: "Imports/ChatGPT",
     conversationPathTemplate: "{email}/{account_id}/{slug}",
     assetStorageMode: "with_conversation",
@@ -56,6 +57,7 @@ test("renderSyncRunReport includes run metadata and wikilinks", () => {
   const markdown = renderSyncRunReport(report);
 
   assert.match(markdown, /# Chats2MD Sync Report/);
+  assert.match(markdown, /- Sync log: \[\[Imports\/ChatGPT\/sync-result\/sync-2026-04-04T10-05-00-000Z\.log\|sync-2026-04-04T10-05-00-000Z\.log\]\]/);
   assert.match(markdown, /- Layout template: \{email\}\/\{account_id\}\/\{slug\}/);
   assert.match(markdown, /- Asset storage: With conversation folder/);
   assert.match(markdown, /\[\[Imports\/ChatGPT\/user@example\.com\/u-1\/created-chat\|Created chat\]\] \(`conv-1`\)/);
