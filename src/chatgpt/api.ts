@@ -26,8 +26,8 @@ const DEFAULT_LIST_PAGE_LIMIT = 28;
 const MAX_LIST_PAGE_LIMIT = 100;
 const MAX_LIST_PAGE_REQUESTS = 100;
 const MAX_RATE_LIMIT_RETRIES = 6;
-const MIN_RATE_LIMIT_BACKOFF_MS = 60000;
-const MAX_RATE_LIMIT_BACKOFF_MS = 600000;
+const MIN_RATE_LIMIT_BACKOFF_MS = 5000;
+const MAX_RATE_LIMIT_BACKOFF_MS = 120000;
 const DEFAULT_FIREFOX_USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:149.0) Gecko/20100101 Firefox/149.0";
 const RESERVED_HEADER_NAMES = new Set(["accept", "authorization", "chatgpt-account-id", "cookie", "user-agent"]);
@@ -802,6 +802,7 @@ export interface FetchConversationSummariesOptions {
   mode?: "latest" | "full";
   limit?: number;
   cachedSummaries?: ConversationSummary[];
+  onPageFetched?: (progress: FetchConversationSummariesPageProgress) => void;
 }
 
 export interface FetchConversationSummariesResult {
@@ -809,6 +810,16 @@ export interface FetchConversationSummariesResult {
   mode: "latest" | "full";
   pagesFetched: number;
   fetchedCount: number;
+}
+
+export interface FetchConversationSummariesPageProgress {
+  mode: "latest" | "full";
+  pageNumber: number;
+  offset: number;
+  pageLimit: number;
+  pageCount: number;
+  discoveredUniqueCount: number;
+  expectedTotal: number | null;
 }
 
 function normalizeLatestLimit(limit: number | undefined): number {
@@ -858,6 +869,16 @@ export async function fetchConversationSummaries(
     if (pageInfo.total !== null) {
       expectedTotal = expectedTotal === null ? pageInfo.total : Math.max(expectedTotal, pageInfo.total);
     }
+
+    options.onPageFetched?.({
+      mode,
+      pageNumber: page + 1,
+      offset,
+      pageLimit: listPageLimit,
+      pageCount: pageSummaries.length,
+      discoveredUniqueCount: summaries.length,
+      expectedTotal,
+    });
 
     if (pageSummaries.length === 0) {
       break;

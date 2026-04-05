@@ -214,6 +214,18 @@ export async function runFullSync(
           mode: fetchFullConversationList ? "full" : "latest",
           limit: effectiveConversationListLimit,
           cachedSummaries,
+          onPageFetched: (progress) => {
+            const totalLabel =
+              progress.expectedTotal !== null
+                ? `${progress.discoveredUniqueCount}/${progress.expectedTotal}`
+                : `${progress.discoveredUniqueCount}/?`;
+
+            logInfo(
+              `[${accountLabel}] Conversation-list API call #${progress.pageNumber} ` +
+                `(mode=${progress.mode}, offset=${progress.offset}, limit=${progress.pageLimit}) ` +
+                `returned ${progress.pageCount} item(s), discovered ${totalLabel}.`,
+            );
+          },
         });
         summaries = listFetchResult.summaries;
         listPagesFetched = listFetchResult.pagesFetched;
