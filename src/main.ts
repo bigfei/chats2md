@@ -77,6 +77,7 @@ export default class Chats2MdPlugin extends Plugin {
   private syncStatusClearTimer: number | null = null;
   private suppressSyncStatusBarUpdates = false;
   private settingsPaneIconObserver: MutationObserver | null = null;
+  private settingsPaneIconObserverRoot: HTMLElement | null = null;
   private settingsPaneIconSyncScheduled = false;
 
   async onload(): Promise<void> {
@@ -139,7 +140,12 @@ export default class Chats2MdPlugin extends Plugin {
 
       this.forceSyncUiController?.addForceSyncMenuItem(menu, file);
     }));
-    this.app.workspace.onLayoutReady(() => this.forceSyncUiController?.refreshMarkdownSyncActions());
+    this.registerEvent(this.app.workspace.on("layout-change", () => this.syncSettingsPaneIconObserver()));
+    this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.syncSettingsPaneIconObserver()));
+    this.app.workspace.onLayoutReady(() => {
+      this.forceSyncUiController?.refreshMarkdownSyncActions();
+      this.syncSettingsPaneIconObserver();
+    });
   }
 
   private enableSettingsPaneIcon(): void {
@@ -147,20 +153,48 @@ export default class Chats2MdPlugin extends Plugin {
       return;
     }
 
-    this.scheduleSettingsPaneIconSync();
+    this.syncSettingsPaneIconObserver();
+    this.register(() => {
+      this.settingsPaneIconObserver?.disconnect();
+      this.settingsPaneIconObserverRoot = null;
+    });
+  }
 
-    if (typeof MutationObserver === "undefined" || !document.body) {
+  private syncSettingsPaneIconObserver(): void {
+    if (typeof document === "undefined") {
       return;
     }
 
-    this.settingsPaneIconObserver = new MutationObserver(() => {
-      this.scheduleSettingsPaneIconSync();
-    });
-    this.settingsPaneIconObserver.observe(document.body, {
+    const settingsRoot = document.querySelector<HTMLElement>(".mod-settings");
+
+    if (!settingsRoot) {
+      this.settingsPaneIconObserver?.disconnect();
+      this.settingsPaneIconObserverRoot = null;
+      return;
+    }
+
+    this.scheduleSettingsPaneIconSync();
+
+    if (typeof MutationObserver === "undefined") {
+      return;
+    }
+
+    if (!this.settingsPaneIconObserver) {
+      this.settingsPaneIconObserver = new MutationObserver(() => {
+        this.scheduleSettingsPaneIconSync();
+      });
+    }
+
+    if (this.settingsPaneIconObserverRoot === settingsRoot) {
+      return;
+    }
+
+    this.settingsPaneIconObserver.disconnect();
+    this.settingsPaneIconObserver.observe(settingsRoot, {
       childList: true,
       subtree: true
     });
-    this.register(() => this.settingsPaneIconObserver?.disconnect());
+    this.settingsPaneIconObserverRoot = settingsRoot;
   }
 
   private scheduleSettingsPaneIconSync(): void {

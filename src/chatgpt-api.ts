@@ -1,5 +1,6 @@
 import { requestUrl } from "obsidian";
 import {
+  applyChatGptContentReferencesAsReferenceLinks,
   extractConversationListPageInfo,
   getNextConversationListOffset,
   normalizeConversationTimestamp,
@@ -121,10 +122,6 @@ function parseCustomHeaders(value: unknown): Record<string, string> {
   return headers;
 }
 
-function stripCitationMarkers(text: string): string {
-  return text.replace(/\u3010[^\u3011]*\u3011/g, "");
-}
-
 export function normalizeObsidianMathDelimiters(text: string): string {
   const withBlockMath = text.replace(/\\\[\s*([\s\S]*?)\s*\\\]/g, (_match, expression: string) => {
     const normalizedExpression = expression.trim();
@@ -142,7 +139,7 @@ export function normalizeObsidianMathDelimiters(text: string): string {
 }
 
 function normalizeMessageText(text: string): string {
-  return normalizeObsidianMathDelimiters(stripCitationMarkers(text));
+  return normalizeObsidianMathDelimiters(text);
 }
 
 export function buildDefaultUserAgent(pluginVersion: string): string {
@@ -314,12 +311,19 @@ async function requestJson(
 async function requestArrayBuffer(
   url: string,
   config: ChatGptRequestConfig,
-  extraHeaders: Record<string, string>
+  extraHeaders: Record<string, string>,
+  options: { includeSessionHeaders?: boolean } = {}
 ): Promise<DownloadedFileContent> {
+  const headers = options.includeSessionHeaders === false
+    ? {
+      ...extraHeaders,
+      "User-Agent": config.userAgent
+    }
+    : buildHeaders(config, extraHeaders);
   const response = await requestUrl({
     url,
     method: "GET",
-    headers: buildHeaders(config, extraHeaders)
+    headers
   });
 
   if (response.status >= 400) {
@@ -633,9 +637,16 @@ function renderMessageMarkdown(
   const role = readString(author?.role, readString(author?.name, "message")).toLowerCase();
   let body = renderMessageBody(message, refs);
   const metadataPlaceholders = extractMetadataPlaceholders(message, refs);
+  const metadata = toRecord(message.metadata);
+  const citationRender = applyChatGptContentReferencesAsReferenceLinks(body, metadata?.content_references);
+  body = citationRender.text;
 
   if (metadataPlaceholders.length > 0) {
     body = [body, ...metadataPlaceholders].filter((part) => part.trim().length > 0).join("\n\n");
+  }
+
+  if (citationRender.references.length > 0) {
+    body = `${body.trimEnd()}\n\n${citationRender.references.join("\n")}`;
   }
 
   if (!body.trim()) {
@@ -923,5 +934,7 @@ export async function fetchSignedFileContent(
 ): Promise<DownloadedFileContent> {
   return requestArrayBuffer(url, config, {
     Accept: "*/*"
+  }, {
+    includeSessionHeaders: false
   });
 }

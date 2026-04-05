@@ -55,6 +55,8 @@ function createEmptyCounts(): ImportProgressCounts {
   };
 }
 
+const MAX_SYNC_DETAIL_LINES = 500;
+
 function parseIsoDateInput(date: string): number | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return null;
@@ -640,12 +642,18 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
 
   private appendDetail(text: string): void {
     this.detailLines.push(text);
+    if (this.detailLines.length > MAX_SYNC_DETAIL_LINES) {
+      this.detailLines.splice(0, this.detailLines.length - MAX_SYNC_DETAIL_LINES);
+    }
 
     if (!this.detailEl) {
       return;
     }
 
     this.detailEl.createEl("p", { text });
+    while (this.detailEl.childElementCount > MAX_SYNC_DETAIL_LINES) {
+      this.detailEl.firstElementChild?.remove();
+    }
     this.detailEl.scrollTop = this.detailEl.scrollHeight;
   }
 
