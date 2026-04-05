@@ -26,9 +26,12 @@ import {
   SECRET_ID_PREFIX,
   appendExtensionIfMissing,
   createEmptyCounts,
+  DEFAULT_CONVERSATION_LIST_LATEST_LIMIT,
   formatAssetStorageMode,
   formatActionLabel,
   normalizeAssetStorageMode,
+  normalizeConversationListCacheByAccount,
+  normalizeConversationListLatestLimit,
   type ConversationFrontmatterInfo,
   type LegacySettingsPayload,
   normalizeStoredAccount,
@@ -50,6 +53,7 @@ import {
   type ConversationAssetLinkMap,
   type ConversationDetail,
   type ConversationFileReference,
+  type ConversationSummary,
   type SyncReportConversationEntry,
   type SyncRunReport,
   type SyncRunStatus,
@@ -276,6 +280,11 @@ export default class Chats2MdPlugin extends Plugin {
         || DEFAULT_SETTINGS.syncReportFolder,
       debugLogging: saved?.debugLogging === true,
       saveConversationJson: saved?.saveConversationJson === true,
+      conversationListLatestLimit: normalizeConversationListLatestLimit(
+        saved?.conversationListLatestLimit,
+        DEFAULT_CONVERSATION_LIST_LATEST_LIMIT
+      ),
+      conversationListCacheByAccount: normalizeConversationListCacheByAccount(saved?.conversationListCacheByAccount),
       accounts: sortAccounts(savedAccounts),
       legacySessionJson
     };
@@ -1118,6 +1127,23 @@ export default class Chats2MdPlugin extends Plugin {
     return account.email.trim().length > 0 ? account.email : account.accountId;
   }
 
+  private getConversationListCache(accountId: string): ConversationSummary[] {
+    const entry = this.settings.conversationListCacheByAccount[accountId];
+    if (!entry) {
+      return [];
+    }
+
+    return [...entry.summaries];
+  }
+
+  private async saveConversationListCache(accountId: string, summaries: ConversationSummary[]): Promise<void> {
+    this.settings.conversationListCacheByAccount[accountId] = {
+      summaries: [...summaries],
+      cachedAt: new Date().toISOString()
+    };
+    await this.saveSettings();
+  }
+
   private readFrontmatterString(file: TFile, key: string): string {
     const value = this.app.metadataCache.getFileCache(file)?.frontmatter?.[key];
     return typeof value === "string" ? value.trim() : "";
@@ -1411,6 +1437,7 @@ export default class Chats2MdPlugin extends Plugin {
       folder: this.settings.defaultFolder,
       conversationPathTemplate: this.settings.conversationPathTemplate,
       assetStorageMode: this.settings.assetStorageMode,
+      defaultConversationListLatestLimit: this.settings.conversationListLatestLimit,
       accounts,
       onSubmit: async (values, progress, control) => this.handleSync(values, progress, control, modal),
       onSyncDialogHidden: (reason) => {
@@ -1449,6 +1476,9 @@ export default class Chats2MdPlugin extends Plugin {
         getSelectedAccounts: (syncValues) => this.getSelectedAccounts(syncValues),
         getRequestConfig: (account) => this.getRequestConfig(account),
         getAccountLabel: (account) => this.getAccountLabel(account),
+        getDefaultConversationListLatestLimit: () => this.settings.conversationListLatestLimit,
+        getConversationListCache: (accountId) => this.getConversationListCache(accountId),
+        saveConversationListCache: (accountId, summaries) => this.saveConversationListCache(accountId, summaries),
         shouldSaveConversationJson: () => this.settings.saveConversationJson,
         saveConversationJsonSidecar: (notePath, payload) => this.saveConversationJsonSidecar(notePath, payload),
         moveConversationJsonSidecar: (sourceNotePath, targetNotePath) =>

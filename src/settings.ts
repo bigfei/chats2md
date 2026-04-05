@@ -1,7 +1,11 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 
 import { parseSessionJson, validateConversationListAccess } from "./chatgpt-api";
-import { DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE, formatAssetStorageMode } from "./main-helpers";
+import {
+  DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE,
+  formatAssetStorageMode,
+  normalizeConversationListLatestLimit
+} from "./main-helpers";
 import { CONVERSATION_PATH_TEMPLATE_PRESETS } from "./path-template";
 import { FolderSuggest } from "./folder-suggest";
 import type Chats2MdPlugin from "./main";
@@ -96,6 +100,20 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       .addToggle((toggle) => {
         toggle.setValue(this.plugin.settings.debugLogging).onChange(async (value) => {
           this.plugin.settings.debugLogging = value;
+          await this.plugin.saveSettings();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName("Default latest conversation limit")
+      .setDesc("Default N used by latest-mode conversation-list fetch and sync scope.")
+      .addText((component) => {
+        component.inputEl.type = "number";
+        component.inputEl.min = "1";
+        component.setValue(String(this.plugin.settings.conversationListLatestLimit));
+        component.onChange(async (value) => {
+          const normalized = normalizeConversationListLatestLimit(value, this.plugin.settings.conversationListLatestLimit);
+          this.plugin.settings.conversationListLatestLimit = normalized;
           await this.plugin.saveSettings();
         });
       });

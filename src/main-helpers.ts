@@ -3,6 +3,8 @@ import type { App } from "obsidian";
 import type {
   AssetStorageMode,
   Chats2MdSettings,
+  ConversationListCacheByAccount,
+  ConversationSummary,
   ImportProgressCounts,
   StoredSessionAccount
 } from "./types";
@@ -24,6 +26,7 @@ export const CONVERSATION_USER_ID_KEY = "chatgpt_user_id";
 export const CONVERSATION_ASSET_STORAGE_MODE_KEY = "chats2md_asset_storage";
 export const FORCE_SYNC_ACTION_LABEL = "Force sync from ChatGPT";
 export const DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE = "<syncFolder>/sync-result";
+export const DEFAULT_CONVERSATION_LIST_LATEST_LIMIT = 200;
 const MIME_TO_EXTENSION: Record<string, string> = {
   "application/json": ".json",
   "application/pdf": ".pdf",
@@ -186,6 +189,88 @@ export function formatAssetStorageMode(mode: AssetStorageMode): string {
 
 export function readString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
+}
+
+function toPositiveInteger(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value > 0 ? Math.trunc(value) : null;
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return null;
+    }
+
+    return Math.trunc(parsed);
+  }
+
+  return null;
+}
+
+export function normalizeConversationListLatestLimit(
+  value: unknown,
+  fallback = DEFAULT_CONVERSATION_LIST_LATEST_LIMIT
+): number {
+  const normalizedFallback = toPositiveInteger(fallback) ?? DEFAULT_CONVERSATION_LIST_LATEST_LIMIT;
+  return toPositiveInteger(value) ?? normalizedFallback;
+}
+
+function normalizeCachedConversationSummary(value: unknown): ConversationSummary | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const id = readString(value.id).trim();
+  if (!id) {
+    return null;
+  }
+
+  const title = readString(value.title).trim() || "Untitled Conversation";
+  const createdAt = readString(value.createdAt).trim();
+  const updatedAt = readString(value.updatedAt).trim();
+  const url = readString(value.url).trim() || `https://chatgpt.com/c/${id}`;
+
+  if (!createdAt || !updatedAt) {
+    return null;
+  }
+
+  return {
+    id,
+    title,
+    createdAt,
+    updatedAt,
+    url
+  };
+}
+
+export function normalizeConversationListCacheByAccount(value: unknown): ConversationListCacheByAccount {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  const normalized: ConversationListCacheByAccount = {};
+
+  for (const [accountId, entry] of Object.entries(value)) {
+    const normalizedAccountId = accountId.trim();
+    if (!normalizedAccountId || !isRecord(entry)) {
+      continue;
+    }
+
+    const summaries = Array.isArray(entry.summaries)
+      ? entry.summaries
+        .map((summary) => normalizeCachedConversationSummary(summary))
+        .filter((summary): summary is ConversationSummary => summary !== null)
+      : [];
+    const cachedAt = readString(entry.cachedAt).trim();
+
+    normalized[normalizedAccountId] = {
+      summaries,
+      cachedAt: cachedAt || new Date().toISOString()
+    };
+  }
+
+  return normalized;
 }
 
 export function normalizeTargetFolder(folder: string): string {

@@ -20,12 +20,15 @@ import {
   upsertConversationNote
 } from "./note-writer";
 import {
-  filterConversationSummariesByLatestCount,
   filterConversationSummariesByUpdatedDateRange,
   getConversationUpdatedAtSpan,
-  shouldPromptForDateRange,
   toIsoUtcDate
 } from "./sync-date-range";
+import { trimConversationSummaries } from "./conversation-list-strategy";
+import {
+  resolveEffectiveConversationListLimit,
+  shouldPromptConversationRangeSelection
+} from "./sync-selection";
 import type {
   AssetStorageMode,
   ChatGptRequestConfig,
@@ -48,6 +51,9 @@ export interface FullSyncContext {
   getSelectedAccounts(values: SyncModalValues): StoredSessionAccount[];
   getRequestConfig(account: StoredSessionAccount): ChatGptRequestConfig;
   getAccountLabel(account: StoredSessionAccount): string;
+  getDefaultConversationListLatestLimit(): number;
+  getConversationListCache(accountId: string): ConversationSummary[];
+  saveConversationListCache(accountId: string, summaries: ConversationSummary[]): Promise<void>;
   shouldSaveConversationJson(): boolean;
   saveConversationJsonSidecar(notePath: string, payload: unknown): Promise<string>;
   moveConversationJsonSidecar(sourceNotePath: string, targetNotePath: string): Promise<boolean>;
@@ -83,6 +89,14 @@ export async function runFullSync(
   let processedConversations = 0;
   let totalConversations = 0;
   const forceRefresh = values.forceRefresh === true;
+  const fetchFullConversationList = values.fetchFullConversationList === true;
+  const defaultConversationListLimit = resolveEffectiveConversationListLimit(
+    context.getDefaultConversationListLatestLimit()
+  );
+  const effectiveConversationListLimit = resolveEffectiveConversationListLimit(
+    defaultConversationListLimit,
+    values.conversationLimitOverride
+  );
   const startedAt = new Date().toISOString();
   let runStatus: SyncRunStatus = "completed";
   let selectedAccounts: StoredSessionAccount[] = [];
@@ -138,6 +152,10 @@ export async function runFullSync(
     const noteIndex = indexConversationNotes(context.app);
     logInfo(`Starting sync for ${selectedAccounts.length} account(s).`);
     logInfo(`Force refresh is ${forceRefresh ? "enabled" : "disabled"}.`);
+    logInfo(
+      `Conversation list mode: ${fetchFullConversationList ? "full-history" : "latest-window"} ` +
+      `(latest limit ${effectiveConversationListLimit}, default ${defaultConversationListLimit}).`
+    );
     context.setSyncStatusBar(context.buildSyncStatusText(processedConversations, totalConversations, "starting"), true);
 
     for (const [accountIndex, account] of selectedAccounts.entries()) {
@@ -183,14 +201,24 @@ export async function runFullSync(
         continue;
       }
 
+      const cachedSummaries = context.getConversationListCache(requestConfig.accountId);
       let summaries: ConversationSummary[] = [];
+      let listPagesFetched = 0;
+      let listApiCount = 0;
 
       try {
         if (!(await ensureCanContinue())) {
           return;
         }
 
-        summaries = await fetchConversationSummaries(requestConfig);
+        const listFetchResult = await fetchConversationSummaries(requestConfig, {
+          mode: fetchFullConversationList ? "full" : "latest",
+          limit: effectiveConversationListLimit,
+          cachedSummaries
+        });
+        summaries = listFetchResult.summaries;
+        listPagesFetched = listFetchResult.pagesFetched;
+        listApiCount = listFetchResult.fetchedCount;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         counts.failed += 1;
@@ -213,10 +241,28 @@ export async function runFullSync(
         continue;
       }
 
+      const refreshedCache = trimConversationSummaries(summaries, effectiveConversationListLimit);
+      try {
+        await context.saveConversationListCache(requestConfig.accountId, refreshedCache);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logWarn(`[${accountLabel}] Failed to save conversation-list cache: ${message}`);
+      }
+
       const discoveredCount = summaries.length;
-      logInfo(`[${accountLabel}] Found ${discoveredCount} conversation(s).`);
+      logInfo(
+        `[${accountLabel}] Found ${discoveredCount} conversation(s) ` +
+        `(list pages: ${listPagesFetched}, api items: ${listApiCount}, cache items: ${refreshedCache.length}).`
+      );
       if (discoveredCount === 0) {
         continue;
+      }
+
+      if (!fetchFullConversationList) {
+        logInfo(
+          `[${accountLabel}] Latest-window mode syncing ${discoveredCount} conversation(s) ` +
+          `with effective limit ${effectiveConversationListLimit}.`
+        );
       }
 
       const updatedAtSpan = getConversationUpdatedAtSpan(summaries);
@@ -226,7 +272,7 @@ export async function runFullSync(
         ? `${discoveredStartDate} to ${discoveredEndDate}`
         : "unknown";
 
-      if (shouldPromptForDateRange(updatedAtSpan) && updatedAtSpan) {
+      if (shouldPromptConversationRangeSelection(fetchFullConversationList, updatedAtSpan) && updatedAtSpan) {
         if (!(await ensureCanContinue())) {
           return;
         }
@@ -285,35 +331,6 @@ export async function runFullSync(
 
           logInfo(
             `[${accountLabel}] Selected updated_at range ${selection.startDate} to ${selection.endDate}. ` +
-            `Syncing ${summaries.length}/${discoveredCount} conversation(s).`
-          );
-        } else if (selection.mode === "latest") {
-          try {
-            summaries = filterConversationSummariesByLatestCount(summaries, selection.count);
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            counts.failed += 1;
-            failures.push({
-              id: account.accountId,
-              title: `${accountLabel} latest notes`,
-              message,
-              attempts: 1
-            });
-            failedEntries.push({
-              accountId: requestConfig.accountId,
-              accountLabel,
-              conversationId: account.accountId,
-              title: `${accountLabel} latest notes`,
-              conversationUrl: null,
-              notePath: null,
-              message
-            });
-            logError(`[${accountLabel}] Invalid latest-note selection: ${message}`);
-            continue;
-          }
-
-          logInfo(
-            `[${accountLabel}] Selected latest ${selection.count} notes by updated_at. ` +
             `Syncing ${summaries.length}/${discoveredCount} conversation(s).`
           );
         } else {

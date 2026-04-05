@@ -39,7 +39,8 @@ The plugin adds a `Sync ChatGPT conversations` command and ribbon action.
 Configure account session JSON payloads and default folder in plugin settings.
 Session JSON payloads are stored in Obsidian Secret Storage, and each account entry shows its `user.id`,
 `user.email`, and `account.id`. Start sync from the ribbon/command, choose all
-accounts or one account, and the plugin will fetch full conversation logs and
+accounts or one account, and the plugin will fetch the latest conversation
+window (configurable default limit, with optional per-run override) and
 upsert notes under a configurable path template (default `{date}/{slug}` with
 presets like `{email}/{account_id}/{date}/{slug}`). Each full sync run also writes
 a markdown report when enabled in settings. The default report folder is
@@ -47,6 +48,8 @@ a markdown report when enabled in settings. The default report folder is
 locations). Asset storage can be configured
 as global (`<default-folder>/_assets/<account_id>/`) or local
 to each conversation folder (`<conversation-folder>/_assets/`).
+For historical backfills, each sync run also includes a `Fetch full conversation list`
+toggle to bypass latest-window list caching for that run.
 Optionally, you can enable JSON sidecar caching in settings to store raw
 `/backend-api/conversation/{id}` payloads next to notes as `<note>.json`, and run
 a manual settings action to rebuild markdown notes from cached JSON without

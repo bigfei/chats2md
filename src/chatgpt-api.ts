@@ -6,6 +6,11 @@ import {
   normalizeConversationTimestamp,
   shouldFetchNextConversationListPage
 } from "./conversation-utils";
+import {
+  getLatestWindowOldestTimestampMs,
+  mergeFetchedAndCachedConversationSummaries,
+  shouldStopLatestListFetch
+} from "./conversation-list-strategy";
 
 import type {
   ChatGptRequestConfig,
@@ -809,21 +814,51 @@ export function parseSessionJson(raw: string, pluginVersion = "0.1.0"): ChatGptR
   };
 }
 
+export interface FetchConversationSummariesOptions {
+  mode?: "latest" | "full";
+  limit?: number;
+  cachedSummaries?: ConversationSummary[];
+}
+
+export interface FetchConversationSummariesResult {
+  summaries: ConversationSummary[];
+  mode: "latest" | "full";
+  pagesFetched: number;
+  fetchedCount: number;
+}
+
+function normalizeLatestLimit(limit: number | undefined): number {
+  if (!Number.isFinite(limit)) {
+    return 200;
+  }
+
+  return Math.max(1, Math.trunc(limit ?? 200));
+}
+
 export async function fetchConversationSummaries(
-  config: ChatGptRequestConfig
-): Promise<ConversationSummary[]> {
+  config: ChatGptRequestConfig,
+  options: FetchConversationSummariesOptions = {}
+): Promise<FetchConversationSummariesResult> {
+  const mode = options.mode === "full" ? "full" : "latest";
+  const latestLimit = normalizeLatestLimit(options.limit);
+  const cachedSummaries = Array.isArray(options.cachedSummaries) ? options.cachedSummaries : [];
+  const staleCutoffTimestampMs = mode === "latest"
+    ? getLatestWindowOldestTimestampMs(cachedSummaries, latestLimit)
+    : null;
   const listPageLimit = 99;
   const summaries: ConversationSummary[] = [];
   const seenConversationIds = new Set<string>();
   let offset = 0;
   let expectedTotal: number | null = null;
   let stableIntervals = 0;
+  let pagesFetched = 0;
 
   for (let page = 0; page < MAX_LIST_PAGE_REQUESTS; page += 1) {
     const payload = await requestJson(buildListUrl(listPageLimit, offset), config, {
       "X-OpenAI-Target-Path": "/backend-api/conversations",
       "X-OpenAI-Target-Route": "/backend-api/conversations"
     });
+    pagesFetched += 1;
     const pageInfo = readPageInfo(payload, listPageLimit);
     const pageSummaries = extractConversationItems(payload).map(normalizeSummary);
     const previousTotal = summaries.length;
@@ -865,10 +900,27 @@ export async function fetchConversationSummaries(
       break;
     }
 
+    if (mode === "latest" && shouldStopLatestListFetch({
+      fetchedSummaries: summaries,
+      limit: latestLimit,
+      staleCutoffTimestampMs
+    })) {
+      break;
+    }
+
     offset = getNextConversationListOffset(offset, pageInfo, listPageLimit);
   }
 
-  return summaries;
+  const finalSummaries = mode === "latest"
+    ? mergeFetchedAndCachedConversationSummaries(summaries, cachedSummaries, latestLimit)
+    : summaries;
+
+  return {
+    summaries: finalSummaries,
+    mode,
+    pagesFetched,
+    fetchedCount: summaries.length
+  };
 }
 
 export async function validateConversationListAccess(config: ChatGptRequestConfig): Promise<void> {

@@ -30,6 +30,7 @@ interface SyncModalOptions {
   folder: string;
   conversationPathTemplate: string;
   assetStorageMode: SyncModalValues["assetStorageMode"];
+  defaultConversationListLatestLimit: number;
   accounts: StoredSessionAccount[];
   onSubmit: (values: SyncModalValues, progress: SyncProgressReporter, control: SyncExecutionControl) => Promise<void>;
   onSyncDialogHidden?: (reason: "minimize" | "close") => void;
@@ -79,8 +80,6 @@ function parsePositiveIntegerInput(value: string): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-type SyncDateRangeSelectionMode = "range" | "latest";
-
 interface SyncDateRangeModalOptions {
   context: ConversationSyncDateRangePromptContext;
   onResolve(selection: ConversationSyncDateRangeSelection): void;
@@ -92,10 +91,6 @@ class SyncDateRangeModal extends Modal {
   private readonly fullEndDate: string;
   private startDate: string;
   private endDate: string;
-  private selectionMode: SyncDateRangeSelectionMode = "range";
-  private latestCount: string;
-  private dateRangeSectionEl: HTMLDivElement | null = null;
-  private latestCountSectionEl: HTMLDivElement | null = null;
   private resolved = false;
 
   constructor(app: App, options: SyncDateRangeModalOptions) {
@@ -115,7 +110,6 @@ class SyncDateRangeModal extends Modal {
 
     this.startDate = this.fullStartDate;
     this.endDate = this.fullEndDate;
-    this.latestCount = String(Math.min(100, Math.max(1, this.options.context.discoveredCount)));
   }
 
   onOpen(): void {
@@ -136,26 +130,10 @@ class SyncDateRangeModal extends Modal {
     });
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
-      text: "Choose either an updated_at date range or only the latest N notes."
+      text: "Choose an updated_at date range, or keep the full discovered range."
     });
 
     new Setting(contentEl)
-      .setName("Selection mode")
-      .setDesc("Pick how to narrow this account's conversation list.")
-      .addDropdown((component) => {
-        component
-          .addOption("range", "Date range (updated_at)")
-          .addOption("latest", "Latest N notes")
-          .setValue(this.selectionMode)
-          .onChange((value) => {
-            this.selectionMode = value === "latest" ? "latest" : "range";
-            this.updateSelectionSections();
-          });
-      });
-
-    this.dateRangeSectionEl = contentEl.createDiv();
-
-    new Setting(this.dateRangeSectionEl)
       .setName("Start date")
       .setDesc("Inclusive lower bound, based on updated_at.")
       .addText((component) => {
@@ -168,7 +146,7 @@ class SyncDateRangeModal extends Modal {
         });
       });
 
-    new Setting(this.dateRangeSectionEl)
+    new Setting(contentEl)
       .setName("End date")
       .setDesc("Inclusive upper bound, based on updated_at.")
       .addText((component) => {
@@ -180,23 +158,6 @@ class SyncDateRangeModal extends Modal {
           this.endDate = value.trim();
         });
       });
-
-    this.latestCountSectionEl = contentEl.createDiv();
-
-    new Setting(this.latestCountSectionEl)
-      .setName("Latest notes")
-      .setDesc(`Sync only the most recently updated notes (1-${this.options.context.discoveredCount}).`)
-      .addText((component) => {
-        component.inputEl.type = "number";
-        component.inputEl.min = "1";
-        component.inputEl.max = String(this.options.context.discoveredCount);
-        component.setValue(this.latestCount);
-        component.onChange((value) => {
-          this.latestCount = value.trim();
-        });
-      });
-
-    this.updateSelectionSections();
 
     new Setting(contentEl)
       .addButton((button) => {
@@ -220,20 +181,6 @@ class SyncDateRangeModal extends Modal {
   }
 
   private submit(): void {
-    if (this.selectionMode === "latest") {
-      const normalizedCount = parsePositiveIntegerInput(this.latestCount);
-      if (normalizedCount === null || normalizedCount > this.options.context.discoveredCount) {
-        new Notice(`Latest note count must be a whole number from 1 to ${this.options.context.discoveredCount}.`);
-        return;
-      }
-
-      this.resolve({
-        mode: "latest",
-        count: normalizedCount
-      });
-      return;
-    }
-
     const normalizedStartDate = this.startDate;
     const normalizedEndDate = this.endDate;
     const startMs = parseIsoDateInput(normalizedStartDate);
@@ -268,16 +215,6 @@ class SyncDateRangeModal extends Modal {
     });
   }
 
-  private updateSelectionSections(): void {
-    if (!this.dateRangeSectionEl || !this.latestCountSectionEl) {
-      return;
-    }
-
-    const showDateRange = this.selectionMode === "range";
-    this.dateRangeSectionEl.style.display = showDateRange ? "" : "none";
-    this.latestCountSectionEl.style.display = showDateRange ? "none" : "";
-  }
-
   private resolve(selection: ConversationSyncDateRangeSelection, shouldClose = true): void {
     if (this.resolved) {
       return;
@@ -309,6 +246,8 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
   private syncScope: "all" | "single" = "all";
   private selectedAccountId: string;
   private forceRefresh = false;
+  private fetchFullConversationList = false;
+  private conversationLimitOverride = "";
   private readonly accountSelectorContainer: HTMLDivElement;
 
   private statusEl: HTMLElement | null = null;
@@ -471,6 +410,9 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
       text: `Asset storage: ${formatAssetStorageMode(this.options.assetStorageMode)}`
     });
     summaryList.createEl("li", {
+      text: `Default latest conversation limit: ${this.options.defaultConversationListLatestLimit}`
+    });
+    summaryList.createEl("li", {
       text: `Configured accounts: ${this.options.accounts.length}`
     });
 
@@ -509,13 +451,35 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
         });
       });
 
+    new Setting(contentEl)
+      .setName("Fetch full conversation list")
+      .setDesc("Ignore latest-N list optimization for this run and discover full conversation history.")
+      .addToggle((toggle) => {
+        toggle.setValue(this.fetchFullConversationList).onChange((value) => {
+          this.fetchFullConversationList = value;
+        });
+      });
+
+    new Setting(contentEl)
+      .setName("Latest conversation limit override")
+      .setDesc(`Optional one-time override for this run. Default: ${this.options.defaultConversationListLatestLimit}.`)
+      .addText((component) => {
+        component.inputEl.type = "number";
+        component.inputEl.min = "1";
+        component.setPlaceholder(String(this.options.defaultConversationListLatestLimit));
+        component.setValue(this.conversationLimitOverride);
+        component.onChange((value) => {
+          this.conversationLimitOverride = value.trim();
+        });
+      });
+
     this.accountSelectorContainer.remove();
     contentEl.appendChild(this.accountSelectorContainer);
     this.renderAccountSelector();
 
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
-      text: "Continue to sync full conversation logs into markdown notes."
+      text: "Continue to sync selected ChatGPT conversations into markdown notes."
     });
 
     new Setting(contentEl)
@@ -529,6 +493,12 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
               return;
             }
 
+            const conversationLimitOverride = this.resolveConversationLimitOverride();
+            if (conversationLimitOverride === null) {
+              new Notice("Latest conversation limit override must be a positive whole number.");
+              return;
+            }
+
             button.setDisabled(true);
 
             const values: SyncModalValues = {
@@ -537,7 +507,9 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
               assetStorageMode: this.options.assetStorageMode,
               scope: this.syncScope,
               accountId: this.syncScope === "single" ? this.selectedAccountId : undefined,
-              forceRefresh: this.forceRefresh
+              forceRefresh: this.forceRefresh,
+              fetchFullConversationList: this.fetchFullConversationList,
+              conversationLimitOverride: conversationLimitOverride ?? undefined
             };
 
             try {
@@ -585,6 +557,14 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
             this.selectedAccountId = value;
           });
       });
+  }
+
+  private resolveConversationLimitOverride(): number | null | undefined {
+    if (this.conversationLimitOverride.length === 0) {
+      return undefined;
+    }
+
+    return parsePositiveIntegerInput(this.conversationLimitOverride);
   }
 
   private async startSync(values: SyncModalValues): Promise<void> {
