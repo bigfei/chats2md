@@ -5,7 +5,7 @@ const SUPPORTED_PLACEHOLDERS = new Set([
   "date",
   "slug",
   "email",
-  "user_id",
+  "account_id",
   "conversation_id"
 ]);
 
@@ -14,7 +14,7 @@ export interface ConversationPathTemplateContext {
   updatedAt: string;
   conversationId: string;
   email: string;
-  userId: string;
+  accountId: string;
 }
 
 function normalizeTemplate(template: string): string {
@@ -37,8 +37,8 @@ function readPlaceholderValue(name: string, context: ConversationPathTemplateCon
       return slugifyConversationTitle(context.title);
     case "email":
       return context.email.trim() || "unknown-email";
-    case "user_id":
-      return context.userId.trim() || "unknown-user";
+    case "account_id":
+      return context.accountId.trim() || "unknown-account";
     case "conversation_id":
       return context.conversationId.trim() || "unknown-conversation";
     default:
@@ -88,6 +88,6 @@ export function resolveConversationNoteRelativePath(
 
 export const CONVERSATION_PATH_TEMPLATE_PRESETS = [
   "{date}/{slug}",
-  "{email}/{user_id}/{date}/{slug}",
-  "{email}/{user_id}/{slug}"
+  "{email}/{account_id}/{date}/{slug}",
+  "{email}/{account_id}/{slug}"
 ] as const;

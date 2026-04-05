@@ -34,7 +34,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Conversation path template")
-      .setDesc("Relative note path template (without .md). Placeholders: {date}, {slug}, {email}, {user_id}, {conversation_id}.")
+      .setDesc("Relative note path template (without .md). Placeholders: {date}, {slug}, {email}, {account_id}, {conversation_id}.")
       .addText((component) => {
         component.setPlaceholder("{date}/{slug}");
         component.setValue(this.plugin.settings.conversationPathTemplate);

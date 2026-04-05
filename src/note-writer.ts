@@ -220,14 +220,14 @@ function buildConversationDesiredPath(
   folder: string,
   conversationPathTemplate: string,
   conversation: { id: string; title: string; updatedAt: string },
-  account: { userId: string; userEmail: string }
+  account: { accountId: string; userId: string; userEmail: string }
 ): string {
   const relativePath = resolveConversationNoteRelativePath(conversationPathTemplate, {
     title: conversation.title,
     updatedAt: conversation.updatedAt,
     conversationId: conversation.id,
     email: account.userEmail,
-    userId: account.userId
+    accountId: account.accountId
   });
   return normalizePath(`${folder}/${relativePath}`);
 }

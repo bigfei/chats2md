@@ -9,22 +9,22 @@ test("resolveConversationNoteRelativePath applies date and slug placeholders", (
     updatedAt: "2026-04-04T10:20:30.000Z",
     conversationId: "conv-1",
     email: "user@example.com",
-    userId: "user-1"
+    accountId: "acc-1"
   });
 
   assert.equal(resolved, "2026-04-04/Hello-World.md");
 });
 
 test("resolveConversationNoteRelativePath applies email/user placeholders with fallbacks", () => {
-  const resolved = resolveConversationNoteRelativePath("{email}/{user_id}/{slug}", {
+  const resolved = resolveConversationNoteRelativePath("{email}/{account_id}/{slug}", {
     title: "Template Test",
     updatedAt: "2026-04-04T10:20:30.000Z",
     conversationId: "conv-2",
     email: "",
-    userId: ""
+    accountId: ""
   });
 
-  assert.equal(resolved, "unknown-email/unknown-user/Template-Test.md");
+  assert.equal(resolved, "unknown-email/unknown-account/Template-Test.md");
 });
 
 test("resolveConversationNoteRelativePath rejects unsupported placeholders", () => {
@@ -34,7 +34,7 @@ test("resolveConversationNoteRelativePath rejects unsupported placeholders", () 
       updatedAt: "2026-04-04T10:20:30.000Z",
       conversationId: "conv-3",
       email: "x@example.com",
-      userId: "u-1"
+      accountId: "acc-3"
     }),
     /unsupported placeholder/
   );
@@ -47,7 +47,7 @@ test("resolveConversationNoteRelativePath rejects templates ending with .md", ()
       updatedAt: "2026-04-04T10:20:30.000Z",
       conversationId: "conv-4",
       email: "x@example.com",
-      userId: "u-1"
+      accountId: "acc-4"
     }),
     /should not include the \.md extension/
   );
@@ -56,7 +56,7 @@ test("resolveConversationNoteRelativePath rejects templates ending with .md", ()
 test("CONVERSATION_PATH_TEMPLATE_PRESETS exposes supported presets", () => {
   assert.deepEqual(CONVERSATION_PATH_TEMPLATE_PRESETS, [
     "{date}/{slug}",
-    "{email}/{user_id}/{date}/{slug}",
-    "{email}/{user_id}/{slug}"
+    "{email}/{account_id}/{date}/{slug}",
+    "{email}/{account_id}/{slug}"
   ]);
 });

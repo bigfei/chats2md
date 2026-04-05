@@ -10,7 +10,7 @@ test("renderSyncRunReport includes run metadata and wikilinks", () => {
     finishedAt: "2026-04-04T10:05:00.000Z",
     status: "completed",
     folder: "Imports/ChatGPT",
-    conversationPathTemplate: "{email}/{user_id}/{slug}",
+    conversationPathTemplate: "{email}/{account_id}/{slug}",
     scope: "single",
     accounts: [{
       accountId: "acc-1",
@@ -55,7 +55,7 @@ test("renderSyncRunReport includes run metadata and wikilinks", () => {
   const markdown = renderSyncRunReport(report);
 
   assert.match(markdown, /# Chats2MD Sync Report/);
-  assert.match(markdown, /- Layout template: \{email\}\/\{user_id\}\/\{slug\}/);
+  assert.match(markdown, /- Layout template: \{email\}\/\{account_id\}\/\{slug\}/);
   assert.match(markdown, /\[\[Imports\/ChatGPT\/user@example\.com\/u-1\/created-chat\|Created chat\]\] \(`conv-1`\)/);
   assert.match(markdown, /## Failed[\s\S]*_None_/);
 });
