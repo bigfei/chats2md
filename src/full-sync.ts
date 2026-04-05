@@ -443,6 +443,7 @@ export async function runFullSync(
             );
             if (!detailResult) {
               runStatus = "stopped";
+              progressModal.fail("Sync stopped by user.", counts);
               return;
             }
             const detail = detailResult.detail;
