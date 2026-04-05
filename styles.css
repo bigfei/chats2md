@@ -111,3 +111,8 @@
 .chats2md-sync-statusbar {
   cursor: pointer;
 }
+
+.workspace-ribbon .side-dock-ribbon-action.chats2md-ribbon-action-bottom {
+  order: 999;
+  margin-top: auto;
+}

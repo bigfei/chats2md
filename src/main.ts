@@ -85,9 +85,10 @@ export default class Chats2MdPlugin extends Plugin {
     await this.loadSettings();
 
     addIcon(OPENAI_RIBBON_ICON_ID, OPENAI_RIBBON_ICON_SVG);
-    this.addRibbonIcon(OPENAI_RIBBON_ICON_ID, "Sync ChatGPT conversations", () => {
+    const ribbonAction = this.addRibbonIcon(OPENAI_RIBBON_ICON_ID, "Sync ChatGPT conversations", () => {
       this.openSyncModal();
     });
+    ribbonAction.classList.add("chats2md-ribbon-action-bottom");
 
     this.addCommand({
       id: "import-chatgpt-conversations",
