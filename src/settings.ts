@@ -90,9 +90,19 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         });
       });
 
-    containerEl.createEl("h3", {
-      text: "Cached detail JSON"
-    });
+    new Setting(containerEl)
+      .setName("Enable debug logging")
+      .setDesc("Log additional sync diagnostics in the developer console.")
+      .addToggle((toggle) => {
+        toggle.setValue(this.plugin.settings.debugLogging).onChange(async (value) => {
+          this.plugin.settings.debugLogging = value;
+          await this.plugin.saveSettings();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName("Cached detail JSON")
+      .setHeading();
 
     new Setting(containerEl)
       .setName("Save conversation detail JSON sidecar")
@@ -118,9 +128,9 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         });
       });
 
-    containerEl.createEl("h3", {
-      text: "Account sessions"
-    });
+    new Setting(containerEl)
+      .setName("Account sessions")
+      .setHeading();
 
     const migrationWarning = this.plugin.getLegacySessionMigrationWarning();
 
@@ -243,7 +253,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       new Notice(`Validation failed for ${label}: ${message}`);
-      console.error("[chats2md] Session validation error", {
+      this.plugin.logError("Session validation error", {
         accountId: account.accountId,
         message
       });

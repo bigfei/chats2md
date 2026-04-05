@@ -21,7 +21,7 @@ export const CONVERSATION_LIST_UPDATED_AT_KEY = "chatgpt_list_updated_at";
 export const CONVERSATION_ACCOUNT_ID_KEY = "chatgpt_account_id";
 export const CONVERSATION_USER_ID_KEY = "chatgpt_user_id";
 export const CONVERSATION_ASSET_STORAGE_MODE_KEY = "chats2md_asset_storage";
-export const FORCE_SYNC_ACTION_LABEL = "Force sync from Chatgpt";
+export const FORCE_SYNC_ACTION_LABEL = "Force sync from ChatGPT";
 const MIME_TO_EXTENSION: Record<string, string> = {
   "application/json": ".json",
   "application/pdf": ".pdf",

@@ -19,6 +19,12 @@ import {
   indexConversationNotes,
   upsertConversationNote
 } from "./note-writer";
+import {
+  filterConversationSummariesByUpdatedDateRange,
+  getConversationUpdatedAtSpan,
+  shouldPromptForDateRange,
+  toIsoUtcDate
+} from "./sync-date-range";
 import type {
   AssetStorageMode,
   ChatGptRequestConfig,
@@ -206,9 +212,95 @@ export async function runFullSync(
         continue;
       }
 
-      logInfo(`[${accountLabel}] Found ${summaries.length} conversation(s).`);
-      if (summaries.length === 0) {
+      const discoveredCount = summaries.length;
+      logInfo(`[${accountLabel}] Found ${discoveredCount} conversation(s).`);
+      if (discoveredCount === 0) {
         continue;
+      }
+
+      const updatedAtSpan = getConversationUpdatedAtSpan(summaries);
+      const discoveredStartDate = toIsoUtcDate(updatedAtSpan?.minUpdatedAt ?? "");
+      const discoveredEndDate = toIsoUtcDate(updatedAtSpan?.maxUpdatedAt ?? "");
+      const discoveredRangeLabel = discoveredStartDate && discoveredEndDate
+        ? `${discoveredStartDate} to ${discoveredEndDate}`
+        : "unknown";
+
+      if (shouldPromptForDateRange(updatedAtSpan) && updatedAtSpan) {
+        if (!(await ensureCanContinue())) {
+          return;
+        }
+
+        progressModal.setPreparing(
+          `Syncing ${accountLabel} (${accountIndex + 1}/${selectedAccounts.length}): choose updated_at date range...`
+        );
+        logInfo(
+          `[${accountLabel}] updated_at span exceeds 30 days (${discoveredRangeLabel}). Waiting for date range selection.`
+        );
+
+        const selection = await progressModal.selectDateRange({
+          accountLabel,
+          discoveredCount,
+          minUpdatedAt: updatedAtSpan.minUpdatedAt,
+          maxUpdatedAt: updatedAtSpan.maxUpdatedAt
+        });
+
+        if (!(await ensureCanContinue())) {
+          return;
+        }
+
+        if (selection.mode === "skip-account") {
+          logInfo(`[${accountLabel}] Date range selection canceled. Skipping account.`);
+          continue;
+        }
+
+        if (selection.mode === "range") {
+          try {
+            summaries = filterConversationSummariesByUpdatedDateRange(
+              summaries,
+              selection.startDate,
+              selection.endDate
+            );
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            counts.failed += 1;
+            failures.push({
+              id: account.accountId,
+              title: `${accountLabel} date range`,
+              message,
+              attempts: 1
+            });
+            failedEntries.push({
+              accountId: requestConfig.accountId,
+              accountLabel,
+              conversationId: account.accountId,
+              title: `${accountLabel} date range`,
+              conversationUrl: null,
+              notePath: null,
+              message
+            });
+            logError(`[${accountLabel}] Invalid date range selection: ${message}`);
+            continue;
+          }
+
+          logInfo(
+            `[${accountLabel}] Selected updated_at range ${selection.startDate} to ${selection.endDate}. ` +
+            `Syncing ${summaries.length}/${discoveredCount} conversation(s).`
+          );
+        } else {
+          logInfo(
+            `[${accountLabel}] Using full discovered updated_at range ${discoveredRangeLabel}. ` +
+            `Syncing ${discoveredCount}/${discoveredCount} conversation(s).`
+          );
+        }
+      }
+
+      if (summaries.length === 0) {
+        logInfo(`[${accountLabel}] No conversations selected for sync after date range filtering.`);
+        continue;
+      }
+
+      if (summaries.length !== discoveredCount) {
+        logInfo(`[${accountLabel}] Selected ${summaries.length}/${discoveredCount} conversation(s) for sync.`);
       }
 
       totalConversations += summaries.length;

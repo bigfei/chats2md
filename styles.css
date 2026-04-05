@@ -59,6 +59,14 @@
   min-width: min(720px, 90vw);
 }
 
+.chats2md-date-range-modal .modal-content {
+  min-width: min(560px, 90vw);
+}
+
+.chats2md-date-range-modal input[type="date"] {
+  width: 100%;
+}
+
 .chats2md-progress-modal__counts,
 .chats2md-settings__status {
   margin: 0.75rem 0 0;
@@ -115,4 +123,20 @@
 .workspace-ribbon .side-dock-ribbon-action.chats2md-ribbon-action-bottom {
   order: 999;
   margin-top: auto;
+  --icon-size: 18px;
+}
+
+.vertical-tab-nav-item.chats2md-settings-nav-item {
+  --icon-size: 16px;
+}
+
+.vertical-tab-nav-item.chats2md-settings-nav-item .vertical-tab-nav-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vertical-tab-nav-item.chats2md-settings-nav-item .vertical-tab-nav-item-icon svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
 }

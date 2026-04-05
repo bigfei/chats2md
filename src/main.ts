@@ -1,4 +1,4 @@
-import { App, MarkdownView, Notice, Plugin, TFile, TFolder, addIcon, normalizePath } from "obsidian";
+import { App, MarkdownView, Notice, Plugin, TFile, TFolder, addIcon, normalizePath, setIcon } from "obsidian";
 
 import {
   fetchConversationDetailWithPayload,
@@ -56,19 +56,15 @@ import {
   type SyncModalValues
 } from "./types";
 
-const OPENAI_RIBBON_ICON_ID = "chats2md-openai-knot";
-const OPENAI_RIBBON_ICON_SVG = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
-  <g stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="10" y="2.5" width="4" height="11" rx="2" />
-    <rect x="10" y="2.5" width="4" height="11" rx="2" transform="rotate(60 12 12)" />
-    <rect x="10" y="2.5" width="4" height="11" rx="2" transform="rotate(120 12 12)" />
-    <rect x="10" y="2.5" width="4" height="11" rx="2" transform="rotate(180 12 12)" />
-    <rect x="10" y="2.5" width="4" height="11" rx="2" transform="rotate(240 12 12)" />
-    <rect x="10" y="2.5" width="4" height="11" rx="2" transform="rotate(300 12 12)" />
+const CHATGPT_IMPORT_SYNC_ICON_ID = "chats2md-chatgpt-import-sync";
+const CHATGPT_IMPORT_SYNC_ICON_SVG = `
+  <g transform="translate(8 8) scale(1.9)" fill="currentColor">
+    <path d="M37.532 16.87a9.963 9.963 0 0 0-.856-8.184 10.078 10.078 0 0 0-10.855-4.835A9.964 9.964 0 0 0 18.306.5a10.079 10.079 0 0 0-9.614 6.977 9.967 9.967 0 0 0-6.664 4.834 10.08 10.08 0 0 0 1.24 11.817 9.965 9.965 0 0 0 .856 8.185 10.079 10.079 0 0 0 10.855 4.835 9.965 9.965 0 0 0 7.516 3.35 10.078 10.078 0 0 0 9.617-6.981 9.967 9.967 0 0 0 6.663-4.834 10.079 10.079 0 0 0-1.243-11.813ZM22.498 37.886a7.474 7.474 0 0 1-4.799-1.735c.061-.033.168-.091.237-.134l7.964-4.6a1.294 1.294 0 0 0 .655-1.134V19.054l3.366 1.944a.12.12 0 0 1 .066.092v9.299a7.505 7.505 0 0 1-7.49 7.496ZM6.392 31.006a7.471 7.471 0 0 1-.894-5.023c.06.036.162.099.237.141l7.964 4.6a1.297 1.297 0 0 0 1.308 0l9.724-5.614v3.888a.12.12 0 0 1-.048.103l-8.051 4.649a7.504 7.504 0 0 1-10.24-2.744ZM4.297 13.62A7.469 7.469 0 0 1 8.2 10.333c0 .068-.004.19-.004.274v9.201a1.294 1.294 0 0 0 .654 1.132l9.723 5.614-3.366 1.944a.12.12 0 0 1-.114.012L7.044 23.86a7.504 7.504 0 0 1-2.747-10.24Zm27.658 6.437-9.724-5.615 3.367-1.943a.121.121 0 0 1 .114-.012l8.048 4.648a7.498 7.498 0 0 1-1.158 13.528V21.36a1.293 1.293 0 0 0-.647-1.132v-.17Zm3.35-5.043c-.059-.037-.162-.099-.236-.141l-7.965-4.6a1.298 1.298 0 0 0-1.308 0l-9.723 5.614v-3.888a.12.12 0 0 1 .048-.103l8.05-4.645a7.497 7.497 0 0 1 11.135 7.763Zm-21.063 6.929-3.367-1.944a.12.12 0 0 1-.065-.092v-9.299a7.497 7.497 0 0 1 12.293-5.756 6.94 6.94 0 0 0-.236.134l-7.965 4.6a1.294 1.294 0 0 0-.654 1.132l-.006 11.225Zm1.829-3.943 4.33-2.501 4.332 2.5v5l-4.331 2.5-4.331-2.5V18Z"/>
   </g>
-  <circle cx="12" cy="12" r="1.6" fill="currentColor" />
-</svg>
+  <g stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M74 70V83"/>
+    <path d="M68 77L74 83L80 77"/>
+  </g>
 `;
 
 export default class Chats2MdPlugin extends Plugin {
@@ -80,12 +76,14 @@ export default class Chats2MdPlugin extends Plugin {
   private syncWorkerActive = false;
   private syncStatusClearTimer: number | null = null;
   private suppressSyncStatusBarUpdates = false;
+  private settingsPaneIconObserver: MutationObserver | null = null;
+  private settingsPaneIconSyncScheduled = false;
 
   async onload(): Promise<void> {
     await this.loadSettings();
 
-    addIcon(OPENAI_RIBBON_ICON_ID, OPENAI_RIBBON_ICON_SVG);
-    const ribbonAction = this.addRibbonIcon(OPENAI_RIBBON_ICON_ID, "Sync ChatGPT conversations", () => {
+    addIcon(CHATGPT_IMPORT_SYNC_ICON_ID, CHATGPT_IMPORT_SYNC_ICON_SVG);
+    const ribbonAction = this.addRibbonIcon(CHATGPT_IMPORT_SYNC_ICON_ID, "Sync ChatGPT conversations", () => {
       this.openSyncModal();
     });
     ribbonAction.classList.add("chats2md-ribbon-action-bottom");
@@ -98,7 +96,10 @@ export default class Chats2MdPlugin extends Plugin {
       }
     });
 
-    this.addSettingTab(new Chats2MdSettingTab(this.app, this));
+    const settingTab = new Chats2MdSettingTab(this.app, this);
+    settingTab.icon = CHATGPT_IMPORT_SYNC_ICON_ID;
+    this.addSettingTab(settingTab);
+    this.enableSettingsPaneIcon();
 
     this.syncStatusBarEl = this.addStatusBarItem();
     this.syncStatusBarEl.classList.add("chats2md-sync-statusbar");
@@ -141,6 +142,85 @@ export default class Chats2MdPlugin extends Plugin {
     this.app.workspace.onLayoutReady(() => this.forceSyncUiController?.refreshMarkdownSyncActions());
   }
 
+  private enableSettingsPaneIcon(): void {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    this.scheduleSettingsPaneIconSync();
+
+    if (typeof MutationObserver === "undefined" || !document.body) {
+      return;
+    }
+
+    this.settingsPaneIconObserver = new MutationObserver(() => {
+      this.scheduleSettingsPaneIconSync();
+    });
+    this.settingsPaneIconObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+    this.register(() => this.settingsPaneIconObserver?.disconnect());
+  }
+
+  private scheduleSettingsPaneIconSync(): void {
+    if (this.settingsPaneIconSyncScheduled) {
+      return;
+    }
+
+    if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+      this.applySettingsPaneIcon();
+      return;
+    }
+
+    this.settingsPaneIconSyncScheduled = true;
+    window.requestAnimationFrame(() => {
+      this.settingsPaneIconSyncScheduled = false;
+      this.applySettingsPaneIcon();
+    });
+  }
+
+  private applySettingsPaneIcon(): void {
+    const pluginName = this.manifest.name.trim();
+    if (!pluginName) {
+      return;
+    }
+
+    const matchedItems = new Set<HTMLElement>();
+    for (const selector of [
+      `.vertical-tab-nav-item[data-tab-id="${this.manifest.id}"]`,
+      `.vertical-tab-nav-item[data-tab-id="community-plugins-${this.manifest.id}"]`
+    ]) {
+      for (const matchedEl of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
+        matchedItems.add(matchedEl);
+      }
+    }
+
+    if (matchedItems.size === 0) {
+      for (const itemEl of Array.from(document.querySelectorAll<HTMLElement>(".vertical-tab-nav-item"))) {
+        const titleEl = itemEl.querySelector<HTMLElement>(".vertical-tab-nav-item-title");
+        if (titleEl?.textContent?.trim() !== pluginName) {
+          continue;
+        }
+        matchedItems.add(itemEl);
+      }
+    }
+
+    for (const itemEl of matchedItems) {
+      itemEl.classList.add("mod-has-icon");
+
+      let iconContainer = itemEl.querySelector<HTMLElement>(".vertical-tab-nav-item-icon");
+      if (!iconContainer) {
+        iconContainer = document.createElement("div");
+        iconContainer.className = "vertical-tab-nav-item-icon";
+        itemEl.prepend(iconContainer);
+      }
+
+      itemEl.classList.add("chats2md-settings-nav-item");
+      setIcon(iconContainer, CHATGPT_IMPORT_SYNC_ICON_ID);
+    }
+  }
+
   async loadSettings(): Promise<void> {
     const saved = await this.loadData() as LegacySettingsPayload | null;
     const savedAccounts = Array.isArray(saved?.accounts)
@@ -154,6 +234,7 @@ export default class Chats2MdPlugin extends Plugin {
       conversationPathTemplate: readString(saved?.conversationPathTemplate, DEFAULT_SETTINGS.conversationPathTemplate).trim()
         || DEFAULT_SETTINGS.conversationPathTemplate,
       assetStorageMode: normalizeAssetStorageMode(saved?.assetStorageMode),
+      debugLogging: saved?.debugLogging === true,
       saveConversationJson: saved?.saveConversationJson === true,
       accounts: sortAccounts(savedAccounts),
       legacySessionJson
@@ -176,6 +257,45 @@ export default class Chats2MdPlugin extends Plugin {
 
   getSessionSecret(secretId: string): string | null {
     return this.app.secretStorage.getSecret(secretId);
+  }
+
+  private isDebugLoggingEnabled(): boolean {
+    return this.settings.debugLogging === true;
+  }
+
+  logInfo(message: string, context?: unknown): void {
+    if (!this.isDebugLoggingEnabled()) {
+      return;
+    }
+
+    if (typeof context === "undefined") {
+      console.info(`[chats2md] ${message}`);
+      return;
+    }
+
+    console.info(`[chats2md] ${message}`, context);
+  }
+
+  logWarn(message: string, context?: unknown): void {
+    if (!this.isDebugLoggingEnabled()) {
+      return;
+    }
+
+    if (typeof context === "undefined") {
+      console.warn(`[chats2md] ${message}`);
+      return;
+    }
+
+    console.warn(`[chats2md] ${message}`, context);
+  }
+
+  logError(message: string, context?: unknown): void {
+    if (typeof context === "undefined") {
+      console.error(`[chats2md] ${message}`);
+      return;
+    }
+
+    console.error(`[chats2md] ${message}`, context);
   }
 
   async upsertSessionAccount(rawSessionJson: string, parsed?: ChatGptRequestConfig): Promise<StoredSessionAccount> {
@@ -452,7 +572,7 @@ export default class Chats2MdPlugin extends Plugin {
         return;
       }
 
-      console.info(`[chats2md] ${message}`);
+      this.logInfo(message);
     };
 
     const logWarn = (message: string): void => {
@@ -461,7 +581,7 @@ export default class Chats2MdPlugin extends Plugin {
         return;
       }
 
-      console.warn(`[chats2md] ${message}`);
+      this.logWarn(message);
     };
 
     const logError = (message: string): void => {
@@ -470,7 +590,7 @@ export default class Chats2MdPlugin extends Plugin {
         return;
       }
 
-      console.error(`[chats2md] ${message}`);
+      this.logError(message);
     };
 
     this.syncWorkerActive = true;
@@ -480,12 +600,12 @@ export default class Chats2MdPlugin extends Plugin {
     try {
       try {
         syncLogger = await this.createSyncRunLogger({
-          log: (message) => console.info(`[chats2md] ${message}`)
+          log: (message) => this.logInfo(message)
         });
         syncLogger.info(`Rebuild log file: ${syncLogger.filePath}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.warn(`[chats2md] Rebuild log unavailable: ${message}`);
+        this.logWarn(`Rebuild log unavailable: ${message}`);
       }
 
       for (const [noteIndexValue, note] of notes.entries()) {
@@ -1130,7 +1250,7 @@ export default class Chats2MdPlugin extends Plugin {
           await this.moveConversationJsonSidecar(result.previousFilePath, result.filePath);
         } catch (error) {
           const warning = error instanceof Error ? error.message : String(error);
-          console.warn("[chats2md] JSON sidecar move warning", {
+          this.logWarn("JSON sidecar move warning", {
             conversationId: detail.id,
             warning
           });
@@ -1142,7 +1262,7 @@ export default class Chats2MdPlugin extends Plugin {
           await this.saveConversationJsonSidecar(result.filePath, detailResult.rawPayload);
         } catch (error) {
           const warning = error instanceof Error ? error.message : String(error);
-          console.warn("[chats2md] JSON sidecar save warning", {
+          this.logWarn("JSON sidecar save warning", {
             conversationId: detail.id,
             warning
           });

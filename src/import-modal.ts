@@ -1,12 +1,21 @@
 import { App, Modal, Notice, Setting } from "obsidian";
 
 import { formatAssetStorageMode } from "./main-helpers";
-import type { ImportFailure, ImportProgressCounts, StoredSessionAccount, SyncModalValues } from "./types";
+import { toIsoUtcDate } from "./sync-date-range";
+import type {
+  ConversationSyncDateRangePromptContext,
+  ConversationSyncDateRangeSelection,
+  ImportFailure,
+  ImportProgressCounts,
+  StoredSessionAccount,
+  SyncModalValues
+} from "./types";
 
 export interface SyncProgressReporter {
   setPreparing(message: string): void;
   setRetry(title: string, index: number, total: number, attempt: number, message: string): void;
   setProgress(title: string, index: number, total: number, processed: number, counts: ImportProgressCounts): void;
+  selectDateRange(context: ConversationSyncDateRangePromptContext): Promise<ConversationSyncDateRangeSelection>;
   complete(total: number, counts: ImportProgressCounts, failures: ImportFailure[]): void;
   fail(message: string, counts: ImportProgressCounts): void;
   log(message: string): void;
@@ -44,6 +53,180 @@ function createEmptyCounts(): ImportProgressCounts {
     skipped: 0,
     failed: 0
   };
+}
+
+function parseIsoDateInput(date: string): number | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return null;
+  }
+
+  const parsed = Date.parse(`${date}T00:00:00.000Z`);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  return new Date(parsed).toISOString().slice(0, 10) === date ? parsed : null;
+}
+
+interface SyncDateRangeModalOptions {
+  context: ConversationSyncDateRangePromptContext;
+  onResolve(selection: ConversationSyncDateRangeSelection): void;
+}
+
+class SyncDateRangeModal extends Modal {
+  private readonly options: SyncDateRangeModalOptions;
+  private readonly fullStartDate: string;
+  private readonly fullEndDate: string;
+  private startDate: string;
+  private endDate: string;
+  private resolved = false;
+
+  constructor(app: App, options: SyncDateRangeModalOptions) {
+    super(app);
+    this.options = options;
+    const fallbackDate = new Date().toISOString().slice(0, 10);
+    const minDate = toIsoUtcDate(options.context.minUpdatedAt) ?? fallbackDate;
+    const maxDate = toIsoUtcDate(options.context.maxUpdatedAt) ?? minDate;
+
+    if (minDate <= maxDate) {
+      this.fullStartDate = minDate;
+      this.fullEndDate = maxDate;
+    } else {
+      this.fullStartDate = maxDate;
+      this.fullEndDate = minDate;
+    }
+
+    this.startDate = this.fullStartDate;
+    this.endDate = this.fullEndDate;
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("chats2md-modal");
+    contentEl.addClass("chats2md-date-range-modal");
+
+    this.setTitle(`Choose date range (${this.options.context.accountLabel})`);
+
+    contentEl.createEl("p", {
+      cls: "chats2md-modal__status",
+      text: `Found ${this.options.context.discoveredCount} conversations spanning more than 30 days.`
+    });
+    contentEl.createEl("p", {
+      cls: "chats2md-modal__hint",
+      text: `updated_at range: ${this.fullStartDate} to ${this.fullEndDate}.`
+    });
+    contentEl.createEl("p", {
+      cls: "chats2md-modal__hint",
+      text: "Dates are inclusive. Keep defaults to sync the full discovered range."
+    });
+
+    new Setting(contentEl)
+      .setName("Start date")
+      .setDesc("Inclusive lower bound, based on updated_at.")
+      .addText((component) => {
+        component.inputEl.type = "date";
+        component.inputEl.min = this.fullStartDate;
+        component.inputEl.max = this.fullEndDate;
+        component.setValue(this.startDate);
+        component.onChange((value) => {
+          this.startDate = value.trim();
+        });
+      });
+
+    new Setting(contentEl)
+      .setName("End date")
+      .setDesc("Inclusive upper bound, based on updated_at.")
+      .addText((component) => {
+        component.inputEl.type = "date";
+        component.inputEl.min = this.fullStartDate;
+        component.inputEl.max = this.fullEndDate;
+        component.setValue(this.endDate);
+        component.onChange((value) => {
+          this.endDate = value.trim();
+        });
+      });
+
+    new Setting(contentEl)
+      .addButton((button) => {
+        button.setButtonText("Continue").setCta().onClick(() => {
+          this.submit();
+        });
+      })
+      .addButton((button) => {
+        button.setButtonText("Skip account").onClick(() => {
+          this.resolve({ mode: "skip-account" });
+        });
+      });
+  }
+
+  onClose(): void {
+    if (!this.resolved) {
+      this.resolve({ mode: "skip-account" }, false);
+    }
+
+    this.contentEl.empty();
+  }
+
+  private submit(): void {
+    const normalizedStartDate = this.startDate;
+    const normalizedEndDate = this.endDate;
+    const startMs = parseIsoDateInput(normalizedStartDate);
+    const endMs = parseIsoDateInput(normalizedEndDate);
+    const fullStartMs = parseIsoDateInput(this.fullStartDate);
+    const fullEndMs = parseIsoDateInput(this.fullEndDate);
+
+    if (startMs === null || endMs === null || fullStartMs === null || fullEndMs === null) {
+      new Notice("Date range must use YYYY-MM-DD.");
+      return;
+    }
+
+    if (startMs > endMs) {
+      new Notice("Start date must be before or equal to end date.");
+      return;
+    }
+
+    if (startMs < fullStartMs || endMs > fullEndMs) {
+      new Notice(`Date range must stay within ${this.fullStartDate} to ${this.fullEndDate}.`);
+      return;
+    }
+
+    if (normalizedStartDate === this.fullStartDate && normalizedEndDate === this.fullEndDate) {
+      this.resolve({ mode: "all" });
+      return;
+    }
+
+    this.resolve({
+      mode: "range",
+      startDate: normalizedStartDate,
+      endDate: normalizedEndDate
+    });
+  }
+
+  private resolve(selection: ConversationSyncDateRangeSelection, shouldClose = true): void {
+    if (this.resolved) {
+      return;
+    }
+
+    this.resolved = true;
+    this.options.onResolve(selection);
+
+    if (shouldClose) {
+      this.close();
+    }
+  }
+}
+
+function openSyncDateRangeModal(
+  app: App,
+  context: ConversationSyncDateRangePromptContext
+): Promise<ConversationSyncDateRangeSelection> {
+  return new Promise((resolve) => {
+    new SyncDateRangeModal(app, {
+      context,
+      onResolve: resolve
+    }).open();
+  });
 }
 
 export class SyncChatGptModal extends Modal implements SyncProgressReporter, SyncExecutionControl {
@@ -147,6 +330,12 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     this.setProgressValue(total === 0 ? 0 : Math.round((processed / total) * 100));
     this.countsEl?.setText(formatCounts(this.latestCounts));
     this.applyStatusText();
+  }
+
+  async selectDateRange(
+    context: ConversationSyncDateRangePromptContext
+  ): Promise<ConversationSyncDateRangeSelection> {
+    return openSyncDateRangeModal(this.app, context);
   }
 
   complete(total: number, counts: ImportProgressCounts, failures: ImportFailure[]): void {

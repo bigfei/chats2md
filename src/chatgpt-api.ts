@@ -791,7 +791,7 @@ export function parseSessionJson(raw: string, pluginVersion = "0.1.0"): ChatGptR
 export async function fetchConversationSummaries(
   config: ChatGptRequestConfig
 ): Promise<ConversationSummary[]> {
-  const listPageLimit = 50;
+  const listPageLimit = 99;
   const summaries: ConversationSummary[] = [];
   const seenConversationIds = new Set<string>();
   let offset = 0;

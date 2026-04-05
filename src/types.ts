@@ -14,6 +14,7 @@ export interface Chats2MdSettings {
   defaultFolder: string;
   conversationPathTemplate: string;
   assetStorageMode: AssetStorageMode;
+  debugLogging: boolean;
   saveConversationJson: boolean;
   accounts: StoredSessionAccount[];
   legacySessionJson: string;
@@ -23,6 +24,7 @@ export const DEFAULT_SETTINGS: Chats2MdSettings = {
   defaultFolder: "Imports/ChatGPT",
   conversationPathTemplate: "{date}/{slug}",
   assetStorageMode: "global_by_conversation",
+  debugLogging: false,
   saveConversationJson: false,
   accounts: [],
   legacySessionJson: ""
@@ -87,6 +89,18 @@ export interface SyncModalValues {
   accountId?: string;
   forceRefresh: boolean;
 }
+
+export interface ConversationSyncDateRangePromptContext {
+  accountLabel: string;
+  discoveredCount: number;
+  minUpdatedAt: string;
+  maxUpdatedAt: string;
+}
+
+export type ConversationSyncDateRangeSelection =
+  | { mode: "all" }
+  | { mode: "range"; startDate: string; endDate: string }
+  | { mode: "skip-account" };
 
 export type UpsertAction = "created" | "updated" | "skipped";
 

@@ -1,7 +1,15 @@
 # Chats2MD
 
 `Chats2MD` is an Obsidian plugin that imports full ChatGPT conversation logs into
-markdown notes.
+Markdown notes.
+
+## Requirements and disclosures
+
+- A ChatGPT account and valid session payload are required.
+- The plugin uses the network to access `https://chatgpt.com` APIs for conversation
+  list/detail fetches and asset downloads.
+- Session payloads are stored in Obsidian Secret Storage instead of plugin `data.json`.
+- The plugin does not include client-side telemetry, ads, or plugin self-update behavior.
 
 ## Obsidian plugin development
 
@@ -24,6 +32,9 @@ This now also creates an installable zip at:
 The zip contains `chats2md/main.js`, `chats2md/manifest.json`, and
 `chats2md/styles.css` for manual installation.
 
+For community-plugin updates, publish a GitHub release and attach these files as
+binary assets: `main.js`, `manifest.json`, and `styles.css`.
+
 The plugin adds a `Sync ChatGPT conversations` command and ribbon action.
 Configure account session JSON payloads and default folder in plugin settings.
 Session JSON payloads are stored in Obsidian Secret Storage, and each account entry shows its `user.id`,
@@ -41,7 +52,7 @@ calling the conversation detail endpoint.
 
 ## Sample vault
 
-A runnable test vault lives under [`sample-vault/`](/Users/bigfei/Documents/dev/me/chats2md/sample-vault).
+A runnable test vault lives under [`sample-vault/`](sample-vault/).
 
 Build the plugin and copy the current bundle into the vault:
 
@@ -56,12 +67,7 @@ there without rerunning setup.
 
 Then open `sample-vault` in Obsidian and enable the `Chats2MD` community plugin.
 
-## Python helper
+## Icon
 
-The original Python utility now lives under [`py/`](/Users/bigfei/Documents/dev/me/chats2md/py).
-
-Run it from the repo root with:
-
-```bash
-uv --directory py run list-conversations ../session.json
-```
+The plugin icon asset is available at [`assets/chats2md-icon.svg`](assets/chats2md-icon.svg).
+The ribbon icon in the plugin UI uses the same SVG.
