@@ -2,12 +2,20 @@ import js from "@eslint/js";
 import globals from "globals";
 import eslintConfigPrettier from "eslint-config-prettier";
 import tseslint from "typescript-eslint";
-import { defineConfig } from "eslint/config";
+import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig(
-  {
-    ignores: ["node_modules/**", "release/**", "sample-vault/**", "main.js", ".beads/**", ".history/**", "assets/**"],
-  },
+  globalIgnores([
+    "node_modules",
+    "release",
+    "sample-vault",
+    "main.js",
+    ".beads",
+    ".history",
+    "assets",
+    "dist",
+    "versions.json",
+  ]),
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
