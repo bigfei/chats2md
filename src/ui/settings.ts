@@ -4,13 +4,14 @@ import { parseSessionJson, validateConversationListAccess } from "../chatgpt/api
 import {
   DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE,
   formatAssetStorageMode,
+  getOldestConversationSummaryByUpdatedAt,
   normalizeConversationListLatestLimit,
 } from "../main/helpers";
 import { CONVERSATION_PATH_TEMPLATE_PRESETS } from "../path/template";
 import { FolderSuggest } from "./folder-suggest";
 import type Chats2MdPlugin from "../main";
 import { SessionEditorModal } from "./session-editor-modal";
-import type { StoredSessionAccount } from "../shared/types";
+import type { ConversationSummary, StoredSessionAccount } from "../shared/types";
 
 const CUSTOM_TEMPLATE_OPTION = "__custom__";
 
@@ -23,6 +24,7 @@ interface ConversationListCacheOption {
   label: string;
   cachedAt: string;
   summaryCount: number;
+  oldestSummary: ConversationSummary | null;
 }
 
 export class Chats2MdSettingTab extends PluginSettingTab {
@@ -412,6 +414,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         label: accountLabels.get(accountId) ?? `${accountId} (removed account)`,
         cachedAt: entry.cachedAt,
         summaryCount: entry.summaries.length,
+        oldestSummary: getOldestConversationSummaryByUpdatedAt(entry.summaries),
       }))
       .sort((left, right) => left.label.localeCompare(right.label));
   }
@@ -421,6 +424,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
     const lines = [
       `Selected account: ${entry.label}`,
       `Cached conversations: ${entry.summaryCount}`,
+      `Oldest cached item: ${this.formatOldestCachedItem(entry.oldestSummary)}`,
       `Cached at: ${entry.cachedAt}`,
     ];
 
@@ -433,6 +437,14 @@ export class Chats2MdSettingTab extends PluginSettingTab {
     });
 
     return fragment;
+  }
+
+  private formatOldestCachedItem(summary: ConversationSummary | null): string {
+    if (!summary) {
+      return "Unavailable";
+    }
+
+    return `${summary.updatedAt} - ${summary.title}`;
   }
 
   private openSessionEditor(account?: StoredSessionAccount): void {

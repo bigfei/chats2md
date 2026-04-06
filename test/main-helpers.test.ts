@@ -7,6 +7,7 @@ import {
   createEmptyCounts,
   formatAssetStorageMode,
   formatActionLabel,
+  getOldestConversationSummaryByUpdatedAt,
   hasMatchingUpdatedAt,
   normalizeAssetStorageMode,
   normalizeConversationListCacheByAccount,
@@ -57,6 +58,34 @@ test("hasMatchingUpdatedAt accepts exact and near-equivalent timestamps", () => 
   assert.equal(hasMatchingUpdatedAt("2026-01-01T00:00:00.000Z", "2026-01-01T00:00:00.000Z"), true);
   assert.equal(hasMatchingUpdatedAt("2026-01-01T00:00:00.000Z", "2026-01-01T00:00:00.900Z"), true);
   assert.equal(hasMatchingUpdatedAt("2026-01-01T00:00:00.000Z", "2026-01-01T00:00:02.000Z"), false);
+});
+
+test("getOldestConversationSummaryByUpdatedAt returns the oldest valid summary", () => {
+  const oldest = getOldestConversationSummaryByUpdatedAt([
+    {
+      id: "newer",
+      title: "Newer",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-03T00:00:00.000Z",
+      url: "https://chatgpt.com/c/newer",
+    },
+    {
+      id: "invalid",
+      title: "Invalid",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "not-a-date",
+      url: "https://chatgpt.com/c/invalid",
+    },
+    {
+      id: "oldest",
+      title: "Oldest",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+      url: "https://chatgpt.com/c/oldest",
+    },
+  ]);
+
+  assert.equal(oldest?.id, "oldest");
 });
 
 test("formatActionLabel title-cases values and handles empty action", () => {

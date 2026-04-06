@@ -179,6 +179,24 @@ export function hasMatchingUpdatedAt(existingUpdatedAt: string | null, summaryUp
   return Math.abs(existingMs - summaryMs) <= 1000;
 }
 
+export function getOldestConversationSummaryByUpdatedAt(summaries: ConversationSummary[]): ConversationSummary | null {
+  let oldestSummary: ConversationSummary | null = null;
+  let oldestTimestamp = Number.POSITIVE_INFINITY;
+
+  for (const summary of summaries) {
+    const timestamp = normalizeTimestampToMs(summary.updatedAt);
+
+    if (timestamp === null || timestamp > oldestTimestamp) {
+      continue;
+    }
+
+    oldestTimestamp = timestamp;
+    oldestSummary = summary;
+  }
+
+  return oldestSummary;
+}
+
 export function formatActionLabel(action: string): string {
   if (!action) {
     return "Unknown";

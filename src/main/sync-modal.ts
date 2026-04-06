@@ -34,6 +34,7 @@ export function openSyncModal(host: any): void {
     conversationPathTemplate: host.settings.conversationPathTemplate,
     assetStorageMode: host.settings.assetStorageMode,
     defaultConversationListLatestLimit: host.settings.conversationListLatestLimit,
+    conversationListCacheByAccount: host.settings.conversationListCacheByAccount,
     accounts,
     onSubmit: async (values, progress, control): Promise<void> => handleSync(host, values, progress, control, modal),
     onSyncDialogHidden: (reason) => {

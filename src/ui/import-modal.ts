@@ -1,8 +1,10 @@
 import { App, Modal, Notice, Setting } from "obsidian";
 
-import { formatAssetStorageMode } from "../main/helpers";
+import { formatAssetStorageMode, getOldestConversationSummaryByUpdatedAt } from "../main/helpers";
 import { toIsoUtcDate } from "../sync/date-range";
 import type {
+  ConversationListCacheByAccount,
+  ConversationSummary,
   ConversationSyncDateRangePromptContext,
   ConversationSyncDateRangeSelection,
   ImportFailure,
@@ -31,6 +33,7 @@ interface SyncModalOptions {
   conversationPathTemplate: string;
   assetStorageMode: SyncModalValues["assetStorageMode"];
   defaultConversationListLatestLimit: number;
+  conversationListCacheByAccount: ConversationListCacheByAccount;
   accounts: StoredSessionAccount[];
   onSubmit: (values: SyncModalValues, progress: SyncProgressReporter, control: SyncExecutionControl) => Promise<void>;
   onSyncDialogHidden?: (reason: "minimize" | "close") => void;
@@ -78,6 +81,18 @@ function parsePositiveIntegerInput(value: string): number | null {
 
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function formatAccountLabel(account: StoredSessionAccount): string {
+  return account.email.trim().length > 0 ? `${account.email} (${account.accountId})` : account.accountId;
+}
+
+function formatOldestCachedItem(summary: ConversationSummary | null): string {
+  if (!summary) {
+    return "Unavailable";
+  }
+
+  return `${summary.updatedAt} - ${summary.title}`;
 }
 
 interface SyncDateRangeModalOptions {
@@ -390,11 +405,8 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     const conversationLimitSettingName = isFullConversationListMode
       ? "Latest cache window override"
       : "Latest conversation limit override";
-    const conversationLimitSettingDescription = isFullConversationListMode
-      ? `Optional one-time override for refreshed latest-window cache size after full-list fetch. ` +
-        `Does not limit full-history discovery/sync. Default: ${this.options.defaultConversationListLatestLimit}.`
-      : `Optional one-time override for latest-window discovery and sync scope. ` +
-        `Default: ${this.options.defaultConversationListLatestLimit}.`;
+    const conversationLimitSettingDescription =
+      this.buildConversationLimitSettingDescription(isFullConversationListMode);
     const modeHintText = isFullConversationListMode
       ? "Mode: full-history discovery. Date-range chooser may appear when updated_at span exceeds 30 days."
       : "Mode: latest-window discovery (cache-aware). Date-range chooser is skipped in this mode.";
@@ -451,7 +463,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
           .setValue(this.syncScope)
           .onChange((value) => {
             this.syncScope = value === "single" ? "single" : "all";
-            this.renderAccountSelector();
+            this.renderSetupView();
           });
       });
 
@@ -559,7 +571,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
       .setDesc("Choose one account to sync.")
       .addDropdown((dropdown) => {
         for (const account of this.options.accounts) {
-          const label = account.email.trim().length > 0 ? `${account.email} (${account.accountId})` : account.accountId;
+          const label = formatAccountLabel(account);
           dropdown.addOption(account.accountId, label);
         }
 
@@ -573,8 +585,52 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
 
         dropdown.setValue(this.selectedAccountId).onChange((value) => {
           this.selectedAccountId = value;
+          this.renderSetupView();
         });
       });
+  }
+
+  private buildConversationLimitSettingDescription(isFullConversationListMode: boolean): DocumentFragment | string {
+    const fragment = document.createDocumentFragment();
+    const baseDescription = isFullConversationListMode
+      ? `Optional one-time override for refreshed latest-window cache size after full-list fetch. ` +
+        `Does not limit full-history discovery/sync. Default: ${this.options.defaultConversationListLatestLimit}.`
+      : `Optional one-time override for latest-window discovery and sync scope. ` +
+        `Default: ${this.options.defaultConversationListLatestLimit}.`;
+
+    fragment.append(baseDescription);
+
+    const cacheStatusLines = this.getConversationLimitCacheStatusLines();
+    for (const line of cacheStatusLines) {
+      fragment.appendChild(document.createElement("br"));
+      fragment.append(line);
+    }
+
+    return cacheStatusLines.length === 0 ? baseDescription : fragment;
+  }
+
+  private getConversationLimitCacheStatusLines(): string[] {
+    if (this.syncScope !== "single") {
+      return [];
+    }
+
+    const selectedAccount = this.options.accounts.find((account) => account.accountId === this.selectedAccountId);
+    if (!selectedAccount) {
+      return [];
+    }
+
+    const cacheEntry = this.options.conversationListCacheByAccount[selectedAccount.accountId];
+    if (!cacheEntry) {
+      return [`Cache status for ${formatAccountLabel(selectedAccount)}: empty.`];
+    }
+
+    const oldestSummary = getOldestConversationSummaryByUpdatedAt(cacheEntry.summaries);
+
+    return [
+      `Cache status for ${formatAccountLabel(selectedAccount)}: ${cacheEntry.summaries.length} conversation(s) cached.`,
+      `Oldest cached item: ${formatOldestCachedItem(oldestSummary)}`,
+      `Cached at: ${cacheEntry.cachedAt}`,
+    ];
   }
 
   private resolveConversationLimitOverride(): number | null | undefined {
