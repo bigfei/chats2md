@@ -9,6 +9,7 @@ import {
   summarizeCounts,
   type SyncRunLogger,
 } from "../main/helpers";
+import { cleanupMovedConversationFolders } from "../main/folder-cleanup";
 import { isSyncCancelledError, sleepWithAbort } from "./cancellation";
 import { indexConversationNotes, upsertConversationNote } from "../storage/note-writer";
 import {
@@ -444,6 +445,26 @@ export async function runFullSync(
               reportWarnings.push(`JSON sidecar move failed: ${warning}`);
               logWarn(
                 `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar move warning for "${summary.title}": ${warning}`,
+              );
+            }
+
+            try {
+              const removedFolders = await cleanupMovedConversationFolders(
+                context.app,
+                result.previousFilePath,
+                result.filePath,
+                values.assetStorageMode,
+              );
+              removedFolders.forEach((folderPath) =>
+                logInfo(
+                  `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Removed empty conversation folder: ${folderPath}`,
+                ),
+              );
+            } catch (error) {
+              const warning = error instanceof Error ? error.message : String(error);
+              reportWarnings.push(`Folder cleanup failed: ${warning}`);
+              logWarn(
+                `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Folder cleanup warning for "${summary.title}": ${warning}`,
               );
             }
           }

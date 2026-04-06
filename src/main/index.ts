@@ -24,6 +24,7 @@ import {
   SyncRunLogger,
 } from "./helpers";
 import { syncConversationAssetsForConversation } from "./asset-sync";
+import { cleanupMovedConversationFolders } from "./folder-cleanup";
 import { runRebuildNotesFromCachedJson } from "./rebuild";
 import {
   migrateLegacySessionIfNeeded as migrateLegacySessionIfNeededHelper,
@@ -749,6 +750,27 @@ export default class Chats2MdPlugin extends Plugin {
         } catch (error) {
           const warning = error instanceof Error ? error.message : String(error);
           this.logWarn("JSON sidecar move warning", {
+            conversationId: detail.id,
+            warning,
+          });
+        }
+
+        try {
+          const removedFolders = await cleanupMovedConversationFolders(
+            this.app,
+            result.previousFilePath,
+            result.filePath,
+            this.settings.assetStorageMode,
+          );
+          removedFolders.forEach((folderPath) => {
+            this.logInfo("Removed empty conversation folder", {
+              conversationId: detail.id,
+              folderPath,
+            });
+          });
+        } catch (error) {
+          const warning = error instanceof Error ? error.message : String(error);
+          this.logWarn("Conversation folder cleanup warning", {
             conversationId: detail.id,
             warning,
           });

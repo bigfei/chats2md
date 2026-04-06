@@ -9,6 +9,7 @@ import {
   type ConversationFrontmatterInfo,
   type SyncRunLogger,
 } from "./helpers";
+import { cleanupMovedConversationFolders } from "./folder-cleanup";
 import { indexConversationNotes, upsertConversationNote } from "../storage/note-writer";
 import type {
   ChatGptRequestConfig,
@@ -276,6 +277,22 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
             const warning = error instanceof Error ? error.message : String(error);
             warnings.push(`JSON sidecar move failed: ${warning}`);
             logWarn(`[${accountLabel}] Sidecar move warning for "${detail.title}": ${warning}`);
+          }
+
+          try {
+            const removedFolders = await cleanupMovedConversationFolders(
+              host.app as never,
+              result.previousFilePath,
+              result.filePath,
+              host.settings.assetStorageMode,
+            );
+            removedFolders.forEach((folderPath) =>
+              logInfo(`[${accountLabel}] Removed empty conversation folder after move: ${folderPath}`),
+            );
+          } catch (error) {
+            const warning = error instanceof Error ? error.message : String(error);
+            warnings.push(`Folder cleanup failed: ${warning}`);
+            logWarn(`[${accountLabel}] Folder cleanup warning for "${detail.title}": ${warning}`);
           }
         }
 

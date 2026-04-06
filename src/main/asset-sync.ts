@@ -2,6 +2,7 @@ import { App, TFile, TFolder, normalizePath } from "obsidian";
 
 import { resolveAssetFolderPaths } from "../storage/asset-storage";
 import { fetchConversationFileDownloadInfo, fetchSignedFileContent } from "../chatgpt/api";
+import { cleanupMigratedAssetSourceFolders } from "./folder-cleanup";
 import { appendExtensionIfMissing, formatAssetStorageMode, sanitizePathPart, type SyncRunLogger } from "./helpers";
 import { isSyncCancelledError } from "../sync/cancellation";
 import type {
@@ -174,6 +175,13 @@ export async function syncConversationAssetsForConversation(
   const usedNames = readFolderFileNames(host.app, assetFolderPath);
   const sourceFolderPaths = folderPaths.candidateFolderPaths.filter((path) => path !== assetFolderPath);
   await migrateConversationAssetFiles(host.app, assetFolderPath, sourceFolderPaths, usedNames, logger, logPrefix);
+  try {
+    const removedFolders = await cleanupMigratedAssetSourceFolders(host.app, sourceFolderPaths, assetFolderPath);
+    removedFolders.forEach((folderPath) => logger?.info(`${logPrefix} Removed empty asset folder: ${folderPath}`));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger?.warn(`${logPrefix} Failed to clean up empty asset folders: ${message}`);
+  }
 
   for (const [assetIndex, ref] of downloadRefs.entries()) {
     const perAssetPrefix = `${logPrefix} Asset ${assetIndex + 1}/${downloadRefs.length} (${ref.fileId})`;
