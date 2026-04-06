@@ -10,13 +10,6 @@ export interface StoredSessionAccount {
 
 export type AssetStorageMode = "global_by_conversation" | "with_conversation";
 
-export interface ConversationListCacheEntry {
-  summaries: ConversationSummary[];
-  cachedAt: string;
-}
-
-export type ConversationListCacheByAccount = Record<string, ConversationListCacheEntry>;
-
 export interface Chats2MdSettings {
   defaultFolder: string;
   conversationPathTemplate: string;
@@ -25,8 +18,6 @@ export interface Chats2MdSettings {
   syncReportFolder: string;
   debugLogging: boolean;
   saveConversationJson: boolean;
-  conversationListLatestLimit: number;
-  conversationListCacheByAccount: ConversationListCacheByAccount;
   accounts: StoredSessionAccount[];
   legacySessionJson: string;
 }
@@ -39,8 +30,6 @@ export const DEFAULT_SETTINGS: Chats2MdSettings = {
   syncReportFolder: "<syncFolder>/sync-result",
   debugLogging: false,
   saveConversationJson: false,
-  conversationListLatestLimit: 200,
-  conversationListCacheByAccount: {},
   accounts: [],
   legacySessionJson: "",
 };
@@ -103,15 +92,13 @@ export interface SyncModalValues {
   scope: "all" | "single";
   accountId?: string;
   forceRefresh: boolean;
-  fetchFullConversationList: boolean;
-  conversationLimitOverride?: number;
 }
 
 export interface ConversationSyncDateRangePromptContext {
   accountLabel: string;
   discoveredCount: number;
-  minUpdatedAt: string;
-  maxUpdatedAt: string;
+  minCreatedAt: string;
+  maxCreatedAt: string;
 }
 
 export type ConversationSyncDateRangeSelection =

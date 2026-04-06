@@ -4,9 +4,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export const ONE_MONTH_SYNC_RANGE_MS = 30 * DAY_MS;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-export interface ConversationUpdatedAtSpan {
-  minUpdatedAt: string;
-  maxUpdatedAt: string;
+export interface ConversationCreatedAtSpan {
+  minCreatedAt: string;
+  maxCreatedAt: string;
   spanMs: number;
   validCount: number;
 }
@@ -50,15 +50,15 @@ export function toIsoUtcDate(value: string): string | null {
   return new Date(parsed).toISOString().slice(0, 10);
 }
 
-export function getConversationUpdatedAtSpan(summaries: ConversationSummary[]): ConversationUpdatedAtSpan | null {
+export function getConversationCreatedAtSpan(summaries: ConversationSummary[]): ConversationCreatedAtSpan | null {
   let minTimestamp = Number.POSITIVE_INFINITY;
   let maxTimestamp = Number.NEGATIVE_INFINITY;
-  let minUpdatedAt = "";
-  let maxUpdatedAt = "";
+  let minCreatedAt = "";
+  let maxCreatedAt = "";
   let validCount = 0;
 
   for (const summary of summaries) {
-    const timestamp = parseTimestamp(summary.updatedAt);
+    const timestamp = parseTimestamp(summary.createdAt);
     if (timestamp === null) {
       continue;
     }
@@ -67,12 +67,12 @@ export function getConversationUpdatedAtSpan(summaries: ConversationSummary[]): 
 
     if (timestamp < minTimestamp) {
       minTimestamp = timestamp;
-      minUpdatedAt = summary.updatedAt;
+      minCreatedAt = summary.createdAt;
     }
 
     if (timestamp > maxTimestamp) {
       maxTimestamp = timestamp;
-      maxUpdatedAt = summary.updatedAt;
+      maxCreatedAt = summary.createdAt;
     }
   }
 
@@ -81,18 +81,18 @@ export function getConversationUpdatedAtSpan(summaries: ConversationSummary[]): 
   }
 
   return {
-    minUpdatedAt,
-    maxUpdatedAt,
+    minCreatedAt,
+    maxCreatedAt,
     spanMs: Math.max(0, maxTimestamp - minTimestamp),
     validCount,
   };
 }
 
-export function shouldPromptForDateRange(span: ConversationUpdatedAtSpan | null): boolean {
+export function shouldPromptForDateRange(span: ConversationCreatedAtSpan | null): boolean {
   return (span?.spanMs ?? 0) > ONE_MONTH_SYNC_RANGE_MS;
 }
 
-export function filterConversationSummariesByUpdatedDateRange(
+export function filterConversationSummariesByCreatedDateRange(
   summaries: ConversationSummary[],
   startDate: string,
   endDate: string,
@@ -109,44 +109,7 @@ export function filterConversationSummariesByUpdatedDateRange(
   }
 
   return summaries.filter((summary) => {
-    const timestamp = parseTimestamp(summary.updatedAt);
+    const timestamp = parseTimestamp(summary.createdAt);
     return timestamp !== null && timestamp >= startTimestamp && timestamp <= endTimestamp;
   });
-}
-
-export function filterConversationSummariesByLatestCount(
-  summaries: ConversationSummary[],
-  count: number,
-): ConversationSummary[] {
-  if (!Number.isFinite(count)) {
-    throw new Error("Latest note count must be a positive integer.");
-  }
-
-  const normalizedCount = Math.trunc(count);
-  if (normalizedCount < 1) {
-    throw new Error("Latest note count must be a positive integer.");
-  }
-
-  if (summaries.length === 0) {
-    return [];
-  }
-
-  const rankedSummaries = summaries
-    .map((summary, index) => ({
-      summary,
-      index,
-      timestamp: parseTimestamp(summary.updatedAt),
-    }))
-    .sort((left, right) => {
-      const leftRank = left.timestamp ?? Number.NEGATIVE_INFINITY;
-      const rightRank = right.timestamp ?? Number.NEGATIVE_INFINITY;
-
-      if (leftRank !== rightRank) {
-        return rightRank - leftRank;
-      }
-
-      return left.index - right.index;
-    });
-
-  return rankedSummaries.slice(0, Math.min(normalizedCount, rankedSummaries.length)).map((item) => item.summary);
 }

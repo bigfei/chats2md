@@ -2,15 +2,14 @@ import { requestUrl } from "obsidian";
 import {
   applyChatGptContentReferencesAsReferenceLinks,
   extractConversationListPageInfo,
-  getNextConversationListOffset,
   normalizeConversationTimestamp,
-  shouldFetchNextConversationListPage,
 } from "./conversation-utils";
 import {
-  getLatestWindowOldestTimestampMs,
-  mergeFetchedAndCachedConversationSummaries,
-  shouldStopLatestListFetch,
-} from "../sync/list-strategy";
+  fetchConversationSummariesWithPageFetcher,
+  type ConversationListPageInfo,
+  type FetchConversationSummariesPageProgress,
+  type FetchConversationSummariesResult,
+} from "./conversation-list-fetch";
 import { raceWithAbort, sleepWithAbort } from "../sync/cancellation";
 
 import type {
@@ -26,6 +25,7 @@ const BASE_URL = "https://chatgpt.com";
 const DEFAULT_LIST_PAGE_LIMIT = 28;
 const MAX_LIST_PAGE_LIMIT = 100;
 const MAX_LIST_PAGE_REQUESTS = 100;
+const CONVERSATION_LIST_FETCH_PARALLELISM = 3;
 const MAX_RATE_LIMIT_RETRIES = 3;
 const MIN_RATE_LIMIT_BACKOFF_MS = 5000;
 const MAX_RATE_LIMIT_BACKOFF_MS = 60000;
@@ -146,12 +146,6 @@ export function buildDefaultUserAgent(pluginVersion: string): string {
   return `${DEFAULT_FIREFOX_USER_AGENT} chats2md/${pluginVersion}`;
 }
 
-interface ConversationListPageInfo {
-  limit: number;
-  offset: number;
-  total: number | null;
-}
-
 function clampPageLimit(limit: number): number {
   if (!Number.isFinite(limit)) {
     return DEFAULT_LIST_PAGE_LIMIT;
@@ -182,7 +176,6 @@ function buildListUrl(limit: number, offset = 0): string {
   const params = new URLSearchParams({
     offset: String(Math.max(0, Math.trunc(offset))),
     limit: String(clampPageLimit(limit)),
-    order: "updated",
     is_archived: "false",
     is_starred: "false",
   });
@@ -814,138 +807,38 @@ export function parseSessionJson(raw: string, pluginVersion = "0.1.0"): ChatGptR
 }
 
 export interface FetchConversationSummariesOptions {
-  mode?: "latest" | "full";
-  limit?: number;
-  cachedSummaries?: ConversationSummary[];
   onPageFetched?: (progress: FetchConversationSummariesPageProgress) => void;
   signal?: AbortSignal;
-}
-
-export interface FetchConversationSummariesResult {
-  summaries: ConversationSummary[];
-  mode: "latest" | "full";
-  pagesFetched: number;
-  fetchedCount: number;
-}
-
-export interface FetchConversationSummariesPageProgress {
-  mode: "latest" | "full";
-  pageNumber: number;
-  offset: number;
-  pageLimit: number;
-  pageCount: number;
-  discoveredUniqueCount: number;
-  expectedTotal: number | null;
-}
-
-function normalizeLatestLimit(limit: number | undefined): number {
-  if (!Number.isFinite(limit)) {
-    return 200;
-  }
-
-  return Math.max(1, Math.trunc(limit ?? 200));
 }
 
 export async function fetchConversationSummaries(
   config: ChatGptRequestConfig,
   options: FetchConversationSummariesOptions = {},
 ): Promise<FetchConversationSummariesResult> {
-  const mode = options.mode === "full" ? "full" : "latest";
-  const latestLimit = normalizeLatestLimit(options.limit);
-  const cachedSummaries = Array.isArray(options.cachedSummaries) ? options.cachedSummaries : [];
-  const staleCutoffTimestampMs =
-    mode === "latest" ? getLatestWindowOldestTimestampMs(cachedSummaries, latestLimit) : null;
-  const listPageLimit = 99;
-  const summaries: ConversationSummary[] = [];
-  const seenConversationIds = new Set<string>();
-  let offset = 0;
-  let expectedTotal: number | null = null;
-  let stableIntervals = 0;
-  let pagesFetched = 0;
+  return fetchConversationSummariesWithPageFetcher(
+    async (offset) => {
+      const payload = await requestJson(
+        buildListUrl(99, offset),
+        config,
+        {
+          "X-OpenAI-Target-Path": "/backend-api/conversations",
+          "X-OpenAI-Target-Route": "/backend-api/conversations",
+        },
+        options.signal,
+      );
 
-  for (let page = 0; page < MAX_LIST_PAGE_REQUESTS; page += 1) {
-    const payload = await requestJson(
-      buildListUrl(listPageLimit, offset),
-      config,
-      {
-        "X-OpenAI-Target-Path": "/backend-api/conversations",
-        "X-OpenAI-Target-Route": "/backend-api/conversations",
-      },
-      options.signal,
-    );
-    pagesFetched += 1;
-    const pageInfo = readPageInfo(payload, listPageLimit);
-    const pageSummaries = extractConversationItems(payload).map(normalizeSummary);
-    const previousTotal = summaries.length;
-
-    for (const summary of pageSummaries) {
-      if (seenConversationIds.has(summary.id)) {
-        continue;
-      }
-
-      seenConversationIds.add(summary.id);
-      summaries.push(summary);
-    }
-
-    if (pageInfo.total !== null) {
-      expectedTotal = expectedTotal === null ? pageInfo.total : Math.max(expectedTotal, pageInfo.total);
-    }
-
-    options.onPageFetched?.({
-      mode,
-      pageNumber: page + 1,
-      offset,
-      pageLimit: listPageLimit,
-      pageCount: pageSummaries.length,
-      discoveredUniqueCount: summaries.length,
-      expectedTotal,
-    });
-
-    if (pageSummaries.length === 0) {
-      break;
-    }
-
-    if (!shouldFetchNextConversationListPage(pageSummaries.length, pageInfo, listPageLimit)) {
-      break;
-    }
-
-    if (expectedTotal !== null && summaries.length >= expectedTotal) {
-      break;
-    }
-
-    if (summaries.length === previousTotal) {
-      stableIntervals += 1;
-    } else {
-      stableIntervals = 0;
-    }
-
-    if (stableIntervals >= 1) {
-      break;
-    }
-
-    if (
-      mode === "latest" &&
-      shouldStopLatestListFetch({
-        fetchedSummaries: summaries,
-        limit: latestLimit,
-        staleCutoffTimestampMs,
-      })
-    ) {
-      break;
-    }
-
-    offset = getNextConversationListOffset(offset, pageInfo, listPageLimit);
-  }
-
-  const finalSummaries =
-    mode === "latest" ? mergeFetchedAndCachedConversationSummaries(summaries, cachedSummaries, latestLimit) : summaries;
-
-  return {
-    summaries: finalSummaries,
-    mode,
-    pagesFetched,
-    fetchedCount: summaries.length,
-  };
+      return {
+        pageInfo: readPageInfo(payload, 99),
+        pageSummaries: extractConversationItems(payload).map(normalizeSummary),
+      };
+    },
+    {
+      pageLimit: 99,
+      maxPageRequests: MAX_LIST_PAGE_REQUESTS,
+      parallelism: CONVERSATION_LIST_FETCH_PARALLELISM,
+      onPageFetched: options.onPageFetched,
+    },
+  );
 }
 
 export async function validateConversationListAccess(config: ChatGptRequestConfig): Promise<void> {

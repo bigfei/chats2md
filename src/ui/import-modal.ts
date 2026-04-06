@@ -1,11 +1,9 @@
 import { App, Modal, Notice, Setting } from "obsidian";
 
-import { formatAssetStorageMode, getOldestConversationSummaryByUpdatedAt } from "../main/helpers";
+import { formatAssetStorageMode } from "../main/helpers";
 import { isSyncCancelledError } from "../sync/cancellation";
 import { toIsoUtcDate } from "../sync/date-range";
 import type {
-  ConversationListCacheByAccount,
-  ConversationSummary,
   ConversationSyncDateRangePromptContext,
   ConversationSyncDateRangeSelection,
   ImportFailure,
@@ -34,8 +32,6 @@ interface SyncModalOptions {
   folder: string;
   conversationPathTemplate: string;
   assetStorageMode: SyncModalValues["assetStorageMode"];
-  defaultConversationListLatestLimit: number;
-  conversationListCacheByAccount: ConversationListCacheByAccount;
   accounts: StoredSessionAccount[];
   onSubmit: (values: SyncModalValues, progress: SyncProgressReporter, control: SyncExecutionControl) => Promise<void>;
   onSyncDialogHidden?: (reason: "minimize" | "close") => void;
@@ -76,25 +72,8 @@ function parseIsoDateInput(date: string): number | null {
   return new Date(parsed).toISOString().slice(0, 10) === date ? parsed : null;
 }
 
-function parsePositiveIntegerInput(value: string): number | null {
-  if (!/^\d+$/.test(value)) {
-    return null;
-  }
-
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
 function formatAccountLabel(account: StoredSessionAccount): string {
   return account.email.trim().length > 0 ? `${account.email} (${account.accountId})` : account.accountId;
-}
-
-function formatOldestCachedItem(summary: ConversationSummary | null): string {
-  if (!summary) {
-    return "Unavailable";
-  }
-
-  return `${summary.updatedAt} - ${summary.title}`;
 }
 
 interface SyncDateRangeModalOptions {
@@ -114,8 +93,8 @@ class SyncDateRangeModal extends Modal {
     super(app);
     this.options = options;
     const fallbackDate = new Date().toISOString().slice(0, 10);
-    const minDate = toIsoUtcDate(options.context.minUpdatedAt) ?? fallbackDate;
-    const maxDate = toIsoUtcDate(options.context.maxUpdatedAt) ?? minDate;
+    const minDate = toIsoUtcDate(options.context.minCreatedAt) ?? fallbackDate;
+    const maxDate = toIsoUtcDate(options.context.maxCreatedAt) ?? minDate;
 
     if (minDate <= maxDate) {
       this.fullStartDate = minDate;
@@ -143,16 +122,16 @@ class SyncDateRangeModal extends Modal {
     });
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
-      text: `updated_at range: ${this.fullStartDate} to ${this.fullEndDate}.`,
+      text: `created_at range: ${this.fullStartDate} to ${this.fullEndDate}.`,
     });
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
-      text: "Choose an updated_at date range, or keep the full discovered range.",
+      text: "Choose a created_at date range, or keep the full discovered range.",
     });
 
     new Setting(contentEl)
       .setName("Start date")
-      .setDesc("Inclusive lower bound, based on updated_at.")
+      .setDesc("Inclusive lower bound, based on created_at.")
       .addText((component) => {
         component.inputEl.type = "date";
         component.inputEl.min = this.fullStartDate;
@@ -165,7 +144,7 @@ class SyncDateRangeModal extends Modal {
 
     new Setting(contentEl)
       .setName("End date")
-      .setDesc("Inclusive upper bound, based on updated_at.")
+      .setDesc("Inclusive upper bound, based on created_at.")
       .addText((component) => {
         component.inputEl.type = "date";
         component.inputEl.min = this.fullStartDate;
@@ -266,8 +245,6 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
   private syncScope: "all" | "single" = "all";
   private selectedAccountId: string;
   private forceRefresh = false;
-  private fetchFullConversationList = false;
-  private conversationLimitOverride = "";
   private readonly accountSelectorContainer: HTMLDivElement;
 
   private statusEl: HTMLElement | null = null;
@@ -410,18 +387,6 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("chats2md-modal");
-    const isFullConversationListMode = this.fetchFullConversationList;
-    const fetchListModeDescription = isFullConversationListMode
-      ? "Full-history mode for this run. Fetches complete conversation list history from API."
-      : "Latest-window mode for this run. Reads per-account cache and fetches only recent list pages.";
-    const conversationLimitSettingName = isFullConversationListMode
-      ? "Latest cache window override"
-      : "Latest conversation limit override";
-    const conversationLimitSettingDescription =
-      this.buildConversationLimitSettingDescription(isFullConversationListMode);
-    const modeHintText = isFullConversationListMode
-      ? "Mode: full-history discovery. Date-range chooser may appear when updated_at span exceeds 30 days."
-      : "Mode: latest-window discovery (cache-aware). Date-range chooser is skipped in this mode.";
 
     this.setTitle("Sync ChatGPT conversations");
 
@@ -442,9 +407,6 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     });
     summaryList.createEl("li", {
       text: `Asset storage: ${formatAssetStorageMode(this.options.assetStorageMode)}`,
-    });
-    summaryList.createEl("li", {
-      text: `Default latest conversation limit: ${this.options.defaultConversationListLatestLimit}`,
     });
     summaryList.createEl("li", {
       text: `Configured accounts: ${this.options.accounts.length}`,
@@ -481,33 +443,10 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
 
     new Setting(contentEl)
       .setName("Force refresh")
-      .setDesc("Always fetch details and rewrite notes even when updated_at matches local metadata.")
+      .setDesc("Always rewrite notes after detail fetch, even when note frontmatter already matches.")
       .addToggle((toggle) => {
         toggle.setValue(this.forceRefresh).onChange((value) => {
           this.forceRefresh = value;
-        });
-      });
-
-    new Setting(contentEl)
-      .setName("Fetch full conversation list")
-      .setDesc(fetchListModeDescription)
-      .addToggle((toggle) => {
-        toggle.setValue(this.fetchFullConversationList).onChange((value) => {
-          this.fetchFullConversationList = value;
-          this.renderSetupView();
-        });
-      });
-
-    new Setting(contentEl)
-      .setName(conversationLimitSettingName)
-      .setDesc(conversationLimitSettingDescription)
-      .addText((component) => {
-        component.inputEl.type = "number";
-        component.inputEl.min = "1";
-        component.setPlaceholder(String(this.options.defaultConversationListLatestLimit));
-        component.setValue(this.conversationLimitOverride);
-        component.onChange((value) => {
-          this.conversationLimitOverride = value.trim();
         });
       });
 
@@ -517,12 +456,12 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
 
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
-      text: modeHintText,
+      text: "Mode: full conversation-list discovery. Results are ordered locally by created_at (newest first).",
     });
 
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
-      text: "Continue to sync selected ChatGPT conversations into markdown notes.",
+      text: "Conversation-list pages are fetched in parallel. Conversation detail sync runs one conversation at a time.",
     });
 
     new Setting(contentEl)
@@ -536,12 +475,6 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
               return;
             }
 
-            const conversationLimitOverride = this.resolveConversationLimitOverride();
-            if (conversationLimitOverride === null) {
-              new Notice("Latest conversation limit override must be a positive whole number.");
-              return;
-            }
-
             button.setDisabled(true);
 
             const values: SyncModalValues = {
@@ -551,8 +484,6 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
               scope: this.syncScope,
               accountId: this.syncScope === "single" ? this.selectedAccountId : undefined,
               forceRefresh: this.forceRefresh,
-              fetchFullConversationList: this.fetchFullConversationList,
-              conversationLimitOverride: conversationLimitOverride ?? undefined,
             };
 
             try {
@@ -600,57 +531,6 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
           this.renderSetupView();
         });
       });
-  }
-
-  private buildConversationLimitSettingDescription(isFullConversationListMode: boolean): DocumentFragment | string {
-    const fragment = document.createDocumentFragment();
-    const baseDescription = isFullConversationListMode
-      ? `Optional one-time override for refreshed latest-window cache size after full-list fetch. ` +
-        `Does not limit full-history discovery/sync. Default: ${this.options.defaultConversationListLatestLimit}.`
-      : `Optional one-time override for latest-window discovery and sync scope. ` +
-        `Default: ${this.options.defaultConversationListLatestLimit}.`;
-
-    fragment.append(baseDescription);
-
-    const cacheStatusLines = this.getConversationLimitCacheStatusLines();
-    for (const line of cacheStatusLines) {
-      fragment.appendChild(document.createElement("br"));
-      fragment.append(line);
-    }
-
-    return cacheStatusLines.length === 0 ? baseDescription : fragment;
-  }
-
-  private getConversationLimitCacheStatusLines(): string[] {
-    if (this.syncScope !== "single") {
-      return [];
-    }
-
-    const selectedAccount = this.options.accounts.find((account) => account.accountId === this.selectedAccountId);
-    if (!selectedAccount) {
-      return [];
-    }
-
-    const cacheEntry = this.options.conversationListCacheByAccount[selectedAccount.accountId];
-    if (!cacheEntry) {
-      return [`Cache status for ${formatAccountLabel(selectedAccount)}: empty.`];
-    }
-
-    const oldestSummary = getOldestConversationSummaryByUpdatedAt(cacheEntry.summaries);
-
-    return [
-      `Cache status for ${formatAccountLabel(selectedAccount)}: ${cacheEntry.summaries.length} conversation(s) cached.`,
-      `Oldest cached item: ${formatOldestCachedItem(oldestSummary)}`,
-      `Cached at: ${cacheEntry.cachedAt}`,
-    ];
-  }
-
-  private resolveConversationLimitOverride(): number | null | undefined {
-    if (this.conversationLimitOverride.length === 0) {
-      return undefined;
-    }
-
-    return parsePositiveIntegerInput(this.conversationLimitOverride);
   }
 
   private async startSync(values: SyncModalValues): Promise<void> {

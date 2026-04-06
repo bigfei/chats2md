@@ -1,17 +1,12 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 
 import { parseSessionJson, validateConversationListAccess } from "../chatgpt/api";
-import {
-  DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE,
-  formatAssetStorageMode,
-  getOldestConversationSummaryByUpdatedAt,
-  normalizeConversationListLatestLimit,
-} from "../main/helpers";
+import { DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE, formatAssetStorageMode } from "../main/helpers";
 import { CONVERSATION_PATH_TEMPLATE_PRESETS } from "../path/template";
 import { FolderSuggest } from "./folder-suggest";
 import type Chats2MdPlugin from "../main";
 import { SessionEditorModal } from "./session-editor-modal";
-import type { ConversationSummary, StoredSessionAccount } from "../shared/types";
+import type { StoredSessionAccount } from "../shared/types";
 
 const CUSTOM_TEMPLATE_OPTION = "__custom__";
 
@@ -19,17 +14,8 @@ function isKnownTemplatePreset(template: string): boolean {
   return CONVERSATION_PATH_TEMPLATE_PRESETS.includes(template as (typeof CONVERSATION_PATH_TEMPLATE_PRESETS)[number]);
 }
 
-interface ConversationListCacheOption {
-  accountId: string;
-  label: string;
-  cachedAt: string;
-  summaryCount: number;
-  oldestSummary: ConversationSummary | null;
-}
-
 export class Chats2MdSettingTab extends PluginSettingTab {
   private readonly plugin: Chats2MdPlugin;
-  private selectedConversationListCacheAccountId: string | null = null;
 
   constructor(app: App, plugin: Chats2MdPlugin) {
     super(app, plugin);
@@ -114,124 +100,6 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         });
       });
-
-    new Setting(containerEl)
-      .setName("Default latest conversation limit")
-      .setDesc("Default N used by latest-mode conversation-list fetch and sync scope.")
-      .addText((component) => {
-        component.inputEl.type = "number";
-        component.inputEl.min = "1";
-        component.setValue(String(this.plugin.settings.conversationListLatestLimit));
-        component.onChange(async (value) => {
-          const normalized = normalizeConversationListLatestLimit(
-            value,
-            this.plugin.settings.conversationListLatestLimit,
-          );
-          this.plugin.settings.conversationListLatestLimit = normalized;
-          await this.plugin.saveSettings();
-        });
-      });
-
-    new Setting(containerEl).setName("Conversation-list cache").setHeading();
-
-    const conversationListCacheOptions = this.getConversationListCacheOptions();
-
-    if (conversationListCacheOptions.length === 0) {
-      containerEl.createEl("p", {
-        cls: "chats2md-settings__status",
-        text: "No conversation-list cache entries stored.",
-      });
-    } else {
-      if (
-        !this.selectedConversationListCacheAccountId ||
-        !conversationListCacheOptions.some((entry) => entry.accountId === this.selectedConversationListCacheAccountId)
-      ) {
-        this.selectedConversationListCacheAccountId = conversationListCacheOptions[0]?.accountId ?? null;
-      }
-
-      const selectedConversationListCacheEntry =
-        conversationListCacheOptions.find((entry) => entry.accountId === this.selectedConversationListCacheAccountId) ??
-        conversationListCacheOptions[0];
-
-      if (selectedConversationListCacheEntry) {
-        new Setting(containerEl)
-          .setName("Clear conversation-list cache")
-          .setDesc(this.describeConversationListCacheEntry(selectedConversationListCacheEntry))
-          .addDropdown((dropdown) => {
-            for (const entry of conversationListCacheOptions) {
-              dropdown.addOption(entry.accountId, `${entry.label} (${entry.summaryCount})`);
-            }
-
-            dropdown.setValue(selectedConversationListCacheEntry.accountId).onChange((value) => {
-              this.selectedConversationListCacheAccountId = value;
-              this.display();
-            });
-          })
-          .addButton((button) => {
-            button
-              .setButtonText("Clear selected")
-              .setWarning()
-              .onClick(async () => {
-                const accountId =
-                  this.selectedConversationListCacheAccountId ?? selectedConversationListCacheEntry.accountId;
-                const target =
-                  conversationListCacheOptions.find((entry) => entry.accountId === accountId) ??
-                  selectedConversationListCacheEntry;
-                const confirmed = window.confirm(`Clear conversation-list cache for ${target.label}?`);
-
-                if (!confirmed) {
-                  return;
-                }
-
-                button.setDisabled(true);
-
-                try {
-                  const removedCount = await this.plugin.clearConversationListCache(target.accountId);
-
-                  if (removedCount > 0) {
-                    new Notice(`Cleared conversation-list cache for ${target.label}.`);
-                  } else {
-                    new Notice(`No cached conversation-list summaries found for ${target.label}.`);
-                  }
-
-                  this.selectedConversationListCacheAccountId = null;
-                  this.display();
-                } finally {
-                  button.setDisabled(false);
-                }
-              });
-          })
-          .addButton((button) => {
-            button
-              .setButtonText("Clear all")
-              .setWarning()
-              .onClick(async () => {
-                const confirmed = window.confirm("Clear conversation-list cache for all accounts?");
-
-                if (!confirmed) {
-                  return;
-                }
-
-                button.setDisabled(true);
-
-                try {
-                  const removedCount = await this.plugin.clearConversationListCache();
-
-                  if (removedCount > 0) {
-                    new Notice(`Cleared conversation-list cache for ${removedCount} account(s).`);
-                  } else {
-                    new Notice("No cached conversation-list summaries found.");
-                  }
-
-                  this.selectedConversationListCacheAccountId = null;
-                  this.display();
-                } finally {
-                  button.setDisabled(false);
-                }
-              });
-          });
-      }
-    }
 
     new Setting(containerEl).setName("Sync report").setHeading();
 
@@ -358,10 +226,6 @@ export class Chats2MdSettingTab extends PluginSettingTab {
             .setTooltip("Delete session")
             .onClick(async () => {
               const label = account.email.trim().length > 0 ? account.email : account.accountId;
-              const hadConversationListCache = Object.prototype.hasOwnProperty.call(
-                this.plugin.settings.conversationListCacheByAccount,
-                account.accountId,
-              );
               const confirmed = window.confirm(`Delete account session for ${label}?`);
 
               if (!confirmed) {
@@ -369,11 +233,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
               }
 
               await this.plugin.removeSessionAccount(account.accountId);
-              new Notice(
-                hadConversationListCache
-                  ? `Deleted account session and cleared conversation-list cache for ${label}.`
-                  : `Deleted account session for ${label}.`,
-              );
+              new Notice(`Deleted account session for ${label}.`);
               this.display();
             });
         });
@@ -398,55 +258,6 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     return fragment;
   }
-
-  private getConversationListCacheOptions(): ConversationListCacheOption[] {
-    const accounts = this.plugin.getAccounts();
-    const accountLabels = new Map(
-      accounts.map((account) => [
-        account.accountId,
-        account.email.trim().length > 0 ? account.email : account.accountId,
-      ]),
-    );
-
-    return Object.entries(this.plugin.settings.conversationListCacheByAccount)
-      .map(([accountId, entry]) => ({
-        accountId,
-        label: accountLabels.get(accountId) ?? `${accountId} (removed account)`,
-        cachedAt: entry.cachedAt,
-        summaryCount: entry.summaries.length,
-        oldestSummary: getOldestConversationSummaryByUpdatedAt(entry.summaries),
-      }))
-      .sort((left, right) => left.label.localeCompare(right.label));
-  }
-
-  private describeConversationListCacheEntry(entry: ConversationListCacheOption): DocumentFragment {
-    const fragment = document.createDocumentFragment();
-    const lines = [
-      `Selected account: ${entry.label}`,
-      `Cached conversations: ${entry.summaryCount}`,
-      `Oldest cached item: ${this.formatOldestCachedItem(entry.oldestSummary)}`,
-      `Cached at: ${entry.cachedAt}`,
-    ];
-
-    lines.forEach((line, index) => {
-      if (index > 0) {
-        fragment.appendChild(document.createElement("br"));
-      }
-
-      fragment.append(line);
-    });
-
-    return fragment;
-  }
-
-  private formatOldestCachedItem(summary: ConversationSummary | null): string {
-    if (!summary) {
-      return "Unavailable";
-    }
-
-    return `${summary.updatedAt} - ${summary.title}`;
-  }
-
   private openSessionEditor(account?: StoredSessionAccount): void {
     const initialValue = account ? (this.plugin.getSessionSecret(account.secretId) ?? "") : "";
 

@@ -3,16 +3,12 @@ import type { App } from "obsidian";
 import type {
   AssetStorageMode,
   Chats2MdSettings,
-  ConversationListCacheByAccount,
-  ConversationSummary,
   ImportProgressCounts,
   StoredSessionAccount,
 } from "../shared/types";
 import { normalizeObsidianPath } from "../path/normalization";
 
 export const DETAIL_FETCH_MAX_ATTEMPTS = 3;
-export const ACCOUNT_SYNC_BATCH_SIZE = 30;
-export const ACCOUNT_SYNC_BATCH_DELAY_MS = 30000;
 export const SECRET_ID_PREFIX = "chats2md-session";
 export const ASSET_FOLDER_NAME = "_assets";
 export const MAX_ASSET_FILENAME_LENGTH = 120;
@@ -26,7 +22,6 @@ export const CONVERSATION_USER_ID_KEY = "chatgpt_user_id";
 export const CONVERSATION_ASSET_STORAGE_MODE_KEY = "chats2md_asset_storage";
 export const FORCE_SYNC_ACTION_LABEL = "Force sync from ChatGPT";
 export const DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE = "<syncFolder>/sync-result";
-export const DEFAULT_CONVERSATION_LIST_LATEST_LIMIT = 200;
 const MIME_TO_EXTENSION: Record<string, string> = {
   "application/json": ".json",
   "application/pdf": ".pdf",
@@ -179,24 +174,6 @@ export function hasMatchingUpdatedAt(existingUpdatedAt: string | null, summaryUp
   return Math.abs(existingMs - summaryMs) <= 1000;
 }
 
-export function getOldestConversationSummaryByUpdatedAt(summaries: ConversationSummary[]): ConversationSummary | null {
-  let oldestSummary: ConversationSummary | null = null;
-  let oldestTimestamp = Number.POSITIVE_INFINITY;
-
-  for (const summary of summaries) {
-    const timestamp = normalizeTimestampToMs(summary.updatedAt);
-
-    if (timestamp === null || timestamp > oldestTimestamp) {
-      continue;
-    }
-
-    oldestTimestamp = timestamp;
-    oldestSummary = summary;
-  }
-
-  return oldestSummary;
-}
-
 export function formatActionLabel(action: string): string {
   if (!action) {
     return "Unknown";
@@ -215,93 +192,6 @@ export function formatAssetStorageMode(mode: AssetStorageMode): string {
 
 export function readString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
-}
-
-function toPositiveInteger(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value > 0 ? Math.trunc(value) : null;
-  }
-
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      return null;
-    }
-
-    return Math.trunc(parsed);
-  }
-
-  return null;
-}
-
-export function normalizeConversationListLatestLimit(
-  value: unknown,
-  fallback = DEFAULT_CONVERSATION_LIST_LATEST_LIMIT,
-): number {
-  const normalizedFallback = toPositiveInteger(fallback) ?? DEFAULT_CONVERSATION_LIST_LATEST_LIMIT;
-  return toPositiveInteger(value) ?? normalizedFallback;
-}
-
-function normalizeCachedConversationSummary(value: unknown): ConversationSummary | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-
-  const id = readString(value.id).trim();
-  if (!id) {
-    return null;
-  }
-
-  const title = readString(value.title).trim() || "Untitled Conversation";
-  const createdAt = readString(value.createdAt).trim();
-  const updatedAt = readString(value.updatedAt).trim();
-  const url = readString(value.url).trim() || `https://chatgpt.com/c/${id}`;
-
-  if (!createdAt || !updatedAt) {
-    return null;
-  }
-
-  return {
-    id,
-    title,
-    createdAt,
-    updatedAt,
-    url,
-  };
-}
-
-export function normalizeConversationListCacheByAccount(value: unknown): ConversationListCacheByAccount {
-  if (!isRecord(value)) {
-    return {};
-  }
-
-  const normalized: ConversationListCacheByAccount = {};
-
-  for (const accountId in value) {
-    if (!Object.prototype.hasOwnProperty.call(value, accountId)) {
-      continue;
-    }
-
-    const normalizedAccountId = accountId.trim();
-    const entry = value[accountId];
-    if (!normalizedAccountId || !isRecord(entry)) {
-      continue;
-    }
-
-    const summaries = Array.isArray(entry.summaries)
-      ? entry.summaries
-          .map((summary) => normalizeCachedConversationSummary(summary))
-          .filter((summary): summary is ConversationSummary => summary !== null)
-      : [];
-    const cachedAt = readString(entry.cachedAt).trim();
-
-    normalized[normalizedAccountId] = {
-      summaries,
-      cachedAt: cachedAt || new Date().toISOString(),
-    };
-  }
-
-  return normalized;
 }
 
 export function normalizeTargetFolder(folder: string): string {
@@ -391,7 +281,6 @@ export function sortAccounts(accounts: StoredSessionAccount[]): StoredSessionAcc
   });
 }
 
-export function removeAccountAndConversationListCache(settings: Chats2MdSettings, accountId: string): void {
+export function removeStoredAccount(settings: { accounts: StoredSessionAccount[] }, accountId: string): void {
   settings.accounts = settings.accounts.filter((account) => account.accountId !== accountId);
-  delete settings.conversationListCacheByAccount[accountId];
 }

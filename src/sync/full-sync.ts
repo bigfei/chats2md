@@ -3,30 +3,20 @@ import { App, Notice } from "obsidian";
 import { fetchConversationDetailWithPayload, fetchConversationSummaries } from "../chatgpt/api";
 import type { SyncExecutionControl, SyncProgressReporter } from "../ui/import-modal";
 import {
-  ACCOUNT_SYNC_BATCH_DELAY_MS,
-  ACCOUNT_SYNC_BATCH_SIZE,
   DETAIL_FETCH_MAX_ATTEMPTS,
   createEmptyCounts,
   formatActionLabel,
-  hasMatchingUpdatedAt,
-  sleep,
   summarizeCounts,
   type SyncRunLogger,
 } from "../main/helpers";
 import { isSyncCancelledError, sleepWithAbort } from "./cancellation";
+import { indexConversationNotes, upsertConversationNote } from "../storage/note-writer";
 import {
-  ensureConversationNotePath,
-  getIndexedConversationSyncMetadata,
-  indexConversationNotes,
-  upsertConversationNote,
-} from "../storage/note-writer";
-import {
-  filterConversationSummariesByUpdatedDateRange,
-  getConversationUpdatedAtSpan,
+  filterConversationSummariesByCreatedDateRange,
+  getConversationCreatedAtSpan,
+  shouldPromptForDateRange,
   toIsoUtcDate,
 } from "./date-range";
-import { trimConversationSummaries } from "./list-strategy";
-import { resolveEffectiveConversationListLimit, shouldPromptConversationRangeSelection } from "./selection";
 import type {
   AssetStorageMode,
   ChatGptRequestConfig,
@@ -49,9 +39,6 @@ export interface FullSyncContext {
   getSelectedAccounts(values: SyncModalValues): StoredSessionAccount[];
   getRequestConfig(account: StoredSessionAccount): ChatGptRequestConfig;
   getAccountLabel(account: StoredSessionAccount): string;
-  getDefaultConversationListLatestLimit(): number;
-  getConversationListCache(accountId: string): ConversationSummary[];
-  saveConversationListCache(accountId: string, summaries: ConversationSummary[]): Promise<void>;
   shouldSaveConversationJson(): boolean;
   saveConversationJsonSidecar(notePath: string, payload: unknown): Promise<string>;
   moveConversationJsonSidecar(sourceNotePath: string, targetNotePath: string): Promise<boolean>;
@@ -88,14 +75,6 @@ export async function runFullSync(
   let processedConversations = 0;
   let totalConversations = 0;
   const forceRefresh = values.forceRefresh === true;
-  const fetchFullConversationList = values.fetchFullConversationList === true;
-  const defaultConversationListLimit = resolveEffectiveConversationListLimit(
-    context.getDefaultConversationListLatestLimit(),
-  );
-  const effectiveConversationListLimit = resolveEffectiveConversationListLimit(
-    defaultConversationListLimit,
-    values.conversationLimitOverride,
-  );
   const startedAt = new Date().toISOString();
   let runStatus: SyncRunStatus = "completed";
   let selectedAccounts: StoredSessionAccount[] = [];
@@ -151,10 +130,7 @@ export async function runFullSync(
     const noteIndex = indexConversationNotes(context.app);
     logInfo(`Starting sync for ${selectedAccounts.length} account(s).`);
     logInfo(`Force refresh is ${forceRefresh ? "enabled" : "disabled"}.`);
-    logInfo(
-      `Conversation list mode: ${fetchFullConversationList ? "full-history" : "latest-window"} ` +
-        `(latest limit ${effectiveConversationListLimit}, default ${defaultConversationListLimit}).`,
-    );
+    logInfo("Conversation list mode: full discovery with local created_at ordering.");
     context.setSyncStatusBar(context.buildSyncStatusText(processedConversations, totalConversations, "starting"), true);
 
     for (const [accountIndex, account] of selectedAccounts.entries()) {
@@ -202,7 +178,6 @@ export async function runFullSync(
         continue;
       }
 
-      const cachedSummaries = context.getConversationListCache(requestConfig.accountId);
       let summaries: ConversationSummary[] = [];
       let listPagesFetched = 0;
       let listApiCount = 0;
@@ -213,9 +188,6 @@ export async function runFullSync(
         }
 
         const listFetchResult = await fetchConversationSummaries(requestConfig, {
-          mode: fetchFullConversationList ? "full" : "latest",
-          limit: effectiveConversationListLimit,
-          cachedSummaries,
           signal: control.getStopSignal(),
           onPageFetched: (progress) => {
             const totalLabel =
@@ -225,7 +197,7 @@ export async function runFullSync(
 
             logInfo(
               `[${accountLabel}] Conversation-list API call #${progress.pageNumber} ` +
-                `(mode=${progress.mode}, offset=${progress.offset}, limit=${progress.pageLimit}) ` +
+                `(offset=${progress.offset}, limit=${progress.pageLimit}) ` +
                 `returned ${progress.pageCount} item(s), discovered ${totalLabel}.`,
             );
           },
@@ -262,37 +234,22 @@ export async function runFullSync(
         continue;
       }
 
-      const refreshedCache = trimConversationSummaries(summaries, effectiveConversationListLimit);
-      try {
-        await context.saveConversationListCache(requestConfig.accountId, refreshedCache);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        logWarn(`[${accountLabel}] Failed to save conversation-list cache: ${message}`);
-      }
-
       const discoveredCount = summaries.length;
       logInfo(
         `[${accountLabel}] Found ${discoveredCount} conversation(s) ` +
-          `(list pages: ${listPagesFetched}, api items: ${listApiCount}, cache items: ${refreshedCache.length}).`,
+          `(list pages: ${listPagesFetched}, api items: ${listApiCount}).`,
       );
       if (discoveredCount === 0) {
         continue;
       }
 
-      if (!fetchFullConversationList) {
-        logInfo(
-          `[${accountLabel}] Latest-window mode syncing ${discoveredCount} conversation(s) ` +
-            `with effective limit ${effectiveConversationListLimit}.`,
-        );
-      }
-
-      const updatedAtSpan = getConversationUpdatedAtSpan(summaries);
-      const discoveredStartDate = toIsoUtcDate(updatedAtSpan?.minUpdatedAt ?? "");
-      const discoveredEndDate = toIsoUtcDate(updatedAtSpan?.maxUpdatedAt ?? "");
+      const createdAtSpan = getConversationCreatedAtSpan(summaries);
+      const discoveredStartDate = toIsoUtcDate(createdAtSpan?.minCreatedAt ?? "");
+      const discoveredEndDate = toIsoUtcDate(createdAtSpan?.maxCreatedAt ?? "");
       const discoveredRangeLabel =
         discoveredStartDate && discoveredEndDate ? `${discoveredStartDate} to ${discoveredEndDate}` : "unknown";
 
-      if (shouldPromptConversationRangeSelection(fetchFullConversationList, updatedAtSpan) && updatedAtSpan) {
+      if (shouldPromptForDateRange(createdAtSpan) && createdAtSpan) {
         if (!(await ensureCanContinue())) {
           return;
         }
@@ -300,13 +257,13 @@ export async function runFullSync(
         progressModal.setPreparing(
           `Syncing ${accountLabel} (${accountIndex + 1}/${selectedAccounts.length}): choose conversation filter...`,
         );
-        logInfo(`[${accountLabel}] updated_at span exceeds 30 days (${discoveredRangeLabel}). Waiting for selection.`);
+        logInfo(`[${accountLabel}] created_at span exceeds 30 days (${discoveredRangeLabel}). Waiting for selection.`);
 
         const selection = await progressModal.selectDateRange({
           accountLabel,
           discoveredCount,
-          minUpdatedAt: updatedAtSpan.minUpdatedAt,
-          maxUpdatedAt: updatedAtSpan.maxUpdatedAt,
+          minCreatedAt: createdAtSpan.minCreatedAt,
+          maxCreatedAt: createdAtSpan.maxCreatedAt,
         });
 
         if (!(await ensureCanContinue())) {
@@ -320,7 +277,7 @@ export async function runFullSync(
 
         if (selection.mode === "range") {
           try {
-            summaries = filterConversationSummariesByUpdatedDateRange(
+            summaries = filterConversationSummariesByCreatedDateRange(
               summaries,
               selection.startDate,
               selection.endDate,
@@ -348,12 +305,12 @@ export async function runFullSync(
           }
 
           logInfo(
-            `[${accountLabel}] Selected updated_at range ${selection.startDate} to ${selection.endDate}. ` +
+            `[${accountLabel}] Selected created_at range ${selection.startDate} to ${selection.endDate}. ` +
               `Syncing ${summaries.length}/${discoveredCount} conversation(s).`,
           );
         } else {
           logInfo(
-            `[${accountLabel}] Using full discovered updated_at range ${discoveredRangeLabel}. ` +
+            `[${accountLabel}] Using full discovered created_at range ${discoveredRangeLabel}. ` +
               `Syncing ${discoveredCount}/${discoveredCount} conversation(s).`,
           );
         }
@@ -373,8 +330,6 @@ export async function runFullSync(
         context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
         true,
       );
-      let processedForAccount = 0;
-      let detailApiCallsSinceWait = 0;
 
       for (const [conversationIndex, summary] of summaries.entries()) {
         if (!(await ensureCanContinue())) {
@@ -385,312 +340,157 @@ export async function runFullSync(
 
         progressModal.setProgress(displayTitle, conversationIndex + 1, summaries.length, conversationIndex, counts);
         logInfo(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Processing "${summary.title}".`);
+        logInfo(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Calling /conversation/${summary.id}.`);
 
-        const existingSyncMetadata = getIndexedConversationSyncMetadata(
-          context.app,
-          noteIndex,
-          requestConfig.accountId,
-          summary.id,
-        );
-
-        const localListUpdatedAt = existingSyncMetadata.listUpdatedAt ?? existingSyncMetadata.updatedAt;
-        const hasMatchingTitle = (existingSyncMetadata.title ?? "") === summary.title;
-        const hasMatchingAssetStorageMode =
-          (existingSyncMetadata.assetStorageMode ?? "global_by_conversation") === values.assetStorageMode;
-
-        if (
-          !forceRefresh &&
-          hasMatchingTitle &&
-          hasMatchingUpdatedAt(localListUpdatedAt, summary.updatedAt) &&
-          hasMatchingAssetStorageMode
-        ) {
-          try {
-            const renameResult = await ensureConversationNotePath(
-              context.app,
-              noteIndex,
-              {
-                id: summary.id,
-                title: summary.title,
-                updatedAt: summary.updatedAt,
-              },
-              values.folder,
-              {
-                accountId: requestConfig.accountId,
-                userId: requestConfig.userId,
-                userEmail: requestConfig.userEmail,
-              },
-              values.conversationPathTemplate,
-            );
-
-            counts.skipped += 1;
-            if (renameResult.moved) {
-              let moveMessage = "Moved to match current layout template.";
-              const fromPath = renameResult.previousFilePath;
-              const toPath = renameResult.filePath;
-              if (fromPath && toPath) {
-                try {
-                  const movedSidecar = await context.moveConversationJsonSidecar(fromPath, toPath);
-                  if (movedSidecar) {
-                    moveMessage = `${moveMessage} JSON sidecar moved with note.`;
-                  }
-                } catch (error) {
-                  const warning = error instanceof Error ? error.message : String(error);
-                  moveMessage = `${moveMessage} JSON sidecar move failed: ${warning}`;
-                  logWarn(
-                    `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar move warning for "${summary.title}": ${warning}`,
-                  );
-                }
-              }
-
-              counts.moved += 1;
-              movedEntries.push({
-                accountId: requestConfig.accountId,
-                accountLabel,
-                conversationId: summary.id,
-                title: summary.title,
-                conversationUrl: summary.url,
-                notePath: renameResult.filePath,
-                message: moveMessage,
-              });
-            }
-
-            logInfo(
-              `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Skipped (up-to-date)${renameResult.moved ? " + moved" : ""}: "${summary.title}".`,
-            );
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            counts.failed += 1;
-            failures.push({
-              id: `${account.accountId}/${summary.id}`,
-              title: `${accountLabel}: ${summary.title}`,
-              message,
-              attempts: 1,
-            });
-            failedEntries.push({
-              accountId: requestConfig.accountId,
-              accountLabel,
-              conversationId: summary.id,
-              title: summary.title,
-              conversationUrl: summary.url,
-              notePath: null,
-              message,
-            });
-            logError(
-              `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed while reconciling note path: "${summary.title}" - ${message}`,
-            );
+        try {
+          const detailResult = await fetchConversationDetailWithRetries(
+            requestConfig,
+            summary,
+            conversationIndex + 1,
+            summaries.length,
+            progressModal,
+            displayTitle,
+            control,
+            syncLogger,
+          );
+          if (!detailResult) {
+            runStatus = "stopped";
+            progressModal.fail("Sync stopped by user.", counts);
+            return;
           }
-        } else {
-          const mismatchReasons: string[] = [];
-          if (forceRefresh) {
-            mismatchReasons.push("force refresh enabled");
-          }
-          if (!hasMatchingTitle) {
-            mismatchReasons.push("title changed");
+          const detail = detailResult.detail;
+
+          if (!(await ensureCanContinue())) {
+            return;
           }
 
-          if (!hasMatchingUpdatedAt(localListUpdatedAt, summary.updatedAt)) {
-            mismatchReasons.push("updated_at changed");
-          }
-          if (!hasMatchingAssetStorageMode) {
-            mismatchReasons.push("asset storage changed");
-          }
-
-          logInfo(
-            `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Calling /conversation/${summary.id} for "${summary.title}" (${mismatchReasons.join(", ")}).`,
+          const assetLinks = await context.syncConversationAssets(
+            requestConfig,
+            detail,
+            values.folder,
+            values.conversationPathTemplate,
+            values.assetStorageMode,
+            syncLogger,
+            accountLabel,
+            conversationIndex + 1,
+            summaries.length,
+            control.getStopSignal(),
           );
 
-          try {
-            const detailResult = await fetchConversationDetailWithRetries(
-              requestConfig,
-              summary,
-              conversationIndex + 1,
-              summaries.length,
-              progressModal,
-              displayTitle,
-              control,
-              syncLogger,
-              () => {
-                detailApiCallsSinceWait += 1;
-              },
-            );
-            if (!detailResult) {
-              runStatus = "stopped";
-              progressModal.fail("Sync stopped by user.", counts);
-              return;
-            }
-            const detail = detailResult.detail;
-
-            if (!(await ensureCanContinue())) {
-              return;
-            }
-
-            const assetLinks = await context.syncConversationAssets(
-              requestConfig,
-              detail,
-              values.folder,
-              values.conversationPathTemplate,
-              values.assetStorageMode,
-              syncLogger,
-              accountLabel,
-              conversationIndex + 1,
-              summaries.length,
-              control.getStopSignal(),
-            );
-
-            const result = await upsertConversationNote(
-              context.app,
-              noteIndex,
-              detail,
-              values.folder,
-              {
-                accountId: requestConfig.accountId,
-                userId: requestConfig.userId,
-                userEmail: requestConfig.userEmail,
-              },
-              context.manifestVersion,
-              values.conversationPathTemplate,
-              values.assetStorageMode,
-              summary.updatedAt,
-              assetLinks,
-              forceRefresh,
-            );
-
-            counts[result.action] += 1;
-            const reportEntry: SyncReportConversationEntry = {
+          const result = await upsertConversationNote(
+            context.app,
+            noteIndex,
+            detail,
+            values.folder,
+            {
               accountId: requestConfig.accountId,
-              accountLabel,
-              conversationId: detail.id,
-              title: detail.title,
-              conversationUrl: detail.url,
-              notePath: result.filePath,
-            };
-            const reportWarnings: string[] = [];
+              userId: requestConfig.userId,
+              userEmail: requestConfig.userEmail,
+            },
+            context.manifestVersion,
+            values.conversationPathTemplate,
+            values.assetStorageMode,
+            summary.updatedAt,
+            assetLinks,
+            forceRefresh,
+          );
 
-            if (result.moved && result.previousFilePath) {
-              try {
-                const movedSidecar = await context.moveConversationJsonSidecar(
-                  result.previousFilePath,
-                  result.filePath,
-                );
-                if (movedSidecar) {
-                  reportWarnings.push("JSON sidecar moved with note.");
-                }
-              } catch (error) {
-                const warning = error instanceof Error ? error.message : String(error);
-                reportWarnings.push(`JSON sidecar move failed: ${warning}`);
-                logWarn(
-                  `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar move warning for "${summary.title}": ${warning}`,
-                );
+          counts[result.action] += 1;
+          const reportEntry: SyncReportConversationEntry = {
+            accountId: requestConfig.accountId,
+            accountLabel,
+            conversationId: detail.id,
+            title: detail.title,
+            conversationUrl: detail.url,
+            notePath: result.filePath,
+          };
+          const reportWarnings: string[] = [];
+
+          if (result.moved && result.previousFilePath) {
+            try {
+              const movedSidecar = await context.moveConversationJsonSidecar(result.previousFilePath, result.filePath);
+              if (movedSidecar) {
+                reportWarnings.push("JSON sidecar moved with note.");
               }
+            } catch (error) {
+              const warning = error instanceof Error ? error.message : String(error);
+              reportWarnings.push(`JSON sidecar move failed: ${warning}`);
+              logWarn(
+                `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar move warning for "${summary.title}": ${warning}`,
+              );
             }
-
-            if (context.shouldSaveConversationJson()) {
-              try {
-                await context.saveConversationJsonSidecar(result.filePath, detailResult.rawPayload);
-              } catch (error) {
-                const warning = error instanceof Error ? error.message : String(error);
-                reportWarnings.push(`JSON sidecar save failed: ${warning}`);
-                logWarn(
-                  `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar save warning for "${summary.title}": ${warning}`,
-                );
-              }
-            }
-
-            if (reportWarnings.length > 0) {
-              reportEntry.message = reportWarnings.join(" ");
-            }
-
-            if (result.action === "created") {
-              createdEntries.push(reportEntry);
-            } else if (result.action === "updated") {
-              updatedEntries.push(reportEntry);
-            }
-
-            if (result.moved) {
-              counts.moved += 1;
-              const moveMessage = reportEntry.message
-                ? `Moved to match current layout template. ${reportEntry.message}`
-                : "Moved to match current layout template.";
-              movedEntries.push({
-                ...reportEntry,
-                message: moveMessage,
-              });
-            }
-            logInfo(
-              `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) ${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}: "${summary.title}".`,
-            );
-          } catch (error) {
-            if (isSyncCancelledError(error) || control.shouldStop()) {
-              runStatus = "stopped";
-              progressModal.fail("Sync stopped by user.", counts);
-              logInfo(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Stopped by user.`);
-              return;
-            }
-
-            const message = error instanceof Error ? error.message : String(error);
-            counts.failed += 1;
-            failures.push({
-              id: `${account.accountId}/${summary.id}`,
-              title: `${accountLabel}: ${summary.title}`,
-              message,
-              attempts: DETAIL_FETCH_MAX_ATTEMPTS,
-            });
-            failedEntries.push({
-              accountId: requestConfig.accountId,
-              accountLabel,
-              conversationId: summary.id,
-              title: summary.title,
-              conversationUrl: summary.url,
-              notePath: null,
-              message,
-            });
-            logError(
-              `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed: "${summary.title}" - ${message}`,
-            );
           }
+
+          if (context.shouldSaveConversationJson()) {
+            try {
+              await context.saveConversationJsonSidecar(result.filePath, detailResult.rawPayload);
+            } catch (error) {
+              const warning = error instanceof Error ? error.message : String(error);
+              reportWarnings.push(`JSON sidecar save failed: ${warning}`);
+              logWarn(
+                `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar save warning for "${summary.title}": ${warning}`,
+              );
+            }
+          }
+
+          if (reportWarnings.length > 0) {
+            reportEntry.message = reportWarnings.join(" ");
+          }
+
+          if (result.action === "created") {
+            createdEntries.push(reportEntry);
+          } else if (result.action === "updated") {
+            updatedEntries.push(reportEntry);
+          }
+
+          if (result.moved) {
+            counts.moved += 1;
+            const moveMessage = reportEntry.message
+              ? `Moved to match current layout template. ${reportEntry.message}`
+              : "Moved to match current layout template.";
+            movedEntries.push({
+              ...reportEntry,
+              message: moveMessage,
+            });
+          }
+          logInfo(
+            `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) ${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}: "${summary.title}".`,
+          );
+        } catch (error) {
+          if (isSyncCancelledError(error) || control.shouldStop()) {
+            runStatus = "stopped";
+            progressModal.fail("Sync stopped by user.", counts);
+            logInfo(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Stopped by user.`);
+            return;
+          }
+
+          const message = error instanceof Error ? error.message : String(error);
+          counts.failed += 1;
+          failures.push({
+            id: `${account.accountId}/${summary.id}`,
+            title: `${accountLabel}: ${summary.title}`,
+            message,
+            attempts: DETAIL_FETCH_MAX_ATTEMPTS,
+          });
+          failedEntries.push({
+            accountId: requestConfig.accountId,
+            accountLabel,
+            conversationId: summary.id,
+            title: summary.title,
+            conversationUrl: summary.url,
+            notePath: null,
+            message,
+          });
+          logError(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed: "${summary.title}" - ${message}`);
         }
 
         processedConversations += 1;
-        processedForAccount += 1;
 
         progressModal.setProgress(displayTitle, conversationIndex + 1, summaries.length, conversationIndex + 1, counts);
         context.setSyncStatusBar(
           context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
           true,
         );
-
-        const hasRemainingInAccount = processedForAccount < summaries.length;
-        while (hasRemainingInAccount && detailApiCallsSinceWait >= ACCOUNT_SYNC_BATCH_SIZE) {
-          logInfo(
-            `[${accountLabel}] Called /conversation/{id} ${ACCOUNT_SYNC_BATCH_SIZE} times. Waiting 30s before next batch.`,
-          );
-          context.setSyncStatusBar(
-            context.buildSyncStatusText(
-              processedConversations,
-              totalConversations,
-              `waiting 30s before next ${accountLabel} batch`,
-            ),
-            true,
-          );
-
-          let remainingDelayMs = ACCOUNT_SYNC_BATCH_DELAY_MS;
-          while (remainingDelayMs > 0) {
-            if (!(await ensureCanContinue())) {
-              return;
-            }
-
-            const stepDelay = Math.min(1000, remainingDelayMs);
-            await sleep(stepDelay);
-            remainingDelayMs -= stepDelay;
-          }
-
-          context.setSyncStatusBar(
-            context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
-            true,
-          );
-
-          detailApiCallsSinceWait -= ACCOUNT_SYNC_BATCH_SIZE;
-        }
       }
     }
 

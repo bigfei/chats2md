@@ -33,8 +33,6 @@ export function openSyncModal(host: any): void {
     folder: host.settings.defaultFolder,
     conversationPathTemplate: host.settings.conversationPathTemplate,
     assetStorageMode: host.settings.assetStorageMode,
-    defaultConversationListLatestLimit: host.settings.conversationListLatestLimit,
-    conversationListCacheByAccount: host.settings.conversationListCacheByAccount,
     accounts,
     onSubmit: async (values, progress, control): Promise<void> => handleSync(host, values, progress, control, modal),
     onSyncDialogHidden: (reason) => {
@@ -75,9 +73,6 @@ export async function handleSync(
         getSelectedAccounts: (syncValues) => host.getSelectedAccounts(syncValues),
         getRequestConfig: (account) => host.getRequestConfig(account),
         getAccountLabel: (account) => host.getAccountLabel(account),
-        getDefaultConversationListLatestLimit: () => host.settings.conversationListLatestLimit,
-        getConversationListCache: (accountId) => host.getConversationListCache(accountId),
-        saveConversationListCache: (accountId, summaries) => host.saveConversationListCache(accountId, summaries),
         shouldSaveConversationJson: () => host.settings.saveConversationJson,
         saveConversationJsonSidecar: (notePath, payload) => host.saveConversationJsonSidecar(notePath, payload),
         moveConversationJsonSidecar: (sourceNotePath, targetNotePath) =>

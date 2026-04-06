@@ -13,11 +13,8 @@ import {
   CONVERSATION_TITLE_KEY,
   CONVERSATION_UPDATED_AT_KEY,
   CONVERSATION_USER_ID_KEY,
-  DEFAULT_CONVERSATION_LIST_LATEST_LIMIT,
   formatActionLabel,
   normalizeAssetStorageMode,
-  normalizeConversationListCacheByAccount,
-  normalizeConversationListLatestLimit,
   type ConversationFrontmatterInfo,
   type LegacySettingsPayload,
   normalizeStoredAccount,
@@ -52,7 +49,6 @@ import {
   type Chats2MdSettings,
   type ConversationAssetLinkMap,
   type ConversationDetail,
-  type ConversationSummary,
   type SyncRunReport,
   type StoredSessionAccount,
   type SyncModalValues,
@@ -192,11 +188,6 @@ export default class Chats2MdPlugin extends Plugin {
         DEFAULT_SETTINGS.syncReportFolder,
       debugLogging: saved?.debugLogging === true,
       saveConversationJson: saved?.saveConversationJson === true,
-      conversationListLatestLimit: normalizeConversationListLatestLimit(
-        saved?.conversationListLatestLimit,
-        DEFAULT_CONVERSATION_LIST_LATEST_LIMIT,
-      ),
-      conversationListCacheByAccount: normalizeConversationListCacheByAccount(saved?.conversationListCacheByAccount),
       accounts: sortAccounts(savedAccounts),
       legacySessionJson,
     };
@@ -210,30 +201,6 @@ export default class Chats2MdPlugin extends Plugin {
 
   getAccounts(): StoredSessionAccount[] {
     return sortAccounts(this.settings.accounts);
-  }
-
-  async clearConversationListCache(accountId?: string): Promise<number> {
-    const normalizedAccountId = accountId?.trim() ?? "";
-
-    if (normalizedAccountId.length > 0) {
-      if (!Object.prototype.hasOwnProperty.call(this.settings.conversationListCacheByAccount, normalizedAccountId)) {
-        return 0;
-      }
-
-      delete this.settings.conversationListCacheByAccount[normalizedAccountId];
-      await this.saveSettings();
-      return 1;
-    }
-
-    const removedCount = Object.keys(this.settings.conversationListCacheByAccount).length;
-
-    if (removedCount === 0) {
-      return 0;
-    }
-
-    this.settings.conversationListCacheByAccount = {};
-    await this.saveSettings();
-    return removedCount;
   }
 
   getLegacySessionMigrationWarning(): string | null {
@@ -597,23 +564,6 @@ export default class Chats2MdPlugin extends Plugin {
 
   private getAccountLabel(account: StoredSessionAccount): string {
     return account.email.trim().length > 0 ? account.email : account.accountId;
-  }
-
-  private getConversationListCache(accountId: string): ConversationSummary[] {
-    const entry = this.settings.conversationListCacheByAccount[accountId];
-    if (!entry) {
-      return [];
-    }
-
-    return [...entry.summaries];
-  }
-
-  private async saveConversationListCache(accountId: string, summaries: ConversationSummary[]): Promise<void> {
-    this.settings.conversationListCacheByAccount[accountId] = {
-      summaries: [...summaries],
-      cachedAt: new Date().toISOString(),
-    };
-    await this.saveSettings();
   }
 
   private readFrontmatterString(file: TFile, key: string): string {
