@@ -11,6 +11,7 @@ import {
   mergeFetchedAndCachedConversationSummaries,
   shouldStopLatestListFetch,
 } from "../sync/list-strategy";
+import { raceWithAbort, sleepWithAbort } from "../sync/cancellation";
 
 import type {
   ChatGptRequestConfig,
@@ -227,10 +228,6 @@ function buildHeaders(config: ChatGptRequestConfig, extraHeaders: Record<string,
   return headers;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
 function readHeader(headers: unknown, targetName: string): string | null {
   const headerRecord = toRecord(headers);
 
@@ -288,13 +285,17 @@ async function requestJson(
   url: string,
   config: ChatGptRequestConfig,
   extraHeaders: Record<string, string>,
+  signal?: AbortSignal,
 ): Promise<unknown> {
   for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
-    const response = await requestUrl({
-      url,
-      method: "GET",
-      headers: buildHeaders(config, extraHeaders),
-    });
+    const response = await raceWithAbort(
+      requestUrl({
+        url,
+        method: "GET",
+        headers: buildHeaders(config, extraHeaders),
+      }),
+      signal,
+    );
 
     if (response.status < 400) {
       return response.json;
@@ -303,7 +304,7 @@ async function requestJson(
     if (response.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
       const retryAfterMs = parseRetryAfterMs(readHeader(response.headers, "retry-after"));
       const backoffMs = computeRateLimitDelayMs(attempt, retryAfterMs);
-      await sleep(backoffMs);
+      await sleepWithAbort(backoffMs, signal);
       continue;
     }
 
@@ -323,6 +324,7 @@ async function requestArrayBuffer(
   config: ChatGptRequestConfig,
   extraHeaders: Record<string, string>,
   options: { includeSessionHeaders?: boolean } = {},
+  signal?: AbortSignal,
 ): Promise<DownloadedFileContent> {
   const headers =
     options.includeSessionHeaders === false
@@ -331,11 +333,14 @@ async function requestArrayBuffer(
           "User-Agent": config.userAgent,
         }
       : buildHeaders(config, extraHeaders);
-  const response = await requestUrl({
-    url,
-    method: "GET",
-    headers,
-  });
+  const response = await raceWithAbort(
+    requestUrl({
+      url,
+      method: "GET",
+      headers,
+    }),
+    signal,
+  );
 
   if (response.status >= 400) {
     const bodyText =
@@ -813,6 +818,7 @@ export interface FetchConversationSummariesOptions {
   limit?: number;
   cachedSummaries?: ConversationSummary[];
   onPageFetched?: (progress: FetchConversationSummariesPageProgress) => void;
+  signal?: AbortSignal;
 }
 
 export interface FetchConversationSummariesResult {
@@ -858,10 +864,15 @@ export async function fetchConversationSummaries(
   let pagesFetched = 0;
 
   for (let page = 0; page < MAX_LIST_PAGE_REQUESTS; page += 1) {
-    const payload = await requestJson(buildListUrl(listPageLimit, offset), config, {
-      "X-OpenAI-Target-Path": "/backend-api/conversations",
-      "X-OpenAI-Target-Route": "/backend-api/conversations",
-    });
+    const payload = await requestJson(
+      buildListUrl(listPageLimit, offset),
+      config,
+      {
+        "X-OpenAI-Target-Path": "/backend-api/conversations",
+        "X-OpenAI-Target-Route": "/backend-api/conversations",
+      },
+      options.signal,
+    );
     pagesFetched += 1;
     const pageInfo = readPageInfo(payload, listPageLimit);
     const pageSummaries = extractConversationItems(payload).map(normalizeSummary);
@@ -949,8 +960,9 @@ export async function fetchConversationDetail(
   config: ChatGptRequestConfig,
   conversationId: string,
   fallback?: Pick<ConversationSummary, "title" | "createdAt" | "updatedAt">,
+  signal?: AbortSignal,
 ): Promise<ConversationDetail> {
-  const result = await fetchConversationDetailWithPayload(config, conversationId, fallback);
+  const result = await fetchConversationDetailWithPayload(config, conversationId, fallback, signal);
   return result.detail;
 }
 
@@ -958,13 +970,19 @@ export async function fetchConversationDetailWithPayload(
   config: ChatGptRequestConfig,
   conversationId: string,
   fallback?: Pick<ConversationSummary, "title" | "createdAt" | "updatedAt">,
+  signal?: AbortSignal,
 ): Promise<ConversationDetailFetchResult> {
   const targetPath = `/backend-api/conversation/${conversationId}`;
-  const payload = await requestJson(buildDetailUrl(conversationId), config, {
-    Referer: `${BASE_URL}/c/${conversationId}`,
-    "X-OpenAI-Target-Path": targetPath,
-    "X-OpenAI-Target-Route": "/backend-api/conversation/{conversation_id}",
-  });
+  const payload = await requestJson(
+    buildDetailUrl(conversationId),
+    config,
+    {
+      Referer: `${BASE_URL}/c/${conversationId}`,
+      "X-OpenAI-Target-Path": targetPath,
+      "X-OpenAI-Target-Route": "/backend-api/conversation/{conversation_id}",
+    },
+    signal,
+  );
 
   return {
     detail: normalizeConversationDetail(payload, conversationId, fallback),
@@ -994,12 +1012,18 @@ function normalizeFileDownloadInfo(payload: unknown, fileId: string): FileDownlo
 export async function fetchConversationFileDownloadInfo(
   config: ChatGptRequestConfig,
   fileId: string,
+  signal?: AbortSignal,
 ): Promise<FileDownloadInfo> {
   const targetPath = `/backend-api/files/download/${fileId}`;
-  const payload = await requestJson(buildFileDownloadUrl(fileId), config, {
-    "X-OpenAI-Target-Path": targetPath,
-    "X-OpenAI-Target-Route": "/backend-api/files/download/{file_id}",
-  });
+  const payload = await requestJson(
+    buildFileDownloadUrl(fileId),
+    config,
+    {
+      "X-OpenAI-Target-Path": targetPath,
+      "X-OpenAI-Target-Route": "/backend-api/files/download/{file_id}",
+    },
+    signal,
+  );
 
   return normalizeFileDownloadInfo(payload, fileId);
 }
@@ -1007,6 +1031,7 @@ export async function fetchConversationFileDownloadInfo(
 export async function fetchSignedFileContent(
   config: ChatGptRequestConfig,
   url: string,
+  signal?: AbortSignal,
 ): Promise<DownloadedFileContent> {
   const includeSessionHeaders = shouldIncludeSessionHeadersForBinaryDownload(url);
   return requestArrayBuffer(
@@ -1018,5 +1043,6 @@ export async function fetchSignedFileContent(
     {
       includeSessionHeaders,
     },
+    signal,
   );
 }

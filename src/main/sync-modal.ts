@@ -92,6 +92,7 @@ export async function handleSync(
           accountLabel,
           conversationIndex,
           totalConversations,
+          stopSignal,
         ) =>
           host.syncConversationAssets(
             requestConfig,
@@ -103,6 +104,7 @@ export async function handleSync(
             accountLabel,
             conversationIndex,
             totalConversations,
+            stopSignal,
           ),
         writeSyncReport: (report) => host.writeSyncReport(report),
         buildSyncStatusText: (processed, total, phase) => host.buildSyncStatusText(processed, total, phase),

@@ -13,6 +13,7 @@ import {
   summarizeCounts,
   type SyncRunLogger,
 } from "../main/helpers";
+import { isSyncCancelledError, sleepWithAbort } from "./cancellation";
 import {
   ensureConversationNotePath,
   getIndexedConversationSyncMetadata,
@@ -64,6 +65,7 @@ export interface FullSyncContext {
     accountLabel: string,
     conversationIndex: number,
     totalConversations: number,
+    stopSignal?: AbortSignal,
   ): Promise<ConversationAssetLinkMap>;
   writeSyncReport(report: SyncRunReport): Promise<string | null>;
   buildSyncStatusText(processed: number, total: number, phase: string): string;
@@ -214,6 +216,7 @@ export async function runFullSync(
           mode: fetchFullConversationList ? "full" : "latest",
           limit: effectiveConversationListLimit,
           cachedSummaries,
+          signal: control.getStopSignal(),
           onPageFetched: (progress) => {
             const totalLabel =
               progress.expectedTotal !== null
@@ -231,6 +234,13 @@ export async function runFullSync(
         listPagesFetched = listFetchResult.pagesFetched;
         listApiCount = listFetchResult.fetchedCount;
       } catch (error) {
+        if (isSyncCancelledError(error) || control.shouldStop()) {
+          runStatus = "stopped";
+          progressModal.fail("Sync stopped by user.", counts);
+          logInfo(`[${accountLabel}] Conversation-list fetch canceled by user.`);
+          return;
+        }
+
         const message = error instanceof Error ? error.message : String(error);
         counts.failed += 1;
         failures.push({
@@ -524,6 +534,7 @@ export async function runFullSync(
               accountLabel,
               conversationIndex + 1,
               summaries.length,
+              control.getStopSignal(),
             );
 
             const result = await upsertConversationNote(
@@ -609,6 +620,13 @@ export async function runFullSync(
               `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) ${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}: "${summary.title}".`,
             );
           } catch (error) {
+            if (isSyncCancelledError(error) || control.shouldStop()) {
+              runStatus = "stopped";
+              progressModal.fail("Sync stopped by user.", counts);
+              logInfo(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Stopped by user.`);
+              return;
+            }
+
             const message = error instanceof Error ? error.message : String(error);
             counts.failed += 1;
             failures.push({
@@ -685,13 +703,21 @@ export async function runFullSync(
     );
     context.clearSyncStatusBar(8000);
   } catch (error) {
-    runStatus = "failed";
-    const message = error instanceof Error ? error.message : String(error);
-    progressModal.fail(message, counts);
-    logError(`Sync failed: ${message}`);
-    new Notice(message);
-    context.setSyncStatusBar(`ChatGPT sync failed: ${message}`, false);
-    context.clearSyncStatusBar(10000);
+    if (isSyncCancelledError(error) || control.shouldStop()) {
+      runStatus = "stopped";
+      progressModal.fail("Sync stopped by user.", counts);
+      logInfo("Sync stopped by user.");
+      context.setSyncStatusBar("ChatGPT sync stopped.", false);
+      context.clearSyncStatusBar(3000);
+    } else {
+      runStatus = "failed";
+      const message = error instanceof Error ? error.message : String(error);
+      progressModal.fail(message, counts);
+      logError(`Sync failed: ${message}`);
+      new Notice(message);
+      context.setSyncStatusBar(`ChatGPT sync failed: ${message}`, false);
+      context.clearSyncStatusBar(10000);
+    }
   } finally {
     const finishedAt = new Date().toISOString();
     try {
@@ -753,11 +779,11 @@ async function fetchConversationDetailWithRetries(
       }
 
       onRequest?.();
-      return await fetchConversationDetailWithPayload(requestConfig, summary.id, summary);
+      return await fetchConversationDetailWithPayload(requestConfig, summary.id, summary, control.getStopSignal());
     } catch (error) {
       lastError = error;
 
-      if (control.shouldStop()) {
+      if (control.shouldStop() || isSyncCancelledError(error)) {
         return null;
       }
 
@@ -768,7 +794,7 @@ async function fetchConversationDetailWithRetries(
       const message = error instanceof Error ? error.message : String(error);
       logger?.warn(`${displayTitle} detail fetch retry ${attempt + 1}/${DETAIL_FETCH_MAX_ATTEMPTS}: ${message}`);
       progressModal.setRetry(displayTitle, index, total, attempt + 1, message);
-      await sleep(attempt * 750);
+      await sleepWithAbort(attempt * 750, control.getStopSignal());
     }
   }
 

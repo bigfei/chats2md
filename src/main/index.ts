@@ -507,6 +507,7 @@ export default class Chats2MdPlugin extends Plugin {
         accountLabel,
         conversationIndex,
         totalConversations,
+        stopSignal,
       ) =>
         this.syncConversationAssets(
           requestConfig,
@@ -518,6 +519,7 @@ export default class Chats2MdPlugin extends Plugin {
           accountLabel,
           conversationIndex,
           totalConversations,
+          stopSignal,
         ),
       moveConversationJsonSidecar: (sourceNotePath, targetNotePath) =>
         this.moveConversationJsonSidecar(sourceNotePath, targetNotePath),
@@ -539,6 +541,7 @@ export default class Chats2MdPlugin extends Plugin {
     accountLabel: string,
     conversationIndex: number,
     totalConversations: number,
+    stopSignal?: AbortSignal,
   ): Promise<ConversationAssetLinkMap> {
     return syncConversationAssetsForConversation(
       {
@@ -555,6 +558,7 @@ export default class Chats2MdPlugin extends Plugin {
         accountLabel,
         conversationIndex,
         totalConversations,
+        stopSignal,
       },
     );
   }

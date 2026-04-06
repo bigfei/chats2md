@@ -1,6 +1,7 @@
 import { App, Modal, Notice, Setting } from "obsidian";
 
 import { formatAssetStorageMode, getOldestConversationSummaryByUpdatedAt } from "../main/helpers";
+import { isSyncCancelledError } from "../sync/cancellation";
 import { toIsoUtcDate } from "../sync/date-range";
 import type {
   ConversationListCacheByAccount,
@@ -26,6 +27,7 @@ export interface SyncProgressReporter {
 export interface SyncExecutionControl {
   waitIfPaused(): Promise<void>;
   shouldStop(): boolean;
+  getStopSignal(): AbortSignal;
 }
 
 interface SyncModalOptions {
@@ -283,6 +285,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
   private stopRequested = false;
   private closeReason: "minimize" | "close" = "close";
   private pauseWaiters: Array<() => void> = [];
+  private stopController: AbortController | null = null;
 
   constructor(app: App, options: SyncModalOptions) {
     super(app);
@@ -304,6 +307,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     if (this.isSyncing) {
       if (this.closeReason === "close") {
         this.stopRequested = true;
+        this.stopController?.abort("Sync stopped by user.");
       }
 
       this.options.onSyncDialogHidden?.(this.closeReason);
@@ -335,7 +339,15 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
   }
 
   shouldStop(): boolean {
-    return this.stopRequested;
+    return this.stopRequested || this.stopController?.signal.aborted === true;
+  }
+
+  getStopSignal(): AbortSignal {
+    if (!this.stopController) {
+      this.stopController = new AbortController();
+    }
+
+    return this.stopController.signal;
   }
 
   setPreparing(message: string): void {
@@ -645,6 +657,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     this.isSyncing = true;
     this.isPaused = false;
     this.stopRequested = false;
+    this.stopController = new AbortController();
     this.latestCounts = createEmptyCounts();
     this.detailLines = [];
     this.progressValue = 0;
@@ -656,6 +669,11 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     try {
       await this.options.onSubmit(values, this, this);
     } catch (error) {
+      if (isSyncCancelledError(error) || this.shouldStop()) {
+        this.fail("Sync stopped by user.", this.latestCounts);
+        return;
+      }
+
       const message = error instanceof Error ? error.message : String(error);
       this.fail(message, this.latestCounts);
       new Notice(message);
@@ -746,6 +764,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     this.isSyncing = false;
     this.isPaused = false;
     this.stopRequested = false;
+    this.stopController = null;
     this.updatePauseButton();
     this.releasePauseWaiters();
   }

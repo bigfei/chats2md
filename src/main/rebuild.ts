@@ -55,6 +55,7 @@ export interface MainRebuildHost {
     accountLabel: string,
     conversationIndex: number,
     totalConversations: number,
+    stopSignal?: AbortSignal,
   ): Promise<ConversationAssetLinkMap>;
   moveConversationJsonSidecar(sourceNotePath: string, targetNotePath: string): Promise<boolean>;
   writeSyncReport(report: SyncRunReport): Promise<string | null>;

@@ -3,6 +3,7 @@ import { App, TFile, TFolder, normalizePath } from "obsidian";
 import { resolveAssetFolderPaths } from "../storage/asset-storage";
 import { fetchConversationFileDownloadInfo, fetchSignedFileContent } from "../chatgpt/api";
 import { appendExtensionIfMissing, formatAssetStorageMode, sanitizePathPart, type SyncRunLogger } from "./helpers";
+import { isSyncCancelledError } from "../sync/cancellation";
 import type {
   AssetStorageMode,
   ChatGptRequestConfig,
@@ -26,6 +27,7 @@ export interface SyncConversationAssetsParams {
   accountLabel: string;
   conversationIndex: number;
   totalConversations: number;
+  stopSignal?: AbortSignal;
 }
 
 function readFolderFileNames(app: App, folderPath: string): Set<string> {
@@ -137,6 +139,7 @@ export async function syncConversationAssetsForConversation(
     accountLabel,
     conversationIndex,
     totalConversations,
+    stopSignal,
   } = params;
   const linkMap: ConversationAssetLinkMap = {};
   const downloadRefs = collectConversationDownloadRefs(conversation.fileReferences);
@@ -176,7 +179,7 @@ export async function syncConversationAssetsForConversation(
 
     try {
       logger?.info(`${perAssetPrefix} Resolving download metadata.`);
-      const info = await fetchConversationFileDownloadInfo(requestConfig, ref.fileId);
+      const info = await fetchConversationFileDownloadInfo(requestConfig, ref.fileId, stopSignal);
       logger?.info(`${perAssetPrefix} Metadata resolved (file_name=${info.fileName || "<empty>"}).`);
       const rawName = sanitizePathPart(info.fileName || ref.logicalName);
       const withExtension = appendExtensionIfMissing(rawName, null);
@@ -217,7 +220,7 @@ export async function syncConversationAssetsForConversation(
       }
 
       logger?.info(`${perAssetPrefix} Downloading signed asset URL.`);
-      const fileContent = await fetchSignedFileContent(requestConfig, info.downloadUrl);
+      const fileContent = await fetchSignedFileContent(requestConfig, info.downloadUrl, stopSignal);
       const fileNameWithType = appendExtensionIfMissing(preferredFileName, fileContent.contentType);
       const finalFileName = nextAvailableFileName(fileNameWithType, usedNames);
       const finalPath = normalizePath(`${assetFolderPath}/${finalFileName}`);
@@ -239,6 +242,10 @@ export async function syncConversationAssetsForConversation(
       };
       logger?.info(`${perAssetPrefix} Saved asset: ${created.path}`);
     } catch (error) {
+      if (isSyncCancelledError(error)) {
+        throw error;
+      }
+
       const message = error instanceof Error ? error.message : String(error);
       logger?.warn(`${perAssetPrefix} Failed to download asset: ${message}`);
     }
