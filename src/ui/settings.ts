@@ -18,8 +18,16 @@ function isKnownTemplatePreset(template: string): boolean {
   return CONVERSATION_PATH_TEMPLATE_PRESETS.includes(template as (typeof CONVERSATION_PATH_TEMPLATE_PRESETS)[number]);
 }
 
+interface ConversationListCacheOption {
+  accountId: string;
+  label: string;
+  cachedAt: string;
+  summaryCount: number;
+}
+
 export class Chats2MdSettingTab extends PluginSettingTab {
   private readonly plugin: Chats2MdPlugin;
+  private selectedConversationListCacheAccountId: string | null = null;
 
   constructor(app: App, plugin: Chats2MdPlugin) {
     super(app, plugin);
@@ -121,6 +129,107 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         });
       });
+
+    new Setting(containerEl).setName("Conversation-list cache").setHeading();
+
+    const conversationListCacheOptions = this.getConversationListCacheOptions();
+
+    if (conversationListCacheOptions.length === 0) {
+      containerEl.createEl("p", {
+        cls: "chats2md-settings__status",
+        text: "No conversation-list cache entries stored.",
+      });
+    } else {
+      if (
+        !this.selectedConversationListCacheAccountId ||
+        !conversationListCacheOptions.some((entry) => entry.accountId === this.selectedConversationListCacheAccountId)
+      ) {
+        this.selectedConversationListCacheAccountId = conversationListCacheOptions[0]?.accountId ?? null;
+      }
+
+      const selectedConversationListCacheEntry =
+        conversationListCacheOptions.find((entry) => entry.accountId === this.selectedConversationListCacheAccountId) ??
+        conversationListCacheOptions[0];
+
+      if (selectedConversationListCacheEntry) {
+        new Setting(containerEl)
+          .setName("Clear conversation-list cache")
+          .setDesc(this.describeConversationListCacheEntry(selectedConversationListCacheEntry))
+          .addDropdown((dropdown) => {
+            for (const entry of conversationListCacheOptions) {
+              dropdown.addOption(entry.accountId, `${entry.label} (${entry.summaryCount})`);
+            }
+
+            dropdown.setValue(selectedConversationListCacheEntry.accountId).onChange((value) => {
+              this.selectedConversationListCacheAccountId = value;
+              this.display();
+            });
+          })
+          .addButton((button) => {
+            button
+              .setButtonText("Clear selected")
+              .setWarning()
+              .onClick(async () => {
+                const accountId =
+                  this.selectedConversationListCacheAccountId ?? selectedConversationListCacheEntry.accountId;
+                const target =
+                  conversationListCacheOptions.find((entry) => entry.accountId === accountId) ??
+                  selectedConversationListCacheEntry;
+                const confirmed = window.confirm(`Clear conversation-list cache for ${target.label}?`);
+
+                if (!confirmed) {
+                  return;
+                }
+
+                button.setDisabled(true);
+
+                try {
+                  const removedCount = await this.plugin.clearConversationListCache(target.accountId);
+
+                  if (removedCount > 0) {
+                    new Notice(`Cleared conversation-list cache for ${target.label}.`);
+                  } else {
+                    new Notice(`No cached conversation-list summaries found for ${target.label}.`);
+                  }
+
+                  this.selectedConversationListCacheAccountId = null;
+                  this.display();
+                } finally {
+                  button.setDisabled(false);
+                }
+              });
+          })
+          .addButton((button) => {
+            button
+              .setButtonText("Clear all")
+              .setWarning()
+              .onClick(async () => {
+                const confirmed = window.confirm("Clear conversation-list cache for all accounts?");
+
+                if (!confirmed) {
+                  return;
+                }
+
+                button.setDisabled(true);
+
+                try {
+                  const removedCount = await this.plugin.clearConversationListCache();
+
+                  if (removedCount > 0) {
+                    new Notice(`Cleared conversation-list cache for ${removedCount} account(s).`);
+                  } else {
+                    new Notice("No cached conversation-list summaries found.");
+                  }
+
+                  this.selectedConversationListCacheAccountId = null;
+                  this.display();
+                } finally {
+                  button.setDisabled(false);
+                }
+              });
+          });
+      }
+    }
 
     new Setting(containerEl).setName("Sync report").setHeading();
 
@@ -247,6 +356,10 @@ export class Chats2MdSettingTab extends PluginSettingTab {
             .setTooltip("Delete session")
             .onClick(async () => {
               const label = account.email.trim().length > 0 ? account.email : account.accountId;
+              const hadConversationListCache = Object.prototype.hasOwnProperty.call(
+                this.plugin.settings.conversationListCacheByAccount,
+                account.accountId,
+              );
               const confirmed = window.confirm(`Delete account session for ${label}?`);
 
               if (!confirmed) {
@@ -254,7 +367,11 @@ export class Chats2MdSettingTab extends PluginSettingTab {
               }
 
               await this.plugin.removeSessionAccount(account.accountId);
-              new Notice(`Deleted account session for ${label}.`);
+              new Notice(
+                hadConversationListCache
+                  ? `Deleted account session and cleared conversation-list cache for ${label}.`
+                  : `Deleted account session for ${label}.`,
+              );
               this.display();
             });
         });
@@ -267,6 +384,44 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       `User ID: ${account.userId || "Unavailable"}`,
       `Account ID: ${account.accountId}`,
       `Expires: ${account.expiresAt || "Unavailable"}`,
+    ];
+
+    lines.forEach((line, index) => {
+      if (index > 0) {
+        fragment.appendChild(document.createElement("br"));
+      }
+
+      fragment.append(line);
+    });
+
+    return fragment;
+  }
+
+  private getConversationListCacheOptions(): ConversationListCacheOption[] {
+    const accounts = this.plugin.getAccounts();
+    const accountLabels = new Map(
+      accounts.map((account) => [
+        account.accountId,
+        account.email.trim().length > 0 ? account.email : account.accountId,
+      ]),
+    );
+
+    return Object.entries(this.plugin.settings.conversationListCacheByAccount)
+      .map(([accountId, entry]) => ({
+        accountId,
+        label: accountLabels.get(accountId) ?? `${accountId} (removed account)`,
+        cachedAt: entry.cachedAt,
+        summaryCount: entry.summaries.length,
+      }))
+      .sort((left, right) => left.label.localeCompare(right.label));
+  }
+
+  private describeConversationListCacheEntry(entry: ConversationListCacheOption): DocumentFragment {
+    const fragment = document.createDocumentFragment();
+    const lines = [
+      `Selected account: ${entry.label}`,
+      `Cached conversations: ${entry.summaryCount}`,
+      `Cached at: ${entry.cachedAt}`,
     ];
 
     lines.forEach((line, index) => {

@@ -372,3 +372,8 @@ export function sortAccounts(accounts: StoredSessionAccount[]): StoredSessionAcc
     return left.accountId.localeCompare(right.accountId);
   });
 }
+
+export function removeAccountAndConversationListCache(settings: Chats2MdSettings, accountId: string): void {
+  settings.accounts = settings.accounts.filter((account) => account.accountId !== accountId);
+  delete settings.conversationListCacheByAccount[accountId];
+}

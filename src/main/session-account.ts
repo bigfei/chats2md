@@ -1,7 +1,7 @@
 import { Notice } from "obsidian";
 
 import { parseSessionJson } from "../chatgpt/api";
-import { SECRET_ID_PREFIX, sortAccounts } from "./helpers";
+import { SECRET_ID_PREFIX, removeAccountAndConversationListCache, sortAccounts } from "./helpers";
 import type { ChatGptRequestConfig, Chats2MdSettings, StoredSessionAccount } from "../shared/types";
 
 export interface MainSessionAccountHost {
@@ -79,7 +79,7 @@ export async function upsertSessionAccount(
 }
 
 export async function removeSessionAccount(host: MainSessionAccountHost, accountId: string): Promise<void> {
-  host.settings.accounts = host.settings.accounts.filter((account) => account.accountId !== accountId);
+  removeAccountAndConversationListCache(host.settings, accountId);
   await host.saveSettings();
 }
 

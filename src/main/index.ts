@@ -212,6 +212,30 @@ export default class Chats2MdPlugin extends Plugin {
     return sortAccounts(this.settings.accounts);
   }
 
+  async clearConversationListCache(accountId?: string): Promise<number> {
+    const normalizedAccountId = accountId?.trim() ?? "";
+
+    if (normalizedAccountId.length > 0) {
+      if (!Object.prototype.hasOwnProperty.call(this.settings.conversationListCacheByAccount, normalizedAccountId)) {
+        return 0;
+      }
+
+      delete this.settings.conversationListCacheByAccount[normalizedAccountId];
+      await this.saveSettings();
+      return 1;
+    }
+
+    const removedCount = Object.keys(this.settings.conversationListCacheByAccount).length;
+
+    if (removedCount === 0) {
+      return 0;
+    }
+
+    this.settings.conversationListCacheByAccount = {};
+    await this.saveSettings();
+    return removedCount;
+  }
+
   getLegacySessionMigrationWarning(): string | null {
     return this.legacySessionMigrationWarning;
   }
