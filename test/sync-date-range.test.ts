@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   ONE_MONTH_SYNC_RANGE_MS,
   filterConversationSummariesByCreatedDateRange,
+  filterConversationSummariesByLatestCreatedCount,
   getConversationCreatedAtSpan,
   shouldPromptForDateRange,
 } from "../src/sync/date-range.ts";
@@ -77,4 +78,37 @@ test("invalid created_at values are ignored by span and range filtering", () => 
     filtered.map((summary) => summary.id),
     ["early"],
   );
+});
+
+test("filterConversationSummariesByLatestCreatedCount returns newest created conversations first", () => {
+  const summaries = [
+    createSummary("third", "2026-03-03T00:00:00.000Z"),
+    createSummary("invalid", "not-a-date"),
+    createSummary("latest", "2026-03-05T12:00:00.000Z"),
+    createSummary("second", "2026-03-04T00:00:00.000Z"),
+  ];
+
+  const filtered = filterConversationSummariesByLatestCreatedCount(summaries, 2);
+  assert.deepEqual(
+    filtered.map((summary) => summary.id),
+    ["latest", "second"],
+  );
+});
+
+test("filterConversationSummariesByLatestCreatedCount clamps to all conversations", () => {
+  const summaries = [
+    createSummary("one", "2026-03-01T00:00:00.000Z"),
+    createSummary("two", "2026-03-02T00:00:00.000Z"),
+  ];
+
+  const filtered = filterConversationSummariesByLatestCreatedCount(summaries, 99);
+  assert.deepEqual(
+    filtered.map((summary) => summary.id),
+    ["two", "one"],
+  );
+});
+
+test("filterConversationSummariesByLatestCreatedCount rejects invalid count", () => {
+  const summaries = [createSummary("one", "2026-03-01T00:00:00.000Z")];
+  assert.throws(() => filterConversationSummariesByLatestCreatedCount(summaries, 0), /positive integer/);
 });

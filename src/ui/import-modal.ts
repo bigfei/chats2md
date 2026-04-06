@@ -72,6 +72,15 @@ function parseIsoDateInput(date: string): number | null {
   return new Date(parsed).toISOString().slice(0, 10) === date ? parsed : null;
 }
 
+function parsePositiveIntegerInput(value: string): number | null {
+  if (!/^\d+$/.test(value)) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
 function formatAccountLabel(account: StoredSessionAccount): string {
   return account.email.trim().length > 0 ? `${account.email} (${account.accountId})` : account.accountId;
 }
@@ -85,8 +94,10 @@ class SyncDateRangeModal extends Modal {
   private readonly options: SyncDateRangeModalOptions;
   private readonly fullStartDate: string;
   private readonly fullEndDate: string;
+  private filterMode: "all" | "range" | "latest-count" = "all";
   private startDate: string;
   private endDate: string;
+  private latestCount: string;
   private resolved = false;
 
   constructor(app: App, options: SyncDateRangeModalOptions) {
@@ -106,6 +117,7 @@ class SyncDateRangeModal extends Modal {
 
     this.startDate = this.fullStartDate;
     this.endDate = this.fullEndDate;
+    this.latestCount = String(options.context.discoveredCount);
   }
 
   onOpen(): void {
@@ -126,8 +138,23 @@ class SyncDateRangeModal extends Modal {
     });
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
-      text: "Choose a created_at date range, or keep the full discovered range.",
+      text: "Choose the full range, a created_at date range, or the latest N by created_at.",
     });
+
+    new Setting(contentEl)
+      .setName("Subset mode")
+      .setDesc("Choose which part of the discovered list to sync.")
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption("all", "Full discovered range")
+          .addOption("range", "Created_at date range")
+          .addOption("latest-count", "Latest N by created_at")
+          .setValue(this.filterMode)
+          .onChange((value) => {
+            this.filterMode =
+              value === "range" || value === "latest-count" ? value : "all";
+          });
+      });
 
     new Setting(contentEl)
       .setName("Start date")
@@ -139,6 +166,18 @@ class SyncDateRangeModal extends Modal {
         component.setValue(this.startDate);
         component.onChange((value) => {
           this.startDate = value.trim();
+        });
+      });
+
+    new Setting(contentEl)
+      .setName("Latest conversation count")
+      .setDesc("Sync only the newest N conversations by created_at.")
+      .addText((component) => {
+        component.inputEl.type = "number";
+        component.inputEl.min = "1";
+        component.setValue(this.latestCount);
+        component.onChange((value) => {
+          this.latestCount = value.trim();
         });
       });
 
@@ -180,6 +219,30 @@ class SyncDateRangeModal extends Modal {
   }
 
   private submit(): void {
+    if (this.filterMode === "all") {
+      this.resolve({ mode: "all" });
+      return;
+    }
+
+    if (this.filterMode === "latest-count") {
+      const count = parsePositiveIntegerInput(this.latestCount);
+      if (count === null) {
+        new Notice("Latest conversation count must be a positive whole number.");
+        return;
+      }
+
+      if (count >= this.options.context.discoveredCount) {
+        this.resolve({ mode: "all" });
+        return;
+      }
+
+      this.resolve({
+        mode: "latest-count",
+        count,
+      });
+      return;
+    }
+
     const normalizedStartDate = this.startDate;
     const normalizedEndDate = this.endDate;
     const startMs = parseIsoDateInput(normalizedStartDate);

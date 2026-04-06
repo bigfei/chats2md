@@ -103,6 +103,7 @@ export interface ConversationSyncDateRangePromptContext {
 export type ConversationSyncDateRangeSelection =
   | { mode: "all" }
   | { mode: "range"; startDate: string; endDate: string }
+  | { mode: "latest-count"; count: number }
   | { mode: "skip-account" };
 
 export type UpsertAction = "created" | "updated" | "skipped";

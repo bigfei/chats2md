@@ -1,4 +1,5 @@
 import type { ConversationSummary } from "../shared/types";
+import { sortConversationSummariesByCreatedAtDesc } from "../chatgpt/conversation-list-fetch";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const ONE_MONTH_SYNC_RANGE_MS = 30 * DAY_MS;
@@ -112,4 +113,20 @@ export function filterConversationSummariesByCreatedDateRange(
     const timestamp = parseTimestamp(summary.createdAt);
     return timestamp !== null && timestamp >= startTimestamp && timestamp <= endTimestamp;
   });
+}
+
+export function filterConversationSummariesByLatestCreatedCount(
+  summaries: ConversationSummary[],
+  count: number,
+): ConversationSummary[] {
+  if (!Number.isFinite(count)) {
+    throw new Error("Latest conversation count must be a positive integer.");
+  }
+
+  const normalizedCount = Math.trunc(count);
+  if (normalizedCount < 1) {
+    throw new Error("Latest conversation count must be a positive integer.");
+  }
+
+  return sortConversationSummariesByCreatedAtDesc(summaries).slice(0, normalizedCount);
 }

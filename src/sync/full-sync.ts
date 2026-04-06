@@ -13,6 +13,7 @@ import { isSyncCancelledError, sleepWithAbort } from "./cancellation";
 import { indexConversationNotes, upsertConversationNote } from "../storage/note-writer";
 import {
   filterConversationSummariesByCreatedDateRange,
+  filterConversationSummariesByLatestCreatedCount,
   getConversationCreatedAtSpan,
   shouldPromptForDateRange,
   toIsoUtcDate,
@@ -304,6 +305,35 @@ export async function runFullSync(
 
           logInfo(
             `[${accountLabel}] Selected created_at range ${selection.startDate} to ${selection.endDate}. ` +
+              `Syncing ${summaries.length}/${discoveredCount} conversation(s).`,
+          );
+        } else if (selection.mode === "latest-count") {
+          try {
+            summaries = filterConversationSummariesByLatestCreatedCount(summaries, selection.count);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            counts.failed += 1;
+            failures.push({
+              id: account.accountId,
+              title: `${accountLabel} latest count`,
+              message,
+              attempts: 1,
+            });
+            failedEntries.push({
+              accountId: requestConfig.accountId,
+              accountLabel,
+              conversationId: account.accountId,
+              title: `${accountLabel} latest count`,
+              conversationUrl: null,
+              notePath: null,
+              message,
+            });
+            logError(`[${accountLabel}] Invalid latest count selection: ${message}`);
+            continue;
+          }
+
+          logInfo(
+            `[${accountLabel}] Selected latest ${selection.count} conversation(s) by created_at. ` +
               `Syncing ${summaries.length}/${discoveredCount} conversation(s).`,
           );
         } else {
