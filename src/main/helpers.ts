@@ -259,8 +259,13 @@ export function normalizeConversationListCacheByAccount(value: unknown): Convers
 
   const normalized: ConversationListCacheByAccount = {};
 
-  for (const [accountId, entry] of Object.entries(value)) {
+  for (const accountId in value) {
+    if (!Object.prototype.hasOwnProperty.call(value, accountId)) {
+      continue;
+    }
+
     const normalizedAccountId = accountId.trim();
+    const entry = value[accountId];
     if (!normalizedAccountId || !isRecord(entry)) {
       continue;
     }

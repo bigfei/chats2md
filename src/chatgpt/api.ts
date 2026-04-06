@@ -105,7 +105,12 @@ function parseCustomHeaders(value: unknown): Record<string, string> {
 
   const headers: Record<string, string> = {};
 
-  for (const [key, headerValue] of Object.entries(record)) {
+  for (const key in record) {
+    if (!Object.prototype.hasOwnProperty.call(record, key)) {
+      continue;
+    }
+
+    const headerValue = record[key];
     if (typeof headerValue !== "string" || headerValue.trim().length === 0) {
       continue;
     }
@@ -233,7 +238,12 @@ function readHeader(headers: unknown, targetName: string): string | null {
     return null;
   }
 
-  for (const [name, value] of Object.entries(headerRecord)) {
+  for (const name in headerRecord) {
+    if (!Object.prototype.hasOwnProperty.call(headerRecord, name)) {
+      continue;
+    }
+
+    const value = headerRecord[name];
     if (name.toLowerCase() !== targetName.toLowerCase()) {
       continue;
     }
