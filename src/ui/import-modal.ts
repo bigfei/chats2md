@@ -383,6 +383,21 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("chats2md-modal");
+    const isFullConversationListMode = this.fetchFullConversationList;
+    const fetchListModeDescription = isFullConversationListMode
+      ? "Full-history mode for this run. Fetches complete conversation list history from API."
+      : "Latest-window mode for this run. Reads per-account cache and fetches only recent list pages.";
+    const conversationLimitSettingName = isFullConversationListMode
+      ? "Latest cache window override"
+      : "Latest conversation limit override";
+    const conversationLimitSettingDescription = isFullConversationListMode
+      ? `Optional one-time override for refreshed latest-window cache size after full-list fetch. ` +
+        `Does not limit full-history discovery/sync. Default: ${this.options.defaultConversationListLatestLimit}.`
+      : `Optional one-time override for latest-window discovery and sync scope. ` +
+        `Default: ${this.options.defaultConversationListLatestLimit}.`;
+    const modeHintText = isFullConversationListMode
+      ? "Mode: full-history discovery. Date-range chooser may appear when updated_at span exceeds 30 days."
+      : "Mode: latest-window discovery (cache-aware). Date-range chooser is skipped in this mode.";
 
     this.setTitle("Sync ChatGPT conversations");
 
@@ -451,16 +466,17 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
 
     new Setting(contentEl)
       .setName("Fetch full conversation list")
-      .setDesc("Ignore latest-N list optimization for this run and discover full conversation history.")
+      .setDesc(fetchListModeDescription)
       .addToggle((toggle) => {
         toggle.setValue(this.fetchFullConversationList).onChange((value) => {
           this.fetchFullConversationList = value;
+          this.renderSetupView();
         });
       });
 
     new Setting(contentEl)
-      .setName("Latest conversation limit override")
-      .setDesc(`Optional one-time override for this run. Default: ${this.options.defaultConversationListLatestLimit}.`)
+      .setName(conversationLimitSettingName)
+      .setDesc(conversationLimitSettingDescription)
       .addText((component) => {
         component.inputEl.type = "number";
         component.inputEl.min = "1";
@@ -474,6 +490,11 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     this.accountSelectorContainer.remove();
     contentEl.appendChild(this.accountSelectorContainer);
     this.renderAccountSelector();
+
+    contentEl.createEl("p", {
+      cls: "chats2md-modal__hint",
+      text: modeHintText,
+    });
 
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
