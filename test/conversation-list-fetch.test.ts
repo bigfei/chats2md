@@ -80,7 +80,7 @@ test("fetchConversationSummariesWithPageFetcher continues until pagination ends 
     {
       pageLimit: 2,
       maxPageRequests: 10,
-      parallelism: 3,
+      parallelism: 1,
     },
   );
 
@@ -90,6 +90,63 @@ test("fetchConversationSummariesWithPageFetcher continues until pagination ends 
     result.summaries.map((summary) => summary.id),
     ["e", "d", "c", "b", "a"],
   );
+});
+
+test("fetchConversationSummariesWithPageFetcher does not stop at the first page total", async () => {
+  const pages = new Map<number, { pageInfo: ConversationListPageInfo; pageSummaries: ConversationSummary[] }>([
+    [
+      0,
+      {
+        pageInfo: createPageInfo(0, 100, 100),
+        pageSummaries: Array.from({ length: 100 }, (_value, index) =>
+          createSummary(`conv-${index}`, `2026-03-${String((index % 28) + 1).padStart(2, "0")}T00:00:00.000Z`),
+        ),
+      },
+    ],
+    [
+      100,
+      {
+        pageInfo: createPageInfo(100, 100, 199),
+        pageSummaries: Array.from({ length: 100 }, (_value, index) =>
+          createSummary(`conv-${100 + index}`, `2026-04-${String((index % 28) + 1).padStart(2, "0")}T00:00:00.000Z`),
+        ),
+      },
+    ],
+    [
+      200,
+      {
+        pageInfo: createPageInfo(200, 100, 250),
+        pageSummaries: [
+          createSummary("conv-200", "2026-05-01T00:00:00.000Z"),
+          createSummary("conv-201", "2026-05-02T00:00:00.000Z"),
+        ],
+      },
+    ],
+  ]);
+
+  const requestedOffsets: number[] = [];
+  const result = await fetchConversationSummariesWithPageFetcher(
+    async (offset) => {
+      requestedOffsets.push(offset);
+      const page = pages.get(offset);
+      return (
+        page ?? {
+          pageInfo: createPageInfo(offset, 100, 250),
+          pageSummaries: [],
+        }
+      );
+    },
+    {
+      pageLimit: 100,
+      maxPageRequests: 10,
+      parallelism: 3,
+    },
+  );
+
+  assert.deepEqual(requestedOffsets, [0, 100, 200, 300]);
+  assert.equal(result.pagesFetched, 4);
+  assert.equal(result.fetchedCount, 202);
+  assert.equal(result.summaries[0]?.id, "conv-201");
 });
 
 test("fetchConversationSummariesWithPageFetcher limits conversation-list concurrency to three", async () => {
@@ -104,12 +161,17 @@ test("fetchConversationSummariesWithPageFetcher limits conversation-list concurr
       await new Promise((resolve) => setTimeout(resolve, waitMs));
       inFlight -= 1;
 
+      const pageSummaries =
+        offset >= 6
+          ? [createSummary(`conv-${offset}-a`, `2026-03-${String(10 + offset).padStart(2, "0")}T00:00:00.000Z`)]
+          : [
+              createSummary(`conv-${offset}-a`, `2026-03-${String(10 + offset).padStart(2, "0")}T00:00:00.000Z`),
+              createSummary(`conv-${offset}-b`, `2026-03-${String(11 + offset).padStart(2, "0")}T00:00:00.000Z`),
+            ];
+
       return {
         pageInfo: createPageInfo(offset, 2, 8),
-        pageSummaries: [
-          createSummary(`conv-${offset}-a`, `2026-03-${String(10 + offset).padStart(2, "0")}T00:00:00.000Z`),
-          createSummary(`conv-${offset}-b`, `2026-03-${String(11 + offset).padStart(2, "0")}T00:00:00.000Z`),
-        ],
+        pageSummaries,
       };
     },
     {

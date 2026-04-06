@@ -26,6 +26,7 @@ const DEFAULT_LIST_PAGE_LIMIT = 28;
 const MAX_LIST_PAGE_LIMIT = 100;
 const MAX_LIST_PAGE_REQUESTS = 100;
 const CONVERSATION_LIST_FETCH_PARALLELISM = 3;
+const CONVERSATION_LIST_PAGE_LIMIT = 100;
 const MAX_RATE_LIMIT_RETRIES = 3;
 const MIN_RATE_LIMIT_BACKOFF_MS = 5000;
 const MAX_RATE_LIMIT_BACKOFF_MS = 60000;
@@ -818,7 +819,7 @@ export async function fetchConversationSummaries(
   return fetchConversationSummariesWithPageFetcher(
     async (offset) => {
       const payload = await requestJson(
-        buildListUrl(99, offset),
+        buildListUrl(CONVERSATION_LIST_PAGE_LIMIT, offset),
         config,
         {
           "X-OpenAI-Target-Path": "/backend-api/conversations",
@@ -828,12 +829,12 @@ export async function fetchConversationSummaries(
       );
 
       return {
-        pageInfo: readPageInfo(payload, 99),
+        pageInfo: readPageInfo(payload, CONVERSATION_LIST_PAGE_LIMIT),
         pageSummaries: extractConversationItems(payload).map(normalizeSummary),
       };
     },
     {
-      pageLimit: 99,
+      pageLimit: CONVERSATION_LIST_PAGE_LIMIT,
       maxPageRequests: MAX_LIST_PAGE_REQUESTS,
       parallelism: CONVERSATION_LIST_FETCH_PARALLELISM,
       onPageFetched: options.onPageFetched,

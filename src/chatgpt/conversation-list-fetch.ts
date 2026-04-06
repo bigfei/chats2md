@@ -171,44 +171,54 @@ export async function fetchConversationSummariesWithPageFetcher(
     };
   }
 
-  const nextOffset = getNextConversationListOffset(0, firstPage.pageInfo, options.pageLimit);
+  let nextOffset = getNextConversationListOffset(0, firstPage.pageInfo, options.pageLimit);
+  let requestsRemaining = options.maxPageRequests - 1;
 
-  if (expectedTotal !== null) {
-    const remainingOffsets: number[] = [];
+  while (requestsRemaining > 0) {
+    const batchSize = Math.min(options.parallelism, requestsRemaining);
+    const batchOffsets = Array.from({ length: batchSize }, (_value, index) => nextOffset + index * options.pageLimit);
+    const batchResults = new Map<number, Omit<ConversationListPageFetchResult, "offset">>();
 
-    for (
-      let offset = nextOffset;
-      offset < expectedTotal && remainingOffsets.length < options.maxPageRequests - 1;
-      offset += options.pageLimit
-    ) {
-      remainingOffsets.push(offset);
-    }
-
-    await runParallelOffsets(remainingOffsets, options.parallelism, async (offset) => {
+    await runParallelOffsets(batchOffsets, options.parallelism, async (offset) => {
       const page = await fetchPage(offset);
-      recordPage(offset, page.pageInfo, page.pageSummaries);
+      batchResults.set(offset, page);
     });
-  } else {
-    let offset = nextOffset;
 
-    for (let pageIndex = 1; pageIndex < options.maxPageRequests; pageIndex += 1) {
-      const page = await fetchPage(offset);
+    requestsRemaining -= batchOffsets.length;
+
+    let shouldContinue = true;
+    let nextBatchOffset: number | null = null;
+
+    for (const offset of [...batchOffsets].sort((left, right) => left - right)) {
+      const page = batchResults.get(offset);
+      if (!page) {
+        continue;
+      }
+
       recordPage(offset, page.pageInfo, page.pageSummaries);
+
+      if (!shouldContinue) {
+        continue;
+      }
 
       if (page.pageSummaries.length === 0) {
-        break;
+        shouldContinue = false;
+        continue;
       }
 
       if (!shouldFetchNextConversationListPage(page.pageSummaries.length, page.pageInfo, options.pageLimit)) {
-        break;
+        shouldContinue = false;
+        continue;
       }
 
-      if (expectedTotal !== null && discoveredIds.size >= expectedTotal) {
-        break;
-      }
-
-      offset = getNextConversationListOffset(offset, page.pageInfo, options.pageLimit);
+      nextBatchOffset = getNextConversationListOffset(offset, page.pageInfo, options.pageLimit);
     }
+
+    if (!shouldContinue || nextBatchOffset === null) {
+      break;
+    }
+
+    nextOffset = nextBatchOffset;
   }
 
   const summaries = finalizeFetchedConversationSummaries(pages);
