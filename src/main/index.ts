@@ -91,9 +91,17 @@ export default class Chats2MdPlugin extends Plugin {
 
     this.addCommand({
       id: "import-chatgpt-conversations",
-      name: "Sync ChatGPT conversations",
+      name: "All count sync",
       callback: () => {
         this.openSyncModal();
+      },
+    });
+
+    this.addCommand({
+      id: "rebuild-chatgpt-notes-from-json",
+      name: "Rebuild from JSON",
+      callback: () => {
+        void this.rebuildNotesFromCachedJson();
       },
     });
 
