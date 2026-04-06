@@ -56,7 +56,8 @@ Session JSON payloads are stored in Obsidian Secret Storage, and each account en
 accounts or one account, and the plugin will fetch the latest conversation
 window (configurable default limit, with optional per-run override) and
 upsert notes under a configurable path template (default `{date}/{slug}` with
-presets like `{email}/{account_id}/{date}/{slug}`). Each full sync run also writes
+presets like `{email}/{account_id}/{date}/{slug}`, where `{date}` uses the
+conversation created date). Each full sync run also writes
 a markdown report when enabled in settings. The default report folder is
 `<syncFolder>/sync-result/` (supports `<syncFolder>` placeholder for custom
 locations). Asset storage can be configured

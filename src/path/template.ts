@@ -6,6 +6,7 @@ const SUPPORTED_PLACEHOLDERS = new Set(["date", "slug", "email", "account_id", "
 
 export interface ConversationPathTemplateContext {
   title: string;
+  createdAt: string;
   updatedAt: string;
   conversationId: string;
   email: string;
@@ -20,7 +21,7 @@ function normalizeTemplate(template: string): string {
 function readPlaceholderValue(name: string, context: ConversationPathTemplateContext): string {
   switch (name) {
     case "date":
-      return getDateBucketFromTimestamp(context.updatedAt);
+      return getDateBucketFromTimestamp(context.createdAt);
     case "slug":
       return slugifyConversationTitle(context.title);
     case "email":

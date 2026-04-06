@@ -155,6 +155,7 @@ export async function syncConversationAssetsForConversation(
     conversation: {
       id: conversation.id,
       title: conversation.title,
+      createdAt: conversation.createdAt,
       updatedAt: conversation.updatedAt,
     },
     account: {

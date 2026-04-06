@@ -209,11 +209,12 @@ function normalizeTargetFolder(folder: string): string {
 function buildConversationDesiredPath(
   folder: string,
   conversationPathTemplate: string,
-  conversation: { id: string; title: string; updatedAt: string },
+  conversation: { id: string; title: string; createdAt: string; updatedAt: string },
   account: { accountId: string; userId: string; userEmail: string },
 ): string {
   const relativePath = resolveConversationNoteRelativePath(conversationPathTemplate, {
     title: conversation.title,
+    createdAt: conversation.createdAt,
     updatedAt: conversation.updatedAt,
     conversationId: conversation.id,
     email: account.userEmail,
@@ -311,7 +312,7 @@ export function indexConversationNotes(app: App): Map<string, TFile> {
 export async function ensureConversationNotePath(
   app: App,
   noteIndex: Map<string, TFile>,
-  conversation: { id: string; title: string; updatedAt: string },
+  conversation: { id: string; title: string; createdAt: string; updatedAt: string },
   folder: string,
   account: { accountId: string; userId: string; userEmail: string },
   conversationPathTemplate: string,

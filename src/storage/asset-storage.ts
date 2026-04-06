@@ -10,6 +10,7 @@ export interface AssetFolderPathContext {
   conversation: {
     id: string;
     title: string;
+    createdAt: string;
     updatedAt: string;
   };
   account: {
@@ -42,6 +43,7 @@ export function resolveAssetFolderPaths(context: AssetFolderPathContext): Resolv
   const globalFolderPath = normalizeObsidianPath(`${normalizedBaseFolder}/${ASSET_FOLDER_NAME}/${accountFolder}`);
   const noteRelativePath = resolveConversationNoteRelativePath(context.conversationPathTemplate, {
     title: context.conversation.title,
+    createdAt: context.conversation.createdAt,
     updatedAt: context.conversation.updatedAt,
     conversationId: context.conversation.id,
     email: context.account.email,

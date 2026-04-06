@@ -3,21 +3,23 @@ import test from "node:test";
 
 import { CONVERSATION_PATH_TEMPLATE_PRESETS, resolveConversationNoteRelativePath } from "../src/path/template.ts";
 
-test("resolveConversationNoteRelativePath applies date and slug placeholders", () => {
+test("resolveConversationNoteRelativePath applies date placeholder from createdAt", () => {
   const resolved = resolveConversationNoteRelativePath("{date}/{slug}", {
     title: "Hello World",
+    createdAt: "2026-04-03T10:20:30.000Z",
     updatedAt: "2026-04-04T10:20:30.000Z",
     conversationId: "conv-1",
     email: "user@example.com",
     accountId: "acc-1",
   });
 
-  assert.equal(resolved, "2026-04-04/Hello-World.md");
+  assert.equal(resolved, "2026-04-03/Hello-World.md");
 });
 
 test("resolveConversationNoteRelativePath applies email/account placeholders with fallbacks", () => {
   const resolved = resolveConversationNoteRelativePath("{email}/{account_id}/{slug}", {
     title: "Template Test",
+    createdAt: "2026-04-04T10:20:30.000Z",
     updatedAt: "2026-04-04T10:20:30.000Z",
     conversationId: "conv-2",
     email: "",
@@ -32,6 +34,7 @@ test("resolveConversationNoteRelativePath rejects unsupported placeholders", () 
     () =>
       resolveConversationNoteRelativePath("{date}/{unknown}", {
         title: "Broken",
+        createdAt: "2026-04-04T10:20:30.000Z",
         updatedAt: "2026-04-04T10:20:30.000Z",
         conversationId: "conv-3",
         email: "x@example.com",
@@ -46,6 +49,7 @@ test("resolveConversationNoteRelativePath rejects templates ending with .md", ()
     () =>
       resolveConversationNoteRelativePath("{date}/{slug}.md", {
         title: "Broken",
+        createdAt: "2026-04-04T10:20:30.000Z",
         updatedAt: "2026-04-04T10:20:30.000Z",
         conversationId: "conv-4",
         email: "x@example.com",

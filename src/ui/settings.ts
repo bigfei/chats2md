@@ -14,6 +14,28 @@ function isKnownTemplatePreset(template: string): boolean {
   return CONVERSATION_PATH_TEMPLATE_PRESETS.includes(template as (typeof CONVERSATION_PATH_TEMPLATE_PRESETS)[number]);
 }
 
+function describeConversationPathTemplate(): DocumentFragment {
+  const fragment = document.createDocumentFragment();
+  const lines = [
+    "Relative note path template, without .md.",
+    "{date}: conversation created date (YYYY-MM-DD)",
+    "{slug}: sanitized conversation title",
+    "{email}: account email",
+    "{account_id}: ChatGPT account ID",
+    "{conversation_id}: ChatGPT conversation ID",
+  ];
+
+  lines.forEach((line, index) => {
+    if (index > 0) {
+      fragment.appendChild(document.createElement("br"));
+    }
+
+    fragment.append(line);
+  });
+
+  return fragment;
+}
+
 export class Chats2MdSettingTab extends PluginSettingTab {
   private readonly plugin: Chats2MdPlugin;
 
@@ -57,9 +79,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Conversation path template")
-      .setDesc(
-        "Relative note path template (without .md). Placeholders: {date}, {slug}, {email}, {account_id}, {conversation_id}.",
-      )
+      .setDesc(describeConversationPathTemplate())
       .addDropdown((dropdown) => {
         dropdown
           .addOption(CONVERSATION_PATH_TEMPLATE_PRESETS[0], CONVERSATION_PATH_TEMPLATE_PRESETS[0])
