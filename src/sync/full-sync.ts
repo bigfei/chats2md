@@ -74,7 +74,6 @@ export async function runFullSync(
   const failedEntries: SyncReportConversationEntry[] = [];
   let processedConversations = 0;
   let totalConversations = 0;
-  const forceRefresh = values.forceRefresh === true;
   const startedAt = new Date().toISOString();
   let runStatus: SyncRunStatus = "completed";
   let selectedAccounts: StoredSessionAccount[] = [];
@@ -129,7 +128,6 @@ export async function runFullSync(
     selectedAccounts = context.getSelectedAccounts(values);
     const noteIndex = indexConversationNotes(context.app);
     logInfo(`Starting sync for ${selectedAccounts.length} account(s).`);
-    logInfo(`Force refresh is ${forceRefresh ? "enabled" : "disabled"}.`);
     logInfo("Conversation list mode: full discovery with local created_at ordering.");
     context.setSyncStatusBar(context.buildSyncStatusText(processedConversations, totalConversations, "starting"), true);
 
@@ -392,7 +390,6 @@ export async function runFullSync(
             values.assetStorageMode,
             summary.updatedAt,
             assetLinks,
-            forceRefresh,
           );
 
           counts[result.action] += 1;

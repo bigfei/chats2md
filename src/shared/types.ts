@@ -91,7 +91,6 @@ export interface SyncModalValues {
   assetStorageMode: AssetStorageMode;
   scope: "all" | "single";
   accountId?: string;
-  forceRefresh: boolean;
 }
 
 export interface ConversationSyncDateRangePromptContext {
