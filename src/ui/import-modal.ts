@@ -3,6 +3,7 @@ import { App, Modal, Notice, Setting } from "obsidian";
 import { formatAssetStorageMode } from "../main/helpers";
 import { isSyncCancelledError } from "../sync/cancellation";
 import { toIsoUtcDate } from "../sync/date-range";
+import { getConversationSyncSubsetFieldState, type ConversationSyncSubsetMode } from "./sync-subset";
 import type {
   ConversationSyncDateRangePromptContext,
   ConversationSyncDateRangeSelection,
@@ -94,10 +95,16 @@ class SyncDateRangeModal extends Modal {
   private readonly options: SyncDateRangeModalOptions;
   private readonly fullStartDate: string;
   private readonly fullEndDate: string;
-  private filterMode: "all" | "range" | "latest-count" = "all";
+  private filterMode: ConversationSyncSubsetMode = "all";
   private startDate: string;
   private endDate: string;
   private latestCount: string;
+  private startDateSetting: Setting | null = null;
+  private endDateSetting: Setting | null = null;
+  private latestCountSetting: Setting | null = null;
+  private startDateInput: HTMLInputElement | null = null;
+  private endDateInput: HTMLInputElement | null = null;
+  private latestCountInput: HTMLInputElement | null = null;
   private resolved = false;
 
   constructor(app: App, options: SyncDateRangeModalOptions) {
@@ -138,7 +145,7 @@ class SyncDateRangeModal extends Modal {
     });
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
-      text: "Choose the full range, a created_at date range, or the latest N by created_at.",
+      text: "Choose one subset mode. created_at date range and latest N are mutually exclusive.",
     });
 
     new Setting(contentEl)
@@ -151,48 +158,53 @@ class SyncDateRangeModal extends Modal {
           .addOption("latest-count", "Latest N by created_at")
           .setValue(this.filterMode)
           .onChange((value) => {
-            this.filterMode =
-              value === "range" || value === "latest-count" ? value : "all";
+            this.filterMode = value === "range" || value === "latest-count" ? value : "all";
+            this.updateSubsetInputVisibility();
           });
       });
 
-    new Setting(contentEl)
+    this.startDateSetting = new Setting(contentEl)
       .setName("Start date")
       .setDesc("Inclusive lower bound, based on created_at.")
       .addText((component) => {
         component.inputEl.type = "date";
         component.inputEl.min = this.fullStartDate;
         component.inputEl.max = this.fullEndDate;
+        this.startDateInput = component.inputEl;
         component.setValue(this.startDate);
         component.onChange((value) => {
           this.startDate = value.trim();
         });
       });
 
-    new Setting(contentEl)
+    this.latestCountSetting = new Setting(contentEl)
       .setName("Latest conversation count")
       .setDesc("Sync only the newest N conversations by created_at.")
       .addText((component) => {
         component.inputEl.type = "number";
         component.inputEl.min = "1";
+        this.latestCountInput = component.inputEl;
         component.setValue(this.latestCount);
         component.onChange((value) => {
           this.latestCount = value.trim();
         });
       });
 
-    new Setting(contentEl)
+    this.endDateSetting = new Setting(contentEl)
       .setName("End date")
       .setDesc("Inclusive upper bound, based on created_at.")
       .addText((component) => {
         component.inputEl.type = "date";
         component.inputEl.min = this.fullStartDate;
         component.inputEl.max = this.fullEndDate;
+        this.endDateInput = component.inputEl;
         component.setValue(this.endDate);
         component.onChange((value) => {
           this.endDate = value.trim();
         });
       });
+
+    this.updateSubsetInputVisibility();
 
     new Setting(contentEl)
       .addButton((button) => {
@@ -275,6 +287,33 @@ class SyncDateRangeModal extends Modal {
       startDate: normalizedStartDate,
       endDate: normalizedEndDate,
     });
+  }
+
+  private updateSubsetInputVisibility(): void {
+    const fieldState = getConversationSyncSubsetFieldState(this.filterMode);
+    this.setSettingVisible(this.startDateSetting, fieldState.showDateRange);
+    this.setSettingVisible(this.endDateSetting, fieldState.showDateRange);
+    this.setSettingVisible(this.latestCountSetting, fieldState.showLatestCount);
+
+    if (this.startDateInput) {
+      this.startDateInput.disabled = !fieldState.showDateRange;
+    }
+
+    if (this.endDateInput) {
+      this.endDateInput.disabled = !fieldState.showDateRange;
+    }
+
+    if (this.latestCountInput) {
+      this.latestCountInput.disabled = !fieldState.showLatestCount;
+    }
+  }
+
+  private setSettingVisible(setting: Setting | null, isVisible: boolean): void {
+    if (!setting) {
+      return;
+    }
+
+    setting.settingEl.style.display = isVisible ? "" : "none";
   }
 
   private resolve(selection: ConversationSyncDateRangeSelection, shouldClose = true): void {
