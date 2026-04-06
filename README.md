@@ -49,7 +49,7 @@ The zip contains `chats2md/main.js`, `chats2md/manifest.json`, and
 For community-plugin updates, publish a GitHub release and attach these files as
 binary assets: `main.js`, `manifest.json`, and `styles.css`.
 
-The plugin adds `All count sync` and `Rebuild from JSON` commands, plus a ribbon action.
+The plugin adds `All Account Sync` and `Rebuild from JSON` commands, plus a ribbon action.
 Configure account session JSON payloads and default folder in plugin settings.
 Session JSON payloads are stored in Obsidian Secret Storage, and each account entry shows its `user.id`,
 `user.email`, and `account.id`. Start sync from the ribbon/command, choose all

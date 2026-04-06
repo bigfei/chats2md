@@ -34,7 +34,11 @@ import {
   enableSettingsPaneIcon as enableSettingsPaneIconHelper,
   syncSettingsPaneIconObserver as syncSettingsPaneIconObserverHelper,
 } from "./settings-pane-icon";
-import { handleSync as handleSyncHelper, openSyncModal as openSyncModalHelper } from "./sync-modal";
+import {
+  handleSync as handleSyncHelper,
+  openSyncModal as openSyncModalHelper,
+  startAllAccountsSync as startAllAccountsSyncHelper,
+} from "./sync-modal";
 import {
   buildSyncStatusText as buildSyncStatusTextHelper,
   clearSyncStatusBar as clearSyncStatusBarHelper,
@@ -91,9 +95,9 @@ export default class Chats2MdPlugin extends Plugin {
 
     this.addCommand({
       id: "import-chatgpt-conversations",
-      name: "All count sync",
+      name: "All Account Sync",
       callback: () => {
-        this.openSyncModal();
+        this.startAllAccountsSync();
       },
     });
 
@@ -790,6 +794,10 @@ export default class Chats2MdPlugin extends Plugin {
 
   private openSyncModal(): void {
     openSyncModalHelper(this);
+  }
+
+  private startAllAccountsSync(): void {
+    startAllAccountsSyncHelper(this);
   }
 
   private async handleSync(

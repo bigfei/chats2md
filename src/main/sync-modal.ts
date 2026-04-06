@@ -4,29 +4,33 @@ import { runFullSync } from "../sync/full-sync";
 import { SyncChatGptModal, type SyncExecutionControl, type SyncProgressReporter } from "../ui/import-modal";
 import type { SyncModalValues } from "../shared/types";
 
-export function openSyncModal(host: any): void {
+function ensureSyncModalCanOpen(host: any): boolean {
   if (host.syncWorkerActive) {
     if (host.activeSyncModal?.isSyncInProgress() && !host.suppressSyncStatusBarUpdates) {
       host.suppressSyncStatusBarUpdates = false;
       host.activeSyncModal.open();
-      return;
+      return false;
     }
 
     new Notice("A sync job is still stopping in the background. Please wait a moment.");
-    return;
+    return false;
   }
 
   if (host.activeSyncModal?.isSyncInProgress()) {
     host.suppressSyncStatusBarUpdates = false;
     host.activeSyncModal.open();
-    return;
+    return false;
   }
 
+  return true;
+}
+
+function createSyncModal(host: any): SyncChatGptModal | null {
   const accounts = host.getAccounts();
 
   if (accounts.length === 0) {
     new Notice("Add at least one account session in plugin settings before syncing.");
-    return;
+    return null;
   }
 
   const modal: SyncChatGptModal = new SyncChatGptModal(host.app, {
@@ -47,7 +51,41 @@ export function openSyncModal(host: any): void {
   });
 
   host.activeSyncModal = modal;
+  return modal;
+}
+
+export function openSyncModal(host: any): void {
+  if (!ensureSyncModalCanOpen(host)) {
+    return;
+  }
+
+  const modal = createSyncModal(host);
+
+  if (!modal) {
+    return;
+  }
+
   modal.open();
+}
+
+export function startAllAccountsSync(host: any): void {
+  if (!ensureSyncModalCanOpen(host)) {
+    return;
+  }
+
+  const modal = createSyncModal(host);
+
+  if (!modal) {
+    return;
+  }
+
+  modal.open();
+  void modal.startSync({
+    folder: host.settings.defaultFolder,
+    conversationPathTemplate: host.settings.conversationPathTemplate,
+    assetStorageMode: host.settings.assetStorageMode,
+    scope: "all",
+  });
 }
 
 export async function handleSync(

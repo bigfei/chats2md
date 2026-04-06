@@ -624,7 +624,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
       });
   }
 
-  private async startSync(values: SyncModalValues): Promise<void> {
+  async startSync(values: SyncModalValues): Promise<void> {
     this.isSyncing = true;
     this.isPaused = false;
     this.stopRequested = false;
