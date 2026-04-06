@@ -6,6 +6,7 @@ main.js
 *.map
 sample-vault/
 release/
+coverage
 
 # Beads / Dolt files (added by bd init)
 .dolt/
