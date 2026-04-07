@@ -5,7 +5,9 @@ import type { AssetStorageMode } from "../shared/types";
 interface FolderCleanupHost {
   vault: {
     getAbstractFileByPath(path: string): unknown;
-    delete(file: unknown, force?: boolean): Promise<void>;
+  };
+  fileManager: {
+    trashFile(file: unknown): Promise<void>;
   };
 }
 
@@ -92,7 +94,7 @@ export async function cleanupEmptyFolders(
       break;
     }
 
-    await host.vault.delete(folder, true);
+    await host.fileManager.trashFile(folder);
     removed.push(folderPath);
   }
 

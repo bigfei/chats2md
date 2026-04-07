@@ -76,24 +76,6 @@ export function sortConversationSummariesByCreatedAtDesc(summaries: Conversation
     .map((entry) => entry.summary);
 }
 
-function finalizeFetchedConversationSummaries(pages: ConversationListPageFetchResult[]): ConversationSummary[] {
-  const merged = new Map<string, ConversationSummary>();
-
-  for (const page of [...pages].sort((left, right) => left.offset - right.offset)) {
-    for (const summary of page.pageSummaries) {
-      const existing = merged.get(summary.id);
-      if (!existing) {
-        merged.set(summary.id, summary);
-        continue;
-      }
-
-      merged.set(summary.id, pickPreferredSummary(existing, summary));
-    }
-  }
-
-  return sortConversationSummariesByCreatedAtDesc(Array.from(merged.values()));
-}
-
 async function runParallelOffsets(
   offsets: number[],
   parallelism: number,
@@ -120,7 +102,7 @@ export async function fetchConversationSummariesWithPageFetcher(
   fetchPage: (offset: number) => Promise<Omit<ConversationListPageFetchResult, "offset">>,
   options: FetchConversationSummariesWithPageFetcherOptions,
 ): Promise<FetchConversationSummariesResult> {
-  const pages: ConversationListPageFetchResult[] = [];
+  const mergedSummaries = new Map<string, ConversationSummary>();
   const discoveredIds = new Set<string>();
   let expectedTotal: number | null = null;
   let pagesFetched = 0;
@@ -131,11 +113,6 @@ export async function fetchConversationSummariesWithPageFetcher(
     pageInfo: ConversationListPageInfo,
     pageSummaries: ConversationSummary[],
   ): void => {
-    pages.push({
-      offset,
-      pageInfo,
-      pageSummaries,
-    });
     pagesFetched += 1;
     rawItemCount += pageSummaries.length;
     if (pageInfo.total !== null) {
@@ -144,6 +121,13 @@ export async function fetchConversationSummariesWithPageFetcher(
 
     for (const summary of pageSummaries) {
       discoveredIds.add(summary.id);
+      const existing = mergedSummaries.get(summary.id);
+      if (!existing) {
+        mergedSummaries.set(summary.id, summary);
+        continue;
+      }
+
+      mergedSummaries.set(summary.id, pickPreferredSummary(existing, summary));
     }
 
     options.onPageFetched?.({
@@ -160,7 +144,7 @@ export async function fetchConversationSummariesWithPageFetcher(
   recordPage(0, firstPage.pageInfo, firstPage.pageSummaries);
 
   if (firstPage.pageSummaries.length === 0) {
-    const summaries = finalizeFetchedConversationSummaries(pages);
+    const summaries = sortConversationSummariesByCreatedAtDesc(Array.from(mergedSummaries.values()));
     return {
       summaries,
       pagesFetched,
@@ -170,7 +154,7 @@ export async function fetchConversationSummariesWithPageFetcher(
   }
 
   if (!shouldFetchNextConversationListPage(firstPage.pageSummaries.length, firstPage.pageInfo, options.pageLimit)) {
-    const summaries = finalizeFetchedConversationSummaries(pages);
+    const summaries = sortConversationSummariesByCreatedAtDesc(Array.from(mergedSummaries.values()));
     return {
       summaries,
       pagesFetched,
@@ -228,7 +212,7 @@ export async function fetchConversationSummariesWithPageFetcher(
     nextOffset = nextBatchOffset;
   }
 
-  const summaries = finalizeFetchedConversationSummaries(pages);
+  const summaries = sortConversationSummariesByCreatedAtDesc(Array.from(mergedSummaries.values()));
 
   return {
     summaries,

@@ -33,6 +33,8 @@
 7. Notes are created, updated, or moved to match the configured folder and path template.
 8. Referenced assets are downloaded and linked into the generated Markdown.
 
+Synced notes are authoritative outputs from ChatGPT data. Local edits to synced note content may be overwritten by later syncs, force sync, or rebuild-from-JSON runs.
+
 ## Storage layout
 
 - Default sync folder: `Imports/ChatGPT`

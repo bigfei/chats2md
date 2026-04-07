@@ -18,7 +18,9 @@ interface MockFolder {
 function createMockVault(folderPaths: string[]): {
   vault: {
     getAbstractFileByPath(path: string): unknown;
-    delete(file: unknown): Promise<void>;
+  };
+  fileManager: {
+    trashFile(file: unknown): Promise<void>;
   };
 } {
   const folders = new Map<string, MockFolder>();
@@ -51,7 +53,9 @@ function createMockVault(folderPaths: string[]): {
       getAbstractFileByPath(path: string): unknown {
         return folders.get(path) ?? null;
       },
-      async delete(file: unknown): Promise<void> {
+    },
+    fileManager: {
+      async trashFile(file: unknown): Promise<void> {
         const folder = file as MockFolder;
         const parentPath = folder.path.includes("/") ? folder.path.slice(0, folder.path.lastIndexOf("/")) : "";
         const parent = folders.get(parentPath);
