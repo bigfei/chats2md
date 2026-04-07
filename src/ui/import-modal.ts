@@ -438,6 +438,10 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     return this.isSyncing;
   }
 
+  canReopenWhileRunning(): boolean {
+    return this.isSyncing && !this.stopRequested;
+  }
+
   waitIfPaused(): Promise<void> {
     if (!this.isPaused || this.stopRequested) {
       return Promise.resolve();

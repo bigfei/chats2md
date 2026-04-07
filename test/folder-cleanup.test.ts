@@ -88,7 +88,7 @@ test("buildMovedConversationFolderCleanupPlans includes old note and local asset
     [
       {
         startFolderPath: "Imports/ChatGPT/2026-04-01/_assets",
-        stopBeforePath: "Imports/ChatGPT",
+        stopBeforePath: "Imports/ChatGPT/2026-04-01",
       },
       {
         startFolderPath: "Imports/ChatGPT/2026-04-01",
@@ -150,6 +150,21 @@ test("cleanupMovedConversationFolders removes empty old note folders after a mov
   );
 
   assert.deepEqual(removed, ["Imports/ChatGPT/2026-04-01/_assets", "Imports/ChatGPT/2026-04-01"]);
+});
+
+test("with_conversation cleanup does not walk above the old note folder when pruning assets", async () => {
+  const app = createMockVault([
+    "Imports",
+    "Imports/ChatGPT",
+    "Imports/ChatGPT/2026-04-01",
+    "Imports/ChatGPT/2026-04-01/_assets",
+    "Imports/ChatGPT/2026-04-02",
+  ]);
+
+  const removed = await cleanupEmptyFolders(app, "Imports/ChatGPT/2026-04-01/_assets", "Imports/ChatGPT/2026-04-01");
+
+  assert.deepEqual(removed, ["Imports/ChatGPT/2026-04-01/_assets"]);
+  assert.notEqual(app.vault.getAbstractFileByPath("Imports/ChatGPT/2026-04-01"), null);
 });
 
 test("cleanupMigratedAssetSourceFolders removes empty source folders but keeps the target", async () => {

@@ -1,17 +1,24 @@
 import { Notice } from "obsidian";
 
 import { runFullSync } from "../sync/full-sync";
+import { shouldRestoreActiveSyncModal } from "./sync-modal-state";
 import { SyncChatGptModal, type SyncExecutionControl, type SyncProgressReporter } from "../ui/import-modal";
 import type { SyncModalValues } from "../shared/types";
 
 function ensureSyncModalCanOpen(host: any): boolean {
-  if (host.syncWorkerActive) {
-    if (host.activeSyncModal?.isSyncInProgress() && !host.suppressSyncStatusBarUpdates) {
-      host.suppressSyncStatusBarUpdates = false;
-      host.activeSyncModal.open();
-      return false;
-    }
+  if (
+    shouldRestoreActiveSyncModal({
+      syncWorkerActive: host.syncWorkerActive,
+      activeModalIsSyncing: Boolean(host.activeSyncModal?.isSyncInProgress()),
+      activeModalCanReopen: Boolean(host.activeSyncModal?.canReopenWhileRunning()),
+    })
+  ) {
+    host.suppressSyncStatusBarUpdates = false;
+    host.activeSyncModal.open();
+    return false;
+  }
 
+  if (host.syncWorkerActive) {
     new Notice("A sync job is still stopping in the background. Please wait a moment.");
     return false;
   }

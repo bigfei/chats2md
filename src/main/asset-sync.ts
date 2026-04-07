@@ -2,9 +2,9 @@ import { App, TFile, TFolder, normalizePath } from "obsidian";
 
 import { resolveAssetFolderPaths } from "../storage/asset-storage";
 import { fetchConversationFileDownloadInfo, fetchSignedFileContent } from "../chatgpt/api";
-import { findReusableLocalAssetFileName } from "./asset-local-match";
+import { buildStableAssetFileName, findReusableLocalAssetFileName } from "./asset-local-match";
 import { cleanupMigratedAssetSourceFolders } from "./folder-cleanup";
-import { appendExtensionIfMissing, formatAssetStorageMode, sanitizePathPart, type SyncRunLogger } from "./helpers";
+import { formatAssetStorageMode, type SyncRunLogger } from "./helpers";
 import { isSyncCancelledError } from "../sync/cancellation";
 import type {
   AssetStorageMode,
@@ -68,18 +68,6 @@ function nextAvailableFileName(baseName: string, usedNames: Set<string>): string
     }
     suffix += 1;
   }
-}
-
-function extractKnownExtension(fileName: string): string | null {
-  const trimmed = fileName.trim();
-  const dotIndex = trimmed.lastIndexOf(".");
-
-  if (dotIndex <= 0 || dotIndex === trimmed.length - 1) {
-    return null;
-  }
-
-  const extension = trimmed.slice(dotIndex).toLowerCase();
-  return /^[.][a-z0-9]{1,12}$/i.test(extension) ? extension : null;
 }
 
 function collectConversationDownloadRefs(
@@ -206,50 +194,38 @@ export async function syncConversationAssetsForConversation(
       logger?.info(`${perAssetPrefix} Resolving download metadata.`);
       const info = await fetchConversationFileDownloadInfo(requestConfig, ref.fileId, stopSignal);
       logger?.info(`${perAssetPrefix} Metadata resolved (file_name=${info.fileName || "<empty>"}).`);
-      const rawName = sanitizePathPart(info.fileName || ref.logicalName);
-      const withExtension = appendExtensionIfMissing(rawName, null);
-      let preferredFileName = withExtension || sanitizePathPart(ref.logicalName);
-      if (!preferredFileName.includes(".")) {
-        const logicalExtension = extractKnownExtension(ref.logicalName);
-        if (logicalExtension) {
-          preferredFileName = `${preferredFileName}${logicalExtension}`;
-        }
-      }
-      const preferredPath = normalizePath(`${assetFolderPath}/${preferredFileName}`);
-      const preferredExisting = host.app.vault.getAbstractFileByPath(preferredPath);
+      const stableFileName = buildStableAssetFileName(ref.fileId, info.fileName, ref.logicalName);
+      const stablePath = normalizePath(`${assetFolderPath}/${stableFileName}`);
+      const stableExisting = host.app.vault.getAbstractFileByPath(stablePath);
 
-      if (preferredExisting instanceof TFile) {
+      if (stableExisting instanceof TFolder) {
+        throw new Error(`Asset target conflicts with folder: ${stablePath}`);
+      }
+
+      if (stableExisting instanceof TFile) {
         linkMap[ref.fileId] = {
-          path: preferredExisting.path,
-          fileName: preferredExisting.name,
+          path: stableExisting.path,
+          fileName: stableExisting.name,
         };
-        usedNames.add(preferredExisting.name);
-        logger?.info(`${perAssetPrefix} Reusing existing file: ${preferredExisting.path}`);
+        usedNames.add(stableExisting.name);
+        logger?.info(`${perAssetPrefix} Reusing stable fileId-matched asset: ${stableExisting.path}`);
         continue;
-      }
-
-      if (preferredFileName !== rawName) {
-        const legacyPath = normalizePath(`${assetFolderPath}/${rawName}`);
-        const legacyExisting = host.app.vault.getAbstractFileByPath(legacyPath);
-        if (legacyExisting instanceof TFile) {
-          const migratedFileName = nextAvailableFileName(preferredFileName, usedNames);
-          const migratedPath = normalizePath(`${assetFolderPath}/${migratedFileName}`);
-          await host.app.vault.rename(legacyExisting, migratedPath);
-          linkMap[ref.fileId] = {
-            path: migratedPath,
-            fileName: migratedFileName,
-          };
-          logger?.info(`${perAssetPrefix} Renamed legacy asset: ${legacyPath} -> ${migratedPath}`);
-          continue;
-        }
       }
 
       logger?.info(`${perAssetPrefix} Downloading signed asset URL.`);
       const fileContent = await fetchSignedFileContent(requestConfig, info.downloadUrl, stopSignal);
-      const fileNameWithType = appendExtensionIfMissing(preferredFileName, fileContent.contentType);
-      const finalFileName = nextAvailableFileName(fileNameWithType, usedNames);
+      const finalFileName = buildStableAssetFileName(
+        ref.fileId,
+        info.fileName,
+        ref.logicalName,
+        fileContent.contentType,
+      );
       const finalPath = normalizePath(`${assetFolderPath}/${finalFileName}`);
       const existingAtFinalPath = host.app.vault.getAbstractFileByPath(finalPath);
+
+      if (existingAtFinalPath instanceof TFolder) {
+        throw new Error(`Asset target conflicts with folder: ${finalPath}`);
+      }
 
       if (existingAtFinalPath instanceof TFile) {
         linkMap[ref.fileId] = {
@@ -261,6 +237,7 @@ export async function syncConversationAssetsForConversation(
       }
 
       const created = await host.app.vault.createBinary(finalPath, fileContent.data);
+      usedNames.add(created.name);
       linkMap[ref.fileId] = {
         path: created.path,
         fileName: created.name,

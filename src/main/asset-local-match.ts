@@ -1,4 +1,4 @@
-import { sanitizePathPart } from "./helpers";
+import { appendExtensionIfMissing, sanitizePathPart } from "./helpers";
 
 export interface LocalAssetReference {
   fileId: string;
@@ -27,15 +27,26 @@ function findUniqueStemMatch(fileNames: string[], stem: string): string | null {
   return matches.length === 1 ? (matches[0] ?? null) : null;
 }
 
+export function buildStableAssetFileName(
+  fileId: string,
+  preferredName: string,
+  logicalName: string,
+  contentType: string | null = null,
+): string {
+  const normalizedFileId = sanitizePathPart(fileId) || "file";
+  const seededName = sanitizePathPart(preferredName) || sanitizePathPart(logicalName) || normalizedFileId;
+  const withType = appendExtensionIfMissing(seededName, contentType);
+  const extension = extractKnownExtension(withType) || extractKnownExtension(logicalName);
+
+  return extension ? `${normalizedFileId}${extension}` : normalizedFileId;
+}
+
 export function findReusableLocalAssetFileName(fileNames: string[], ref: LocalAssetReference): string | null {
   const normalizedFileId = sanitizePathPart(ref.fileId);
-  const normalizedLogicalName = sanitizePathPart(ref.logicalName);
   const logicalExtension = extractKnownExtension(ref.logicalName);
-  const exactCandidates = [
-    logicalExtension ? `${normalizedFileId}${logicalExtension}` : "",
-    normalizedFileId,
-    normalizedLogicalName,
-  ].filter((candidate, index, all): candidate is string => candidate.length > 0 && all.indexOf(candidate) === index);
+  const exactCandidates = [logicalExtension ? `${normalizedFileId}${logicalExtension}` : "", normalizedFileId].filter(
+    (candidate, index, all): candidate is string => candidate.length > 0 && all.indexOf(candidate) === index,
+  );
 
   for (const candidate of exactCandidates) {
     if (fileNames.includes(candidate)) {
@@ -43,9 +54,7 @@ export function findReusableLocalAssetFileName(fileNames: string[], ref: LocalAs
     }
   }
 
-  const stemCandidates = Array.from(
-    new Set([normalizedFileId, getStem(normalizedLogicalName)].filter((candidate) => candidate.length > 0)),
-  );
+  const stemCandidates = normalizedFileId.length > 0 ? [normalizedFileId] : [];
 
   for (const candidate of stemCandidates) {
     const match = findUniqueStemMatch(fileNames, candidate);

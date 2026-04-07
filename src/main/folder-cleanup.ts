@@ -107,19 +107,24 @@ export function buildMovedConversationFolderCleanupPlans(
   const previousNoteFolder = getParentFolderPath(previousNotePath);
   const nextNoteFolder = getParentFolderPath(nextNotePath);
   const plans: FolderCleanupPlan[] = [];
-
   const previousAssetFolder = normalizeFolderPath(`${previousNoteFolder}/${ASSET_FOLDER_NAME}`);
-  const nextAssetCleanupBoundary =
-    assetStorageMode === "with_conversation"
-      ? normalizeFolderPath(`${nextNoteFolder}/${ASSET_FOLDER_NAME}`)
-      : nextNoteFolder;
-  const assetStopBeforePath = findSharedFolderPath(previousAssetFolder, nextAssetCleanupBoundary);
 
-  if (previousAssetFolder && previousAssetFolder !== assetStopBeforePath) {
-    plans.push({
-      startFolderPath: previousAssetFolder,
-      stopBeforePath: assetStopBeforePath,
-    });
+  if (assetStorageMode === "with_conversation") {
+    if (previousAssetFolder) {
+      plans.push({
+        startFolderPath: previousAssetFolder,
+        stopBeforePath: previousNoteFolder,
+      });
+    }
+  } else {
+    const assetStopBeforePath = findSharedFolderPath(previousAssetFolder, nextNoteFolder);
+
+    if (previousAssetFolder && previousAssetFolder !== assetStopBeforePath) {
+      plans.push({
+        startFolderPath: previousAssetFolder,
+        stopBeforePath: assetStopBeforePath,
+      });
+    }
   }
 
   const noteStopBeforePath = findSharedFolderPath(previousNoteFolder, nextNoteFolder);
