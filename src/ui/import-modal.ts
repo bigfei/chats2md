@@ -20,6 +20,7 @@ import type {
 
 export interface SyncProgressReporter {
   setPreparing(message: string): void;
+  setStatus(message: string): void;
   setRetry(title: string, index: number, total: number, attempt: number, message: string): void;
   setProgress(title: string, index: number, total: number, processed: number, counts: ImportProgressCounts): void;
   selectDateRange(context: ConversationSyncDateRangePromptContext): Promise<ConversationSyncDateRangeSelection>;
@@ -462,6 +463,11 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
   setPreparing(message: string): void {
     this.activeStatusText = message;
     this.setProgressValue(0);
+    this.applyStatusText();
+  }
+
+  setStatus(message: string): void {
+    this.activeStatusText = message;
     this.applyStatusText();
   }
 

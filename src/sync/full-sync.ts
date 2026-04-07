@@ -10,9 +10,9 @@ import {
   type SyncRunLogger,
 } from "../main/helpers";
 import { cleanupMovedConversationFolders } from "../main/folder-cleanup";
+import { formatConversationBrowseDelay, prepareConversationDetailFetch } from "./browse-delay";
 import { isSyncCancelledError, sleepWithAbort } from "./cancellation";
 import { hasIndexedConversationNote, indexConversationNotes, upsertConversationNote } from "../storage/note-writer";
-import { shouldFetchConversationDetail } from "./skip-existing";
 import {
   filterConversationSummariesByCreatedDateRange,
   filterConversationSummariesByLatestCreatedCount,
@@ -376,36 +376,63 @@ export async function runFullSync(
         progressModal.setProgress(displayTitle, conversationIndex + 1, summaries.length, conversationIndex, counts);
         logInfo(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Processing "${summary.title}".`);
 
-        if (
-          !shouldFetchConversationDetail(
+        try {
+          const fetchPreparation = await prepareConversationDetailFetch(
             hasIndexedConversationNote(noteIndex, requestConfig.accountId, summary.id),
             skipExistingLocalConversations,
-          )
-        ) {
-          counts.skipped += 1;
-          processedConversations += 1;
-          logInfo(
-            `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Skipped existing local conversation "${summary.title}".`,
+            control,
+            {
+              onDelay: (delayMs) => {
+                const delayLabel = formatConversationBrowseDelay(delayMs);
+                progressModal.setStatus(`Waiting ${delayLabel} before opening ${displayTitle}`);
+                logInfo(
+                  `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Waiting ${delayLabel} before opening "${summary.title}".`,
+                );
+                context.setSyncStatusBar(
+                  context.buildSyncStatusText(
+                    processedConversations,
+                    totalConversations,
+                    `waiting ${delayLabel} before opening ${accountLabel}`,
+                  ),
+                  true,
+                );
+              },
+            },
           );
-          progressModal.setProgress(
-            displayTitle,
-            conversationIndex + 1,
-            summaries.length,
-            conversationIndex + 1,
-            counts,
-          );
+
+          if (!fetchPreparation.shouldFetch) {
+            counts.skipped += 1;
+            processedConversations += 1;
+            logInfo(
+              `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Skipped existing local conversation "${summary.title}".`,
+            );
+            progressModal.setProgress(
+              displayTitle,
+              conversationIndex + 1,
+              summaries.length,
+              conversationIndex + 1,
+              counts,
+            );
+            context.setSyncStatusBar(
+              context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
+              true,
+            );
+            continue;
+          }
+
+          if (!(await ensureCanContinue())) {
+            return;
+          }
+
+          progressModal.setStatus(`Sync ${displayTitle} (${conversationIndex + 1}/${summaries.length})`);
           context.setSyncStatusBar(
             context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
             true,
           );
-          continue;
-        }
+          logInfo(
+            `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Calling /conversation/${summary.id}.`,
+          );
 
-        logInfo(
-          `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Calling /conversation/${summary.id}.`,
-        );
-
-        try {
           const detailResult = await fetchConversationDetailWithRetries(
             requestConfig,
             summary,

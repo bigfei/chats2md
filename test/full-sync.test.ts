@@ -14,3 +14,7 @@ test("shouldFetchConversationDetail still fetches missing conversations when ski
 test("shouldFetchConversationDetail fetches existing local conversations when skipping is disabled", () => {
   assert.equal(shouldFetchConversationDetail(true, false), true);
 });
+
+test("shouldFetchConversationDetail still fetches missing conversations when skipping is disabled", () => {
+  assert.equal(shouldFetchConversationDetail(false, false), true);
+});
