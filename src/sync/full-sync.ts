@@ -12,6 +12,7 @@ import {
 import { cleanupMovedConversationFolders } from "../main/folder-cleanup";
 import { formatConversationBrowseDelay, prepareConversationDetailFetch } from "./browse-delay";
 import { isSyncCancelledError, sleepWithAbort } from "./cancellation";
+import { ConsecutiveRateLimitGuard, isConsecutiveRateLimitSyncError } from "./rate-limit-guard";
 import { hasIndexedConversationNote, indexConversationNotes, upsertConversationNote } from "../storage/note-writer";
 import {
   filterConversationSummariesByCreatedDateRange,
@@ -114,6 +115,7 @@ export async function runFullSync(
 
     return canContinue;
   };
+  const rateLimitGuard = new ConsecutiveRateLimitGuard();
 
   try {
     try {
@@ -157,7 +159,12 @@ export async function runFullSync(
       let requestConfig: ChatGptRequestConfig;
 
       try {
-        requestConfig = context.getRequestConfig(account);
+        requestConfig = {
+          ...context.getRequestConfig(account),
+          rateLimitMonitor: rateLimitGuard.createMonitor((message) => {
+            logWarn(`[${accountLabel}] ${message}`);
+          }),
+        };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         counts.failed += 1;
@@ -212,6 +219,16 @@ export async function runFullSync(
           runStatus = "stopped";
           progressModal.fail("Sync stopped by user.", counts);
           logInfo(`[${accountLabel}] Conversation-list fetch canceled by user.`);
+          return;
+        }
+
+        if (isConsecutiveRateLimitSyncError(error)) {
+          runStatus = "stopped";
+          progressModal.fail(error.message, counts);
+          logWarn(`[${accountLabel}] ${error.message}`);
+          new Notice(error.message);
+          context.setSyncStatusBar(error.message, false);
+          context.clearSyncStatusBar(10000);
           return;
         }
 
@@ -573,6 +590,16 @@ export async function runFullSync(
             return;
           }
 
+          if (isConsecutiveRateLimitSyncError(error)) {
+            runStatus = "stopped";
+            progressModal.fail(error.message, counts);
+            logWarn(`[${accountLabel}] ${error.message}`);
+            new Notice(error.message);
+            context.setSyncStatusBar(error.message, false);
+            context.clearSyncStatusBar(10000);
+            return;
+          }
+
           const message = error instanceof Error ? error.message : String(error);
           counts.failed += 1;
           failures.push({
@@ -620,6 +647,13 @@ export async function runFullSync(
       logInfo("Sync stopped by user.");
       context.setSyncStatusBar("ChatGPT sync stopped.", false);
       context.clearSyncStatusBar(3000);
+    } else if (isConsecutiveRateLimitSyncError(error)) {
+      runStatus = "stopped";
+      progressModal.fail(error.message, counts);
+      logWarn(error.message);
+      new Notice(error.message);
+      context.setSyncStatusBar(error.message, false);
+      context.clearSyncStatusBar(10000);
     } else {
       runStatus = "failed";
       const message = error instanceof Error ? error.message : String(error);

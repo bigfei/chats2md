@@ -234,6 +234,7 @@ async function requestJson(
     },
     undefined,
     signal,
+    config.rateLimitMonitor,
   );
 }
 
@@ -261,6 +262,7 @@ async function requestArrayBuffer(
       throw: false,
     },
     signal,
+    config.rateLimitMonitor,
   );
 }
 

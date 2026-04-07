@@ -45,6 +45,12 @@ export interface ChatGptRequestConfig {
   headers: Record<string, string>;
   userAgent: string;
   expiresAt?: string;
+  rateLimitMonitor?: ChatGptRateLimitMonitor;
+}
+
+export interface ChatGptRateLimitMonitor {
+  onRateLimitedResponse(): void;
+  onNonRateLimitedResponse(): void;
 }
 
 export interface ConversationSummary {
