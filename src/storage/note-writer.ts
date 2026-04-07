@@ -15,6 +15,7 @@ const CONVERSATION_ID_KEY = "chatgpt_conversation_id";
 const CONVERSATION_TITLE_KEY = "chatgpt_title";
 const CONVERSATION_UPDATED_AT_KEY = "chatgpt_updated_at";
 const CONVERSATION_LIST_UPDATED_AT_KEY = "chatgpt_list_updated_at";
+const CONVERSATION_IMPORTED_AT_KEY = "chatgpt_imported_at";
 const CONVERSATION_ACCOUNT_ID_KEY = "chatgpt_account_id";
 const CONVERSATION_ASSET_STORAGE_MODE_KEY = "chats2md_asset_storage";
 
@@ -154,7 +155,7 @@ function buildFrontmatter(
     `chatgpt_created_at: ${quoteYaml(conversation.createdAt)}`,
     `chatgpt_updated_at: ${quoteYaml(conversation.updatedAt)}`,
     `${CONVERSATION_LIST_UPDATED_AT_KEY}: ${quoteYaml(listUpdatedAt)}`,
-    `chatgpt_imported_at: ${quoteYaml(importedAt)}`,
+    `${CONVERSATION_IMPORTED_AT_KEY}: ${quoteYaml(importedAt)}`,
     `chatgpt_url: ${quoteYaml(conversation.url)}`,
     `${CONVERSATION_ACCOUNT_ID_KEY}: ${quoteYaml(account.accountId)}`,
     `chatgpt_user_id: ${quoteYaml(account.userId)}`,
@@ -256,6 +257,38 @@ function buildConversationKey(accountId: string, conversationId: string): string
   return `${accountId}::${conversationId}`;
 }
 
+function findIndexedConversationNote(
+  noteIndex: Map<string, TFile>,
+  accountId: string,
+  conversationId: string,
+): TFile | undefined {
+  const noteKey = buildConversationKey(accountId, conversationId);
+  const legacyKey = buildConversationKey("", conversationId);
+  return noteIndex.get(noteKey) ?? noteIndex.get(legacyKey);
+}
+
+function normalizeNoteContentForSyncComparison(content: string): string {
+  return content
+    .split("\n")
+    .filter((line) => {
+      const trimmed = line.trimStart();
+      return (
+        !trimmed.startsWith(`${CONVERSATION_UPDATED_AT_KEY}:`) &&
+        !trimmed.startsWith(`${CONVERSATION_LIST_UPDATED_AT_KEY}:`) &&
+        !trimmed.startsWith(`${CONVERSATION_IMPORTED_AT_KEY}:`)
+      );
+    })
+    .join("\n");
+}
+
+export function hasIndexedConversationNote(
+  noteIndex: Map<string, TFile>,
+  accountId: string,
+  conversationId: string,
+): boolean {
+  return typeof findIndexedConversationNote(noteIndex, accountId, conversationId) !== "undefined";
+}
+
 export function getIndexedConversationSyncMetadata(
   app: App,
   noteIndex: Map<string, TFile>,
@@ -267,9 +300,7 @@ export function getIndexedConversationSyncMetadata(
   title: string | null;
   assetStorageMode: AssetStorageMode | null;
 } {
-  const noteKey = buildConversationKey(accountId, conversationId);
-  const legacyKey = buildConversationKey("", conversationId);
-  const existing = noteIndex.get(noteKey) ?? noteIndex.get(legacyKey);
+  const existing = findIndexedConversationNote(noteIndex, accountId, conversationId);
 
   if (!existing) {
     return {
@@ -318,8 +349,7 @@ export async function ensureConversationNotePath(
   conversationPathTemplate: string,
 ): Promise<{ moved: boolean; filePath: string | null; previousFilePath?: string }> {
   const noteKey = buildConversationKey(account.accountId, conversation.id);
-  const legacyKey = buildConversationKey("", conversation.id);
-  const existing = noteIndex.get(noteKey) ?? noteIndex.get(legacyKey);
+  const existing = findIndexedConversationNote(noteIndex, account.accountId, conversation.id);
 
   if (!existing) {
     return {
@@ -397,7 +427,7 @@ export async function upsertConversationNote(
   const targetFolder = getFolderPathFromFilePath(desiredByTemplate);
   await ensureFolderExists(app, targetFolder);
   const noteKey = buildConversationKey(account.accountId, conversation.id);
-  const existing = noteIndex.get(noteKey);
+  const existing = findIndexedConversationNote(noteIndex, account.accountId, conversation.id);
 
   if (!existing) {
     const desiredPath = await findAvailablePath(app, desiredByTemplate);
@@ -424,6 +454,10 @@ export async function upsertConversationNote(
     };
   }
 
+  if (!noteIndex.has(noteKey)) {
+    noteIndex.set(noteKey, existing);
+  }
+
   const desiredPath = await findAvailablePath(app, desiredByTemplate, existing.path);
   let moved = false;
   let previousFilePath: string | undefined;
@@ -432,28 +466,6 @@ export async function upsertConversationNote(
     previousFilePath = existing.path;
     await app.fileManager.renameFile(existing, desiredPath);
     moved = true;
-  }
-
-  const existingUpdatedAt = readFrontmatterString(app, existing, CONVERSATION_UPDATED_AT_KEY);
-  const existingTitle = readFrontmatterString(app, existing, CONVERSATION_TITLE_KEY);
-  const existingListUpdatedAt = readFrontmatterString(app, existing, CONVERSATION_LIST_UPDATED_AT_KEY);
-  const existingAssetStorageMode = normalizeAssetStorageMode(
-    readFrontmatterString(app, existing, CONVERSATION_ASSET_STORAGE_MODE_KEY),
-  );
-  const shouldRewrite =
-    forceRewrite ||
-    existingUpdatedAt !== conversation.updatedAt ||
-    existingTitle !== conversation.title ||
-    existingListUpdatedAt !== normalizedListUpdatedAt ||
-    existingAssetStorageMode !== assetStorageMode;
-
-  if (!shouldRewrite) {
-    return {
-      action: "skipped",
-      filePath: existing.path,
-      moved,
-      previousFilePath,
-    };
   }
 
   const importedAt = new Date().toISOString();
@@ -472,6 +484,22 @@ export async function upsertConversationNote(
     (activeEditorContext.filePath === existing.path ||
       (previousFilePath && activeEditorContext.filePath === previousFilePath)),
   );
+  const currentContent =
+    canUseEditorForActiveNote && activeEditorContext
+      ? activeEditorContext.editor.getValue()
+      : await app.vault.cachedRead(existing);
+  const shouldRewrite =
+    forceRewrite ||
+    normalizeNoteContentForSyncComparison(currentContent) !== normalizeNoteContentForSyncComparison(nextContent);
+
+  if (!shouldRewrite) {
+    return {
+      action: "skipped",
+      filePath: existing.path,
+      moved,
+      previousFilePath,
+    };
+  }
 
   if (canUseEditorForActiveNote && activeEditorContext) {
     activeEditorContext.editor.setValue(nextContent);

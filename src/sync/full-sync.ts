@@ -11,7 +11,8 @@ import {
 } from "../main/helpers";
 import { cleanupMovedConversationFolders } from "../main/folder-cleanup";
 import { isSyncCancelledError, sleepWithAbort } from "./cancellation";
-import { indexConversationNotes, upsertConversationNote } from "../storage/note-writer";
+import { hasIndexedConversationNote, indexConversationNotes, upsertConversationNote } from "../storage/note-writer";
+import { shouldFetchConversationDetail } from "./skip-existing";
 import {
   filterConversationSummariesByCreatedDateRange,
   filterConversationSummariesByLatestCreatedCount,
@@ -129,6 +130,7 @@ export async function runFullSync(
 
     selectedAccounts = context.getSelectedAccounts(values);
     const noteIndex = indexConversationNotes(context.app);
+    let skipExistingLocalConversations = values.skipExistingLocalConversations;
     logInfo(`Starting sync for ${selectedAccounts.length} account(s).`);
     logInfo("Conversation list mode: full discovery with local created_at ordering.");
     context.setSyncStatusBar(context.buildSyncStatusText(processedConversations, totalConversations, "starting"), true);
@@ -264,6 +266,7 @@ export async function runFullSync(
           discoveredCount,
           minCreatedAt: createdAtSpan.minCreatedAt,
           maxCreatedAt: createdAtSpan.maxCreatedAt,
+          skipExistingLocalConversations,
         });
 
         if (!(await ensureCanContinue())) {
@@ -274,6 +277,9 @@ export async function runFullSync(
           logInfo(`[${accountLabel}] Selection canceled. Skipping account.`);
           continue;
         }
+
+        skipExistingLocalConversations = selection.skipExistingLocalConversations;
+        values.skipExistingLocalConversations = selection.skipExistingLocalConversations;
 
         if (selection.mode === "range") {
           try {
@@ -369,7 +375,35 @@ export async function runFullSync(
 
         progressModal.setProgress(displayTitle, conversationIndex + 1, summaries.length, conversationIndex, counts);
         logInfo(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Processing "${summary.title}".`);
-        logInfo(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Calling /conversation/${summary.id}.`);
+
+        if (
+          !shouldFetchConversationDetail(
+            hasIndexedConversationNote(noteIndex, requestConfig.accountId, summary.id),
+            skipExistingLocalConversations,
+          )
+        ) {
+          counts.skipped += 1;
+          processedConversations += 1;
+          logInfo(
+            `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Skipped existing local conversation "${summary.title}".`,
+          );
+          progressModal.setProgress(
+            displayTitle,
+            conversationIndex + 1,
+            summaries.length,
+            conversationIndex + 1,
+            counts,
+          );
+          context.setSyncStatusBar(
+            context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
+            true,
+          );
+          continue;
+        }
+
+        logInfo(
+          `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Calling /conversation/${summary.id}.`,
+        );
 
         try {
           const detailResult = await fetchConversationDetailWithRetries(
@@ -529,7 +563,9 @@ export async function runFullSync(
             notePath: null,
             message,
           });
-          logError(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed: "${summary.title}" - ${message}`);
+          logError(
+            `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed: "${summary.title}" - ${message}`,
+          );
         }
 
         processedConversations += 1;

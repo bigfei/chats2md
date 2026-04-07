@@ -7,11 +7,9 @@ import {
   createEmptyCounts,
   formatAssetStorageMode,
   formatActionLabel,
-  hasMatchingUpdatedAt,
   normalizeAssetStorageMode,
   normalizeStoredAccount,
   normalizeTargetFolder,
-  normalizeTimestampToMs,
   readString,
   resolveSyncReportFolder,
   sanitizePathPart,
@@ -39,22 +37,6 @@ test("summarizeCounts renders a compact summary line", () => {
   });
 
   assert.equal(summary, "Synced 12 conversations. 2 created 3 updated 1 moved 5 skipped 1 failed");
-});
-
-test("normalizeTimestampToMs parses ISO timestamps and rejects invalid input", () => {
-  assert.equal(normalizeTimestampToMs(null), null);
-  assert.equal(normalizeTimestampToMs(""), null);
-  assert.equal(normalizeTimestampToMs("not-a-date"), null);
-
-  const timestamp = normalizeTimestampToMs("2026-01-01T00:00:00.000Z");
-  assert.equal(timestamp, 1767225600000);
-});
-
-test("hasMatchingUpdatedAt accepts exact and near-equivalent timestamps", () => {
-  assert.equal(hasMatchingUpdatedAt(null, "2026-01-01T00:00:00.000Z"), false);
-  assert.equal(hasMatchingUpdatedAt("2026-01-01T00:00:00.000Z", "2026-01-01T00:00:00.000Z"), true);
-  assert.equal(hasMatchingUpdatedAt("2026-01-01T00:00:00.000Z", "2026-01-01T00:00:00.900Z"), true);
-  assert.equal(hasMatchingUpdatedAt("2026-01-01T00:00:00.000Z", "2026-01-01T00:00:02.000Z"), false);
 });
 
 test("formatActionLabel title-cases values and handles empty action", () => {

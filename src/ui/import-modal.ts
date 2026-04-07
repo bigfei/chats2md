@@ -3,7 +3,12 @@ import { App, Modal, Notice, Setting } from "obsidian";
 import { formatAssetStorageMode } from "../main/helpers";
 import { isSyncCancelledError } from "../sync/cancellation";
 import { toIsoUtcDate } from "../sync/date-range";
-import { getConversationSyncSubsetFieldState, type ConversationSyncSubsetMode } from "./sync-subset";
+import {
+  getConversationSyncSubsetFieldState,
+  resolveSkipExistingLocalConversations,
+  type ConversationSyncSubsetMode,
+  withSkipExistingLocalConversations,
+} from "./sync-subset";
 import type {
   ConversationSyncDateRangePromptContext,
   ConversationSyncDateRangeSelection,
@@ -33,6 +38,7 @@ interface SyncModalOptions {
   folder: string;
   conversationPathTemplate: string;
   assetStorageMode: SyncModalValues["assetStorageMode"];
+  initialSkipExistingLocalConversations: boolean;
   accounts: StoredSessionAccount[];
   onSubmit: (values: SyncModalValues, progress: SyncProgressReporter, control: SyncExecutionControl) => Promise<void>;
   onSyncDialogHidden?: (reason: "minimize" | "close") => void;
@@ -99,6 +105,7 @@ class SyncDateRangeModal extends Modal {
   private startDate: string;
   private endDate: string;
   private latestCount: string;
+  private skipExistingLocalConversations: boolean;
   private startDateSetting: Setting | null = null;
   private endDateSetting: Setting | null = null;
   private latestCountSetting: Setting | null = null;
@@ -125,6 +132,9 @@ class SyncDateRangeModal extends Modal {
     this.startDate = this.fullStartDate;
     this.endDate = this.fullEndDate;
     this.latestCount = String(options.context.discoveredCount);
+    this.skipExistingLocalConversations = resolveSkipExistingLocalConversations(
+      options.context.skipExistingLocalConversations,
+    );
   }
 
   onOpen(): void {
@@ -147,6 +157,15 @@ class SyncDateRangeModal extends Modal {
       cls: "chats2md-modal__hint",
       text: "Choose one subset mode. created_at date range and latest N are mutually exclusive.",
     });
+
+    new Setting(contentEl)
+      .setName("Skip existing local conversations")
+      .setDesc("When enabled, conversations that already exist locally are skipped by account and conversation ID.")
+      .addToggle((toggle) => {
+        toggle.setValue(this.skipExistingLocalConversations).onChange((value) => {
+          this.skipExistingLocalConversations = value;
+        });
+      });
 
     new Setting(contentEl)
       .setName("Subset mode")
@@ -232,7 +251,7 @@ class SyncDateRangeModal extends Modal {
 
   private submit(): void {
     if (this.filterMode === "all") {
-      this.resolve({ mode: "all" });
+      this.resolve(withSkipExistingLocalConversations({ mode: "all" }, this.skipExistingLocalConversations));
       return;
     }
 
@@ -244,14 +263,19 @@ class SyncDateRangeModal extends Modal {
       }
 
       if (count >= this.options.context.discoveredCount) {
-        this.resolve({ mode: "all" });
+        this.resolve(withSkipExistingLocalConversations({ mode: "all" }, this.skipExistingLocalConversations));
         return;
       }
 
-      this.resolve({
-        mode: "latest-count",
-        count,
-      });
+      this.resolve(
+        withSkipExistingLocalConversations(
+          {
+            mode: "latest-count",
+            count,
+          },
+          this.skipExistingLocalConversations,
+        ),
+      );
       return;
     }
 
@@ -278,15 +302,20 @@ class SyncDateRangeModal extends Modal {
     }
 
     if (normalizedStartDate === this.fullStartDate && normalizedEndDate === this.fullEndDate) {
-      this.resolve({ mode: "all" });
+      this.resolve(withSkipExistingLocalConversations({ mode: "all" }, this.skipExistingLocalConversations));
       return;
     }
 
-    this.resolve({
-      mode: "range",
-      startDate: normalizedStartDate,
-      endDate: normalizedEndDate,
-    });
+    this.resolve(
+      withSkipExistingLocalConversations(
+        {
+          mode: "range",
+          startDate: normalizedStartDate,
+          endDate: normalizedEndDate,
+        },
+        this.skipExistingLocalConversations,
+      ),
+    );
   }
 
   private updateSubsetInputVisibility(): void {
@@ -345,6 +374,7 @@ function openSyncDateRangeModal(
 export class SyncChatGptModal extends Modal implements SyncProgressReporter, SyncExecutionControl {
   private readonly options: SyncModalOptions;
   private syncScope: "all" | "single" = "all";
+  private skipExistingLocalConversations: boolean;
   private selectedAccountId: string;
   private readonly accountSelectorContainer: HTMLDivElement;
 
@@ -368,6 +398,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
   constructor(app: App, options: SyncModalOptions) {
     super(app);
     this.options = options;
+    this.skipExistingLocalConversations = options.initialSkipExistingLocalConversations;
     this.selectedAccountId = options.accounts[0]?.accountId ?? "";
     this.accountSelectorContainer = this.contentEl.createDiv();
   }
@@ -449,7 +480,16 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
   }
 
   async selectDateRange(context: ConversationSyncDateRangePromptContext): Promise<ConversationSyncDateRangeSelection> {
-    return openSyncDateRangeModal(this.app, context);
+    const selection = await openSyncDateRangeModal(this.app, {
+      ...context,
+      skipExistingLocalConversations: this.skipExistingLocalConversations,
+    });
+
+    if (selection.mode !== "skip-account") {
+      this.skipExistingLocalConversations = selection.skipExistingLocalConversations;
+    }
+
+    return selection;
   }
 
   complete(total: number, counts: ImportProgressCounts, failures: ImportFailure[]): void {
@@ -573,6 +613,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
               folder: this.options.folder,
               conversationPathTemplate: this.options.conversationPathTemplate,
               assetStorageMode: this.options.assetStorageMode,
+              skipExistingLocalConversations: this.skipExistingLocalConversations,
               scope: this.syncScope,
               accountId: this.syncScope === "single" ? this.selectedAccountId : undefined,
             };

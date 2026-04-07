@@ -1,11 +1,6 @@
 import type { App } from "obsidian";
 
-import type {
-  AssetStorageMode,
-  Chats2MdSettings,
-  ImportProgressCounts,
-  StoredSessionAccount,
-} from "../shared/types";
+import type { AssetStorageMode, Chats2MdSettings, ImportProgressCounts, StoredSessionAccount } from "../shared/types";
 import { normalizeObsidianPath } from "../path/normalization";
 
 export const DETAIL_FETCH_MAX_ATTEMPTS = 3;
@@ -144,34 +139,6 @@ export function summarizeCounts(total: number, counts: ImportProgressCounts): st
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
-export function normalizeTimestampToMs(value: string | null | undefined): number | null {
-  if (!value) {
-    return null;
-  }
-
-  const timestamp = Date.parse(value);
-  return Number.isFinite(timestamp) ? timestamp : null;
-}
-
-export function hasMatchingUpdatedAt(existingUpdatedAt: string | null, summaryUpdatedAt: string): boolean {
-  if (!existingUpdatedAt) {
-    return false;
-  }
-
-  if (existingUpdatedAt === summaryUpdatedAt) {
-    return true;
-  }
-
-  const existingMs = normalizeTimestampToMs(existingUpdatedAt);
-  const summaryMs = normalizeTimestampToMs(summaryUpdatedAt);
-
-  if (existingMs === null || summaryMs === null) {
-    return false;
-  }
-
-  return Math.abs(existingMs - summaryMs) <= 1000;
 }
 
 export function formatActionLabel(action: string): string {

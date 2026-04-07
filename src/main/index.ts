@@ -195,6 +195,7 @@ export default class Chats2MdPlugin extends Plugin {
         readString(saved?.conversationPathTemplate, DEFAULT_SETTINGS.conversationPathTemplate).trim() ||
         DEFAULT_SETTINGS.conversationPathTemplate,
       assetStorageMode: normalizeAssetStorageMode(saved?.assetStorageMode),
+      skipExistingLocalConversations: saved?.skipExistingLocalConversations !== false,
       generateSyncReport: saved?.generateSyncReport !== false,
       syncReportFolder:
         readString(saved?.syncReportFolder, DEFAULT_SETTINGS.syncReportFolder).trim() ||

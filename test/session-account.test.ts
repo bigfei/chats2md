@@ -9,6 +9,7 @@ function createSettings(): Chats2MdSettings {
     defaultFolder: "Imports/ChatGPT",
     conversationPathTemplate: "{date}/{slug}",
     assetStorageMode: "global_by_conversation",
+    skipExistingLocalConversations: true,
     generateSyncReport: true,
     syncReportFolder: "<syncFolder>/sync-result",
     debugLogging: false,

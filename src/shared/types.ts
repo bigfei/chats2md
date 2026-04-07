@@ -14,6 +14,7 @@ export interface Chats2MdSettings {
   defaultFolder: string;
   conversationPathTemplate: string;
   assetStorageMode: AssetStorageMode;
+  skipExistingLocalConversations: boolean;
   generateSyncReport: boolean;
   syncReportFolder: string;
   debugLogging: boolean;
@@ -26,6 +27,7 @@ export const DEFAULT_SETTINGS: Chats2MdSettings = {
   defaultFolder: "Imports/ChatGPT",
   conversationPathTemplate: "{date}/{slug}",
   assetStorageMode: "global_by_conversation",
+  skipExistingLocalConversations: true,
   generateSyncReport: true,
   syncReportFolder: "<syncFolder>/sync-result",
   debugLogging: false,
@@ -89,6 +91,7 @@ export interface SyncModalValues {
   folder: string;
   conversationPathTemplate: string;
   assetStorageMode: AssetStorageMode;
+  skipExistingLocalConversations: boolean;
   scope: "all" | "single";
   accountId?: string;
 }
@@ -98,12 +101,13 @@ export interface ConversationSyncDateRangePromptContext {
   discoveredCount: number;
   minCreatedAt: string;
   maxCreatedAt: string;
+  skipExistingLocalConversations: boolean;
 }
 
 export type ConversationSyncDateRangeSelection =
-  | { mode: "all" }
-  | { mode: "range"; startDate: string; endDate: string }
-  | { mode: "latest-count"; count: number }
+  | { mode: "all"; skipExistingLocalConversations: boolean }
+  | { mode: "range"; startDate: string; endDate: string; skipExistingLocalConversations: boolean }
+  | { mode: "latest-count"; count: number; skipExistingLocalConversations: boolean }
   | { mode: "skip-account" };
 
 export type UpsertAction = "created" | "updated" | "skipped";

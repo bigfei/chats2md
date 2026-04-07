@@ -37,6 +37,7 @@ function createSyncModal(host: any): SyncChatGptModal | null {
     folder: host.settings.defaultFolder,
     conversationPathTemplate: host.settings.conversationPathTemplate,
     assetStorageMode: host.settings.assetStorageMode,
+    initialSkipExistingLocalConversations: host.settings.skipExistingLocalConversations,
     accounts,
     onSubmit: async (values, progress, control): Promise<void> => handleSync(host, values, progress, control, modal),
     onSyncDialogHidden: (reason) => {
@@ -84,6 +85,7 @@ export function startAllAccountsSync(host: any): void {
     folder: host.settings.defaultFolder,
     conversationPathTemplate: host.settings.conversationPathTemplate,
     assetStorageMode: host.settings.assetStorageMode,
+    skipExistingLocalConversations: host.settings.skipExistingLocalConversations,
     scope: "all",
   });
 }
@@ -97,6 +99,7 @@ export async function handleSync(
 ): Promise<void> {
   host.settings.defaultFolder = values.folder;
   host.settings.assetStorageMode = values.assetStorageMode;
+  host.settings.skipExistingLocalConversations = values.skipExistingLocalConversations;
   await host.saveSettings();
 
   host.syncWorkerActive = true;
@@ -149,6 +152,11 @@ export async function handleSync(
       control,
     );
   } finally {
+    if (host.settings.skipExistingLocalConversations !== values.skipExistingLocalConversations) {
+      host.settings.skipExistingLocalConversations = values.skipExistingLocalConversations;
+      await host.saveSettings();
+    }
+
     host.syncWorkerActive = false;
     host.suppressSyncStatusBarUpdates = false;
     if (host.activeSyncModal === modal && !modal.isSyncInProgress()) {
