@@ -2,6 +2,7 @@ import { App, TFile, TFolder, normalizePath } from "obsidian";
 
 import { resolveAssetFolderPaths } from "../storage/asset-storage";
 import { fetchConversationFileDownloadInfo, fetchSignedFileContent } from "../chatgpt/api";
+import { findReusableLocalAssetFileName } from "./asset-local-match";
 import { cleanupMigratedAssetSourceFolders } from "./folder-cleanup";
 import { appendExtensionIfMissing, formatAssetStorageMode, sanitizePathPart, type SyncRunLogger } from "./helpers";
 import { isSyncCancelledError } from "../sync/cancellation";
@@ -187,6 +188,21 @@ export async function syncConversationAssetsForConversation(
     const perAssetPrefix = `${logPrefix} Asset ${assetIndex + 1}/${downloadRefs.length} (${ref.fileId})`;
 
     try {
+      const reusableFileName = findReusableLocalAssetFileName(Array.from(usedNames), ref);
+      if (reusableFileName) {
+        const reusablePath = normalizePath(`${assetFolderPath}/${reusableFileName}`);
+        const reusableExisting = host.app.vault.getAbstractFileByPath(reusablePath);
+
+        if (reusableExisting instanceof TFile) {
+          linkMap[ref.fileId] = {
+            path: reusableExisting.path,
+            fileName: reusableExisting.name,
+          };
+          logger?.info(`${perAssetPrefix} Reusing local asset without API call: ${reusableExisting.path}`);
+          continue;
+        }
+      }
+
       logger?.info(`${perAssetPrefix} Resolving download metadata.`);
       const info = await fetchConversationFileDownloadInfo(requestConfig, ref.fileId, stopSignal);
       logger?.info(`${perAssetPrefix} Metadata resolved (file_name=${info.fileName || "<empty>"}).`);
