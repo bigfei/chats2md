@@ -23,6 +23,7 @@ export interface SyncProgressReporter {
   setStatus(message: string): void;
   setRetry(title: string, index: number, total: number, attempt: number, message: string): void;
   setProgress(title: string, index: number, total: number, processed: number, counts: ImportProgressCounts): void;
+  pauseForRetry(message: string): void;
   selectDateRange(context: ConversationSyncDateRangePromptContext): Promise<ConversationSyncDateRangeSelection>;
   complete(total: number, counts: ImportProgressCounts, failures: ImportFailure[]): void;
   fail(message: string, counts: ImportProgressCounts): void;
@@ -33,6 +34,7 @@ export interface SyncExecutionControl {
   waitIfPaused(): Promise<void>;
   shouldStop(): boolean;
   getStopSignal(): AbortSignal;
+  resetRetryPause(): void;
 }
 
 interface SyncModalOptions {
@@ -464,6 +466,12 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     return this.stopController.signal;
   }
 
+  resetRetryPause(): void {
+    this.isPaused = false;
+    this.updatePauseButton();
+    this.applyStatusText();
+  }
+
   setPreparing(message: string): void {
     this.activeStatusText = message;
     this.setProgressValue(0);
@@ -486,6 +494,14 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     this.latestCounts = { ...counts };
     this.setProgressValue(total === 0 ? 0 : Math.round((processed / total) * 100));
     this.countsEl?.setText(formatCounts(this.latestCounts));
+    this.applyStatusText();
+  }
+
+  pauseForRetry(message: string): void {
+    this.activeStatusText = message;
+    this.isPaused = true;
+    this.appendDetail(message);
+    this.updatePauseButton();
     this.applyStatusText();
   }
 
@@ -756,15 +772,15 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
       return;
     }
 
-    this.isPaused = !this.isPaused;
-
     if (this.isPaused) {
-      this.log("Paused by user.");
-    } else {
       this.log("Resumed by user.");
+      this.resetRetryPause();
       this.releasePauseWaiters();
+      return;
     }
 
+    this.isPaused = true;
+    this.log("Paused by user.");
     this.updatePauseButton();
     this.applyStatusText();
   }

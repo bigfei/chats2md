@@ -3,11 +3,11 @@ import test from "node:test";
 
 import {
   ConsecutiveRateLimitGuard,
-  ConsecutiveRateLimitSyncError,
+  ConsecutiveRateLimitPauseError,
   MAX_CONSECUTIVE_RATE_LIMIT_RESPONSES,
 } from "../src/sync/rate-limit-guard.ts";
 
-test("ConsecutiveRateLimitGuard stops after more than five consecutive 429 responses", () => {
+test("ConsecutiveRateLimitGuard pauses after more than five consecutive 429 responses", () => {
   const warnings: string[] = [];
   const guard = new ConsecutiveRateLimitGuard();
   const monitor = guard.createMonitor((message) => {
@@ -25,7 +25,7 @@ test("ConsecutiveRateLimitGuard stops after more than five consecutive 429 respo
       monitor.onRateLimitedResponse();
     },
     (error: unknown) =>
-      error instanceof ConsecutiveRateLimitSyncError &&
+      error instanceof ConsecutiveRateLimitPauseError &&
       error.consecutiveCount === MAX_CONSECUTIVE_RATE_LIMIT_RESPONSES + 1,
   );
 });
@@ -39,6 +39,27 @@ test("ConsecutiveRateLimitGuard resets after a non-429 response", () => {
   }
 
   monitor.onNonRateLimitedResponse();
+
+  assert.doesNotThrow(() => {
+    for (let index = 0; index < MAX_CONSECUTIVE_RATE_LIMIT_RESPONSES; index += 1) {
+      monitor.onRateLimitedResponse();
+    }
+  });
+});
+
+test("ConsecutiveRateLimitGuard can be reset after a pause so sync may resume", () => {
+  const guard = new ConsecutiveRateLimitGuard();
+  const monitor = guard.createMonitor();
+
+  for (let index = 0; index <= MAX_CONSECUTIVE_RATE_LIMIT_RESPONSES; index += 1) {
+    try {
+      monitor.onRateLimitedResponse();
+    } catch (error) {
+      assert.equal(error instanceof ConsecutiveRateLimitPauseError, true);
+    }
+  }
+
+  guard.reset();
 
   assert.doesNotThrow(() => {
     for (let index = 0; index < MAX_CONSECUTIVE_RATE_LIMIT_RESPONSES; index += 1) {
