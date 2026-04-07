@@ -143,7 +143,8 @@ test("fetchConversationSummariesWithPageFetcher does not stop at the first page 
 
   assert.deepEqual(requestedOffsets, [0, 100, 200, 300]);
   assert.equal(result.pagesFetched, 4);
-  assert.equal(result.fetchedCount, 202);
+  assert.equal(result.rawItemCount, 202);
+  assert.equal(result.uniqueConversationCount, 202);
   assert.equal(result.summaries[0]?.id, "conv-201");
 });
 
@@ -215,8 +216,51 @@ test("fetchConversationSummariesWithPageFetcher continues past 10,000 items when
     },
   );
 
-  assert.equal(result.fetchedCount, pageLimit * totalPages);
+  assert.equal(result.rawItemCount, pageLimit * totalPages);
+  assert.equal(result.uniqueConversationCount, pageLimit * totalPages);
   assert.equal(result.pagesFetched, totalPages + 1);
   assert.equal(requestedOffsets[0], 0);
   assert.equal(requestedOffsets.at(-1), totalPages * pageLimit);
+});
+
+test("fetchConversationSummariesWithPageFetcher returns separate raw and unique counters when pages overlap", async () => {
+  const result = await fetchConversationSummariesWithPageFetcher(
+    async (offset) => {
+      if (offset === 0) {
+        return {
+          pageInfo: createPageInfo(0, 2, null),
+          pageSummaries: [
+            createSummary("conv-1", "2026-03-01T00:00:00.000Z"),
+            createSummary("conv-2", "2026-03-02T00:00:00.000Z"),
+          ],
+        };
+      }
+
+      if (offset === 2) {
+        return {
+          pageInfo: createPageInfo(2, 2, null),
+          pageSummaries: [
+            createSummary("conv-2", "2026-03-02T00:00:00.000Z", "2026-03-03T00:00:00.000Z"),
+            createSummary("conv-3", "2026-03-04T00:00:00.000Z"),
+          ],
+        };
+      }
+
+      return {
+        pageInfo: createPageInfo(offset, 2, null),
+        pageSummaries: [],
+      };
+    },
+    {
+      pageLimit: 2,
+      parallelism: 1,
+    },
+  );
+
+  assert.equal(result.rawItemCount, 4);
+  assert.equal(result.uniqueConversationCount, 3);
+  assert.deepEqual(
+    result.summaries.map((summary) => summary.id),
+    ["conv-3", "conv-2", "conv-1"],
+  );
 });

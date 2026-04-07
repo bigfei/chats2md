@@ -189,7 +189,8 @@ export async function runFullSync(
 
       let summaries: ConversationSummary[] = [];
       let listPagesFetched = 0;
-      let mergedConversationCount = 0;
+      let listRawItemCount = 0;
+      let listUniqueConversationCount = 0;
 
       try {
         if (!(await ensureCanContinue())) {
@@ -213,7 +214,8 @@ export async function runFullSync(
         });
         summaries = listFetchResult.summaries;
         listPagesFetched = listFetchResult.pagesFetched;
-        mergedConversationCount = listFetchResult.fetchedCount;
+        listRawItemCount = listFetchResult.rawItemCount;
+        listUniqueConversationCount = listFetchResult.uniqueConversationCount;
       } catch (error) {
         if (isSyncCancelledError(error) || control.shouldStop()) {
           runStatus = "stopped";
@@ -256,7 +258,7 @@ export async function runFullSync(
       const discoveredCount = summaries.length;
       logInfo(
         `[${accountLabel}] Found ${discoveredCount} conversation(s) ` +
-          `(list pages: ${listPagesFetched}, unique conversations after merge: ${mergedConversationCount}).`,
+          `(list pages: ${listPagesFetched}, raw list items: ${listRawItemCount}, unique conversations after merge: ${listUniqueConversationCount}).`,
       );
       if (discoveredCount === 0) {
         continue;

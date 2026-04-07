@@ -11,7 +11,8 @@ export interface ConversationListPageInfo {
 export interface FetchConversationSummariesResult {
   summaries: ConversationSummary[];
   pagesFetched: number;
-  fetchedCount: number;
+  rawItemCount: number;
+  uniqueConversationCount: number;
 }
 
 export interface FetchConversationSummariesPageProgress {
@@ -123,6 +124,7 @@ export async function fetchConversationSummariesWithPageFetcher(
   const discoveredIds = new Set<string>();
   let expectedTotal: number | null = null;
   let pagesFetched = 0;
+  let rawItemCount = 0;
 
   const recordPage = (
     offset: number,
@@ -135,6 +137,7 @@ export async function fetchConversationSummariesWithPageFetcher(
       pageSummaries,
     });
     pagesFetched += 1;
+    rawItemCount += pageSummaries.length;
     if (pageInfo.total !== null) {
       expectedTotal = expectedTotal === null ? pageInfo.total : Math.max(expectedTotal, pageInfo.total);
     }
@@ -161,7 +164,8 @@ export async function fetchConversationSummariesWithPageFetcher(
     return {
       summaries,
       pagesFetched,
-      fetchedCount: summaries.length,
+      rawItemCount,
+      uniqueConversationCount: summaries.length,
     };
   }
 
@@ -170,7 +174,8 @@ export async function fetchConversationSummariesWithPageFetcher(
     return {
       summaries,
       pagesFetched,
-      fetchedCount: summaries.length,
+      rawItemCount,
+      uniqueConversationCount: summaries.length,
     };
   }
 
@@ -228,6 +233,7 @@ export async function fetchConversationSummariesWithPageFetcher(
   return {
     summaries,
     pagesFetched,
-    fetchedCount: summaries.length,
+    rawItemCount,
+    uniqueConversationCount: summaries.length,
   };
 }
