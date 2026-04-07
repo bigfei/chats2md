@@ -20,7 +20,8 @@ test("renderSyncRunReport includes run metadata and wikilinks", () => {
         label: "user@example.com",
       },
     ],
-    total: 2,
+    discoveredTotal: 5,
+    selectedTotal: 2,
     counts: {
       created: 1,
       updated: 1,
@@ -69,6 +70,8 @@ test("renderSyncRunReport includes run metadata and wikilinks", () => {
     markdown,
     /- Sync log: \[\[Imports\/ChatGPT\/sync-result\/sync-2026-04-04T10-05-00-000Z\.log\|sync-2026-04-04T10-05-00-000Z\.log\]\]/,
   );
+  assert.match(markdown, /- Conversations discovered from list fetch: 5/);
+  assert.match(markdown, /- Conversations selected for this run: 2/);
   assert.match(markdown, /- Layout template: \{email\}\/\{account_id\}\/\{slug\}/);
   assert.match(markdown, /- Asset storage: With conversation folder/);
   assert.match(markdown, /\[\[Imports\/ChatGPT\/user@example\.com\/u-1\/created-chat\|Created chat\]\] \(`conv-1`\)/);

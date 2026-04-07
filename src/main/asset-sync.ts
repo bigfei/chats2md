@@ -2,7 +2,11 @@ import { App, TFile, TFolder, normalizePath } from "obsidian";
 
 import { resolveAssetFolderPaths } from "../storage/asset-storage";
 import { fetchConversationFileDownloadInfo, fetchSignedFileContent } from "../chatgpt/api";
-import { buildStableAssetFileName, findReusableLocalAssetFileName } from "./asset-local-match";
+import {
+  buildStableAssetFileName,
+  findMigratableLegacyAssetFileName,
+  findReusableLocalAssetFileName,
+} from "./asset-local-match";
 import { cleanupMigratedAssetSourceFolders } from "./folder-cleanup";
 import { formatAssetStorageMode, type SyncRunLogger } from "./helpers";
 import { isSyncCancelledError } from "../sync/cancellation";
@@ -49,27 +53,6 @@ function readFolderFileNames(app: App, folderPath: string): Set<string> {
   return names;
 }
 
-function nextAvailableFileName(baseName: string, usedNames: Set<string>): string {
-  if (!usedNames.has(baseName)) {
-    usedNames.add(baseName);
-    return baseName;
-  }
-
-  const dotIndex = baseName.lastIndexOf(".");
-  const stem = dotIndex > 0 ? baseName.slice(0, dotIndex) : baseName;
-  const extension = dotIndex > 0 ? baseName.slice(dotIndex) : "";
-  let suffix = 1;
-
-  while (true) {
-    const candidate = `${stem}_${suffix}${extension}`;
-    if (!usedNames.has(candidate)) {
-      usedNames.add(candidate);
-      return candidate;
-    }
-    suffix += 1;
-  }
-}
-
 function collectConversationDownloadRefs(
   references: ConversationFileReference[],
 ): Array<{ fileId: string; logicalName: string }> {
@@ -87,32 +70,80 @@ function collectConversationDownloadRefs(
   return Array.from(refsById.values());
 }
 
-async function migrateConversationAssetFiles(
+function findLegacyAssetForReference(
   app: App,
-  targetFolderPath: string,
   sourceFolderPaths: string[],
-  usedNames: Set<string>,
-  logger: SyncRunLogger | null,
-  logPrefix: string,
-): Promise<void> {
+  ref: { fileId: string; logicalName: string },
+): TFile | null {
+  let matchedFile: TFile | null = null;
+
   for (const sourceFolderPath of sourceFolderPaths) {
     const sourceFolder = app.vault.getAbstractFileByPath(sourceFolderPath);
     if (!(sourceFolder instanceof TFolder)) {
       continue;
     }
 
-    for (const child of Array.from(sourceFolder.children)) {
-      if (!(child instanceof TFile)) {
-        continue;
-      }
+    const fileNames = sourceFolder.children
+      .filter((child): child is TFile => child instanceof TFile)
+      .map((child) => child.name);
+    const matchedFileName = findMigratableLegacyAssetFileName(fileNames, ref);
 
-      const oldPath = child.path;
-      const destinationFileName = nextAvailableFileName(child.name, usedNames);
-      const destinationPath = normalizePath(`${targetFolderPath}/${destinationFileName}`);
-      await app.fileManager.renameFile(child, destinationPath);
-      logger?.info(`${logPrefix} Migrated existing asset: ${oldPath} -> ${destinationPath}`);
+    if (!matchedFileName) {
+      continue;
     }
+
+    const matchedPath = normalizePath(`${sourceFolderPath}/${matchedFileName}`);
+    const candidate = app.vault.getAbstractFileByPath(matchedPath);
+    if (!(candidate instanceof TFile)) {
+      continue;
+    }
+
+    if (matchedFile) {
+      return null;
+    }
+
+    matchedFile = candidate;
   }
+
+  return matchedFile;
+}
+
+async function migrateLegacyAssetForReference(
+  app: App,
+  targetFolderPath: string,
+  sourceFolderPaths: string[],
+  ref: { fileId: string; logicalName: string },
+  logger: SyncRunLogger | null,
+  logPrefix: string,
+): Promise<{ path: string; fileName: string } | null> {
+  const legacyFile = findLegacyAssetForReference(app, sourceFolderPaths, ref);
+
+  if (!legacyFile) {
+    return null;
+  }
+
+  const targetFileName = buildStableAssetFileName(ref.fileId, legacyFile.name, ref.logicalName);
+  const targetPath = normalizePath(`${targetFolderPath}/${targetFileName}`);
+  const existingTarget = app.vault.getAbstractFileByPath(targetPath);
+
+  if (existingTarget instanceof TFolder) {
+    throw new Error(`Asset target conflicts with folder: ${targetPath}`);
+  }
+
+  if (existingTarget instanceof TFile) {
+    return {
+      path: existingTarget.path,
+      fileName: existingTarget.name,
+    };
+  }
+
+  const legacyPath = legacyFile.path;
+  await app.fileManager.renameFile(legacyFile, targetPath);
+  logger?.info(`${logPrefix} Migrated legacy asset to stable fileId name: ${legacyPath} -> ${targetPath}`);
+  return {
+    path: targetPath,
+    fileName: targetFileName,
+  };
 }
 
 export async function syncConversationAssetsForConversation(
@@ -163,14 +194,6 @@ export async function syncConversationAssetsForConversation(
   await host.ensureFolderExists(assetFolderPath);
   const usedNames = readFolderFileNames(host.app, assetFolderPath);
   const sourceFolderPaths = folderPaths.candidateFolderPaths.filter((path) => path !== assetFolderPath);
-  await migrateConversationAssetFiles(host.app, assetFolderPath, sourceFolderPaths, usedNames, logger, logPrefix);
-  try {
-    const removedFolders = await cleanupMigratedAssetSourceFolders(host.app, sourceFolderPaths, assetFolderPath);
-    removedFolders.forEach((folderPath) => logger?.info(`${logPrefix} Removed empty asset folder: ${folderPath}`));
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    logger?.warn(`${logPrefix} Failed to clean up empty asset folders: ${message}`);
-  }
 
   for (const [assetIndex, ref] of downloadRefs.entries()) {
     const perAssetPrefix = `${logPrefix} Asset ${assetIndex + 1}/${downloadRefs.length} (${ref.fileId})`;
@@ -189,6 +212,20 @@ export async function syncConversationAssetsForConversation(
           logger?.info(`${perAssetPrefix} Reusing local asset without API call: ${reusableExisting.path}`);
           continue;
         }
+      }
+
+      const migratedLegacy = await migrateLegacyAssetForReference(
+        host.app,
+        assetFolderPath,
+        sourceFolderPaths,
+        ref,
+        logger,
+        perAssetPrefix,
+      );
+      if (migratedLegacy) {
+        usedNames.add(migratedLegacy.fileName);
+        linkMap[ref.fileId] = migratedLegacy;
+        continue;
       }
 
       logger?.info(`${perAssetPrefix} Resolving download metadata.`);
@@ -251,6 +288,14 @@ export async function syncConversationAssetsForConversation(
       const message = error instanceof Error ? error.message : String(error);
       logger?.warn(`${perAssetPrefix} Failed to download asset: ${message}`);
     }
+  }
+
+  try {
+    const removedFolders = await cleanupMigratedAssetSourceFolders(host.app, sourceFolderPaths, assetFolderPath);
+    removedFolders.forEach((folderPath) => logger?.info(`${logPrefix} Removed empty asset folder: ${folderPath}`));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger?.warn(`${logPrefix} Failed to clean up empty asset folders: ${message}`);
   }
 
   return linkMap;

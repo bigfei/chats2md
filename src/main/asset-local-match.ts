@@ -5,6 +5,10 @@ export interface LocalAssetReference {
   logicalName: string;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function extractKnownExtension(fileName: string): string {
   const trimmed = fileName.trim();
   const dotIndex = trimmed.lastIndexOf(".");
@@ -64,4 +68,22 @@ export function findReusableLocalAssetFileName(fileNames: string[], ref: LocalAs
   }
 
   return null;
+}
+
+export function findMigratableLegacyAssetFileName(fileNames: string[], ref: LocalAssetReference): string | null {
+  const normalizedLogicalName = sanitizePathPart(ref.logicalName);
+
+  if (!normalizedLogicalName) {
+    return null;
+  }
+
+  const dotIndex = normalizedLogicalName.lastIndexOf(".");
+  const stem = dotIndex > 0 ? normalizedLogicalName.slice(0, dotIndex) : normalizedLogicalName;
+  const extension = dotIndex > 0 ? normalizedLogicalName.slice(dotIndex) : "";
+  const siblingPattern = new RegExp(`^${escapeRegExp(stem)}_\\d+${escapeRegExp(extension)}$`);
+  const relatedMatches = fileNames.filter(
+    (fileName) => fileName === normalizedLogicalName || siblingPattern.test(fileName),
+  );
+
+  return relatedMatches.length === 1 ? (relatedMatches[0] ?? null) : null;
 }

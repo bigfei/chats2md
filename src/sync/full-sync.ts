@@ -76,6 +76,7 @@ export async function runFullSync(
   const updatedEntries: SyncReportConversationEntry[] = [];
   const movedEntries: SyncReportConversationEntry[] = [];
   const failedEntries: SyncReportConversationEntry[] = [];
+  let discoveredConversations = 0;
   let processedConversations = 0;
   let totalConversations = 0;
   const startedAt = new Date().toISOString();
@@ -261,6 +262,7 @@ export async function runFullSync(
       }
 
       const discoveredCount = summaries.length;
+      discoveredConversations += discoveredCount;
       logInfo(
         `[${accountLabel}] Found ${discoveredCount} conversation(s) ` +
           `(list pages: ${listPagesFetched}, raw list items: ${listRawItemCount}, unique conversations after merge: ${listUniqueConversationCount}).`,
@@ -675,7 +677,8 @@ export async function runFullSync(
           accountId: account.accountId,
           label: context.getAccountLabel(account),
         })),
-        total: totalConversations,
+        discoveredTotal: discoveredConversations,
+        selectedTotal: totalConversations,
         counts: { ...counts },
         created: createdEntries,
         updated: updatedEntries,

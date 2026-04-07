@@ -167,7 +167,8 @@ export interface SyncRunReport {
   assetStorageMode: AssetStorageMode;
   scope: "all" | "single";
   accounts: Array<{ accountId: string; label: string }>;
-  total: number;
+  discoveredTotal: number;
+  selectedTotal: number;
   counts: ImportProgressCounts;
   created: SyncReportConversationEntry[];
   updated: SyncReportConversationEntry[];
