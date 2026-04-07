@@ -10,6 +10,7 @@ import {
   type FetchConversationSummariesPageProgress,
   type FetchConversationSummariesResult,
 } from "./conversation-list-fetch";
+import { normalizeFileDownloadInfo, type FileDownloadInfo } from "./file-download-info";
 import { requestBinary, requestJsonWithRetries } from "./request-core";
 
 import type {
@@ -45,11 +46,6 @@ interface SessionPayload {
 }
 
 type UnknownRecord = Record<string, unknown>;
-
-interface FileDownloadInfo {
-  downloadUrl: string;
-  fileName: string;
-}
 
 export interface DownloadedFileContent {
   data: ArrayBuffer;
@@ -796,25 +792,6 @@ export async function fetchConversationDetailWithPayload(
   return {
     detail: normalizeConversationDetail(payload, conversationId, fallback),
     rawPayload: payload,
-  };
-}
-
-function normalizeFileDownloadInfo(payload: unknown, fileId: string): FileDownloadInfo {
-  const record = toRecord(payload);
-
-  if (!record) {
-    throw new Error(`File download metadata for ${fileId} is not a JSON object.`);
-  }
-
-  const downloadUrl = readString(record.download_url);
-  if (!downloadUrl) {
-    throw new Error(`File download metadata for ${fileId} is missing download_url.`);
-  }
-
-  const fileName = readString(record.file_name);
-  return {
-    downloadUrl,
-    fileName: fileName || fileId,
   };
 }
 
