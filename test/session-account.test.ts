@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { removeStoredAccount } from "../src/main/helpers.ts";
+import { clearStoredSecretPayload } from "../src/main/secret-storage.ts";
 import type { Chats2MdSettings } from "../src/shared/types.ts";
 
 function createSettings(): Chats2MdSettings {
@@ -40,6 +41,23 @@ test("removeStoredAccount removes only the requested account", () => {
   const settings = createSettings();
   removeStoredAccount(settings, "account-1");
 
+  assert.deepEqual(
+    settings.accounts.map((account) => account.accountId),
+    ["account-2"],
+  );
+});
+
+test("session removal fallback clears stored secret payload before metadata removal", () => {
+  const settings = createSettings();
+  const secretWrites: Array<{ key: string; value: string }> = [];
+
+  const cleared = clearStoredSecretPayload(settings, "account-1", (key, value) => {
+    secretWrites.push({ key, value });
+  });
+  removeStoredAccount(settings, "account-1");
+
+  assert.equal(cleared, true);
+  assert.deepEqual(secretWrites, [{ key: "secret-1", value: "" }]);
   assert.deepEqual(
     settings.accounts.map((account) => account.accountId),
     ["account-2"],

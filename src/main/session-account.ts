@@ -2,6 +2,7 @@ import { Notice } from "obsidian";
 
 import { parseSessionJson } from "../chatgpt/api";
 import { SECRET_ID_PREFIX, removeStoredAccount, sortAccounts } from "./helpers";
+import { clearStoredSecretPayload } from "./secret-storage";
 import type { ChatGptRequestConfig, Chats2MdSettings, StoredSessionAccount } from "../shared/types";
 
 export interface MainSessionAccountHost {
@@ -79,6 +80,9 @@ export async function upsertSessionAccount(
 }
 
 export async function removeSessionAccount(host: MainSessionAccountHost, accountId: string): Promise<void> {
+  // Obsidian SecretStorage has no delete API as of 1.11.4, so clear the payload in place.
+  clearStoredSecretPayload(host.settings, accountId, (key, value) => host.app.secretStorage.setSecret(key, value));
+
   removeStoredAccount(host.settings, accountId);
   await host.saveSettings();
 }

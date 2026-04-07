@@ -25,7 +25,6 @@ export interface FetchConversationSummariesPageProgress {
 
 export interface FetchConversationSummariesWithPageFetcherOptions {
   pageLimit: number;
-  maxPageRequests: number;
   parallelism: number;
   onPageFetched?: (progress: FetchConversationSummariesPageProgress) => void;
 }
@@ -125,7 +124,11 @@ export async function fetchConversationSummariesWithPageFetcher(
   let expectedTotal: number | null = null;
   let pagesFetched = 0;
 
-  const recordPage = (offset: number, pageInfo: ConversationListPageInfo, pageSummaries: ConversationSummary[]): void => {
+  const recordPage = (
+    offset: number,
+    pageInfo: ConversationListPageInfo,
+    pageSummaries: ConversationSummary[],
+  ): void => {
     pages.push({
       offset,
       pageInfo,
@@ -153,7 +156,7 @@ export async function fetchConversationSummariesWithPageFetcher(
   const firstPage = await fetchPage(0);
   recordPage(0, firstPage.pageInfo, firstPage.pageSummaries);
 
-  if (firstPage.pageSummaries.length === 0 || options.maxPageRequests === 1) {
+  if (firstPage.pageSummaries.length === 0) {
     const summaries = finalizeFetchedConversationSummaries(pages);
     return {
       summaries,
@@ -172,19 +175,18 @@ export async function fetchConversationSummariesWithPageFetcher(
   }
 
   let nextOffset = getNextConversationListOffset(0, firstPage.pageInfo, options.pageLimit);
-  let requestsRemaining = options.maxPageRequests - 1;
 
-  while (requestsRemaining > 0) {
-    const batchSize = Math.min(options.parallelism, requestsRemaining);
-    const batchOffsets = Array.from({ length: batchSize }, (_value, index) => nextOffset + index * options.pageLimit);
+  while (true) {
+    const batchOffsets = Array.from(
+      { length: options.parallelism },
+      (_value, index) => nextOffset + index * options.pageLimit,
+    );
     const batchResults = new Map<number, Omit<ConversationListPageFetchResult, "offset">>();
 
     await runParallelOffsets(batchOffsets, options.parallelism, async (offset) => {
       const page = await fetchPage(offset);
       batchResults.set(offset, page);
     });
-
-    requestsRemaining -= batchOffsets.length;
 
     let shouldContinue = true;
     let nextBatchOffset: number | null = null;

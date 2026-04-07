@@ -1,15 +1,66 @@
 # Chats2MD
 
-`Chats2MD` is an Obsidian plugin that imports full ChatGPT conversation logs into
-Markdown notes.
+`Chats2MD` is an Obsidian plugin that syncs ChatGPT conversations into Markdown notes.
 
 ## Requirements and disclosures
 
-- A ChatGPT account and valid session payload are required.
-- The plugin uses the network to access `https://chatgpt.com` APIs for conversation
-  list/detail fetches and asset downloads.
-- Session payloads are stored in Obsidian Secret Storage instead of plugin `data.json`.
-- The plugin does not include client-side telemetry, ads, or plugin self-update behavior.
+- A ChatGPT account and a valid session JSON payload are required.
+- The plugin makes network requests to `https://chatgpt.com` for conversation-list fetches, conversation-detail fetches, account validation, and asset downloads.
+- Session payloads are stored in Obsidian Secret Storage, not in plugin `data.json`.
+- Deleting an account removes its metadata from plugin settings and clears the stored secret payload by overwriting it with an empty value. Obsidian 1.11.4 does not expose a secret-delete API.
+- Optional JSON sidecars store raw ChatGPT conversation detail payloads as local vault files next to notes.
+- Optional sync logs and sync reports are written into your vault.
+- The plugin does not include telemetry, ads, remote configuration, or self-update behavior.
+
+## What the plugin does
+
+- Adds an `All Account Sync` command.
+- Adds a `Rebuild from JSON` command.
+- Adds a ribbon action to open the sync flow.
+- Adds a per-note `Force sync from ChatGPT` action for synced ChatGPT notes.
+
+## Sync behavior
+
+1. Configure one or more ChatGPT session JSON payloads in plugin settings.
+2. Start sync from the ribbon icon or command palette.
+3. Choose whether to sync all configured accounts or a single account.
+4. The plugin fetches the full conversation list for each selected account.
+5. If the discovered `created_at` span is larger than 30 days, the plugin prompts you to sync:
+   - the full discovered range,
+   - a date range, or
+   - the latest N conversations by `created_at`.
+6. Conversation details are fetched one conversation at a time, with a randomized delay between requests.
+7. Notes are created, updated, or moved to match the configured folder and path template.
+8. Referenced assets are downloaded and linked into the generated Markdown.
+
+## Storage layout
+
+- Default sync folder: `Imports/ChatGPT`
+- Default note path template: `{date}/{slug}`
+- Supported path placeholders:
+  - `{date}`: conversation created date (`YYYY-MM-DD`)
+  - `{slug}`: sanitized conversation title
+  - `{email}`: ChatGPT account email
+  - `{account_id}`: ChatGPT account ID
+  - `{conversation_id}`: ChatGPT conversation ID
+- Built-in path template presets:
+  - `{date}/{slug}`
+  - `{email}/{account_id}/{date}/{slug}`
+  - `{email}/{account_id}/{slug}`
+- Asset storage modes:
+  - `Global by conversation`: `<sync-folder>/_assets/<account_id>/`
+  - `With conversation folder`: `<conversation-folder>/_assets/`
+- Optional JSON sidecar caching stores raw `/backend-api/conversation/{id}` payloads as `<note>.json`.
+- Optional sync reports default to `<syncFolder>/sync-result/` and support the `<syncFolder>` placeholder.
+- Sync logs are also stored in the configured sync report folder.
+
+## Rebuild from JSON
+
+`Rebuild from JSON` rebuilds existing synced notes from cached local JSON sidecars without calling the ChatGPT conversation-detail endpoint.
+
+- Notes without a JSON sidecar are skipped.
+- Asset references are re-resolved using the configured asset storage mode.
+- Notes may be moved if the current path template resolves to a different location.
 
 ## Obsidian plugin development
 
@@ -31,6 +82,7 @@ Run code quality checks:
 ```bash
 npm run lint
 npm run format:check
+npm test
 ```
 
 Auto-fix formatting and lint issues:
@@ -40,35 +92,15 @@ npm run format
 npm run lint:fix
 ```
 
-This now also creates an installable zip at:
-`release/chats2md-<version>.zip`
+The build also creates an installable zip at `release/chats2md-<version>.zip`.
 
-The zip contains `chats2md/main.js`, `chats2md/manifest.json`, and
-`chats2md/styles.css` for manual installation.
+The zip contains:
 
-For community-plugin updates, publish a GitHub release and attach these files as
-binary assets: `main.js`, `manifest.json`, and `styles.css`.
+- `chats2md/main.js`
+- `chats2md/manifest.json`
+- `chats2md/styles.css`
 
-The plugin adds `All Account Sync` and `Rebuild from JSON` commands, plus a ribbon action.
-Configure account session JSON payloads and default folder in plugin settings.
-Session JSON payloads are stored in Obsidian Secret Storage, and each account entry shows its `user.id`,
-`user.email`, and `account.id`. Start sync from the ribbon/command, choose all
-accounts or one account, and the plugin will fetch the latest conversation
-window (configurable default limit, with optional per-run override) and
-upsert notes under a configurable path template (default `{date}/{slug}` with
-presets like `{email}/{account_id}/{date}/{slug}`, where `{date}` uses the
-conversation created date). Each full sync run also writes
-a markdown report when enabled in settings. The default report folder is
-`<syncFolder>/sync-result/` (supports `<syncFolder>` placeholder for custom
-locations). Asset storage can be configured
-as global (`<default-folder>/_assets/<account_id>/`) or local
-to each conversation folder (`<conversation-folder>/_assets/`).
-For historical backfills, each sync run also includes a `Fetch full conversation list`
-toggle to bypass latest-window list caching for that run.
-Optionally, you can enable JSON sidecar caching in settings to store raw
-`/backend-api/conversation/{id}` payloads next to notes as `<note>.json`, and run
-a manual settings action to rebuild markdown notes from cached JSON without
-calling the conversation detail endpoint.
+For community-plugin releases, publish a GitHub release and attach `main.js`, `manifest.json`, and `styles.css` as binary assets.
 
 ## Sample vault
 
@@ -81,9 +113,7 @@ npm run build
 npm run setup:sample-vault
 ```
 
-`setup:sample-vault` now symlinks `main.js`, `manifest.json`, and `styles.css`
-into the sample vault plugin directory, so `npm run dev` updates are visible
-there without rerunning setup.
+`setup:sample-vault` symlinks `main.js`, `manifest.json`, and `styles.css` into the sample vault plugin directory so `npm run dev` updates are visible there without rerunning setup.
 
 Then open `sample-vault` in Obsidian and enable the `Chats2MD` community plugin.
 

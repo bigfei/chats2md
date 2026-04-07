@@ -10,7 +10,7 @@ import {
   type FetchConversationSummariesPageProgress,
   type FetchConversationSummariesResult,
 } from "./conversation-list-fetch";
-import { raceWithAbort, sleepWithAbort } from "../sync/cancellation";
+import { requestBinary, requestJsonWithRetries } from "./request-core";
 
 import type {
   ChatGptRequestConfig,
@@ -24,12 +24,8 @@ import type {
 const BASE_URL = "https://chatgpt.com";
 const DEFAULT_LIST_PAGE_LIMIT = 28;
 const MAX_LIST_PAGE_LIMIT = 100;
-const MAX_LIST_PAGE_REQUESTS = 100;
 const CONVERSATION_LIST_FETCH_PARALLELISM = 3;
 const CONVERSATION_LIST_PAGE_LIMIT = 100;
-const MAX_RATE_LIMIT_RETRIES = 3;
-const MIN_RATE_LIMIT_BACKOFF_MS = 5000;
-const MAX_RATE_LIMIT_BACKOFF_MS = 60000;
 const DEFAULT_FIREFOX_USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:149.0) Gecko/20100101 Firefox/149.0";
 const RESERVED_HEADER_NAMES = new Set(["accept", "authorization", "chatgpt-account-id", "cookie", "user-agent"]);
@@ -222,95 +218,23 @@ function buildHeaders(config: ChatGptRequestConfig, extraHeaders: Record<string,
   return headers;
 }
 
-function readHeader(headers: unknown, targetName: string): string | null {
-  const headerRecord = toRecord(headers);
-
-  if (!headerRecord) {
-    return null;
-  }
-
-  for (const name in headerRecord) {
-    if (!Object.prototype.hasOwnProperty.call(headerRecord, name)) {
-      continue;
-    }
-
-    const value = headerRecord[name];
-    if (name.toLowerCase() !== targetName.toLowerCase()) {
-      continue;
-    }
-
-    if (typeof value === "string" && value.trim().length > 0) {
-      return value.trim();
-    }
-  }
-
-  return null;
-}
-
-function parseRetryAfterMs(raw: string | null): number | null {
-  if (!raw) {
-    return null;
-  }
-
-  const seconds = Number(raw);
-  if (Number.isFinite(seconds) && seconds >= 0) {
-    return Math.round(seconds * 1000);
-  }
-
-  const retryDate = Date.parse(raw);
-  if (!Number.isFinite(retryDate)) {
-    return null;
-  }
-
-  return Math.max(0, retryDate - Date.now());
-}
-
-function computeRateLimitDelayMs(attempt: number, retryAfterMs: number | null): number {
-  if (retryAfterMs !== null && retryAfterMs > 0) {
-    return Math.min(MAX_RATE_LIMIT_BACKOFF_MS, Math.max(MIN_RATE_LIMIT_BACKOFF_MS, retryAfterMs));
-  }
-
-  const baseDelay = Math.min(MAX_RATE_LIMIT_BACKOFF_MS, MIN_RATE_LIMIT_BACKOFF_MS * 2 ** attempt);
-  const jitter = Math.round(baseDelay * 0.2 * Math.random());
-  return Math.min(MAX_RATE_LIMIT_BACKOFF_MS, baseDelay + jitter);
-}
-
 async function requestJson(
   url: string,
   config: ChatGptRequestConfig,
   extraHeaders: Record<string, string>,
   signal?: AbortSignal,
 ): Promise<unknown> {
-  for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
-    const response = await raceWithAbort(
-      requestUrl({
-        url,
-        method: "GET",
-        headers: buildHeaders(config, extraHeaders),
-      }),
-      signal,
-    );
-
-    if (response.status < 400) {
-      return response.json;
-    }
-
-    if (response.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
-      const retryAfterMs = parseRetryAfterMs(readHeader(response.headers, "retry-after"));
-      const backoffMs = computeRateLimitDelayMs(attempt, retryAfterMs);
-      await sleepWithAbort(backoffMs, signal);
-      continue;
-    }
-
-    const bodyText =
-      typeof response.text === "string" && response.text.trim().length > 0
-        ? response.text
-        : JSON.stringify(response.json);
-
-    throw new Error(`ChatGPT request failed with HTTP ${response.status}: ${bodyText}`);
-  }
-
-  throw new Error("ChatGPT request failed after exhausting rate-limit retries.");
+  return requestJsonWithRetries(
+    requestUrl,
+    {
+      url,
+      method: "GET",
+      headers: buildHeaders(config, extraHeaders),
+      throw: false,
+    },
+    undefined,
+    signal,
+  );
 }
 
 async function requestArrayBuffer(
@@ -327,27 +251,17 @@ async function requestArrayBuffer(
           "User-Agent": config.userAgent,
         }
       : buildHeaders(config, extraHeaders);
-  const response = await raceWithAbort(
-    requestUrl({
+
+  return requestBinary(
+    requestUrl,
+    {
       url,
       method: "GET",
       headers,
-    }),
+      throw: false,
+    },
     signal,
   );
-
-  if (response.status >= 400) {
-    const bodyText =
-      typeof response.text === "string" && response.text.trim().length > 0
-        ? response.text
-        : JSON.stringify(response.json);
-    throw new Error(`ChatGPT binary request failed with HTTP ${response.status}: ${bodyText}`);
-  }
-
-  return {
-    data: response.arrayBuffer,
-    contentType: readHeader(response.headers, "content-type"),
-  };
 }
 
 function normalizeSummary(item: UnknownRecord): ConversationSummary {
@@ -835,7 +749,6 @@ export async function fetchConversationSummaries(
     },
     {
       pageLimit: CONVERSATION_LIST_PAGE_LIMIT,
-      maxPageRequests: MAX_LIST_PAGE_REQUESTS,
       parallelism: CONVERSATION_LIST_FETCH_PARALLELISM,
       onPageFetched: options.onPageFetched,
     },

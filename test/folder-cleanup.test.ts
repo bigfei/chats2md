@@ -67,10 +67,7 @@ function createMockVault(folderPaths: string[]): {
 }
 
 test("findSharedFolderPath returns the deepest shared folder", () => {
-  assert.equal(
-    findSharedFolderPath("Imports/ChatGPT/2026-04-01", "Imports/ChatGPT/2026-04-02"),
-    "Imports/ChatGPT",
-  );
+  assert.equal(findSharedFolderPath("Imports/ChatGPT/2026-04-01", "Imports/ChatGPT/2026-04-02"), "Imports/ChatGPT");
   assert.equal(findSharedFolderPath("OldRoot/2026-04-01", "NewRoot/2026-04-02"), "");
 });
 

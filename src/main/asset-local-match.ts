@@ -24,7 +24,7 @@ function getStem(fileName: string): string {
 
 function findUniqueStemMatch(fileNames: string[], stem: string): string | null {
   const matches = fileNames.filter((fileName) => getStem(fileName) === stem);
-  return matches.length === 1 ? matches[0] ?? null : null;
+  return matches.length === 1 ? (matches[0] ?? null) : null;
 }
 
 export function findReusableLocalAssetFileName(fileNames: string[], ref: LocalAssetReference): string | null {
@@ -44,12 +44,7 @@ export function findReusableLocalAssetFileName(fileNames: string[], ref: LocalAs
   }
 
   const stemCandidates = Array.from(
-    new Set(
-      [
-        normalizedFileId,
-        getStem(normalizedLogicalName),
-      ].filter((candidate) => candidate.length > 0),
-    ),
+    new Set([normalizedFileId, getStem(normalizedLogicalName)].filter((candidate) => candidate.length > 0)),
   );
 
   for (const candidate of stemCandidates) {

@@ -79,7 +79,6 @@ test("fetchConversationSummariesWithPageFetcher continues until pagination ends 
     },
     {
       pageLimit: 2,
-      maxPageRequests: 10,
       parallelism: 1,
     },
   );
@@ -138,7 +137,6 @@ test("fetchConversationSummariesWithPageFetcher does not stop at the first page 
     },
     {
       pageLimit: 100,
-      maxPageRequests: 10,
       parallelism: 3,
     },
   );
@@ -176,11 +174,49 @@ test("fetchConversationSummariesWithPageFetcher limits conversation-list concurr
     },
     {
       pageLimit: 2,
-      maxPageRequests: 10,
       parallelism: 3,
     },
   );
 
   assert.equal(result.pagesFetched, 4);
   assert.equal(maxInFlight, 3);
+});
+
+test("fetchConversationSummariesWithPageFetcher continues past 10,000 items when pagination continues", async () => {
+  const pageLimit = 100;
+  const totalPages = 105;
+  const requestedOffsets: number[] = [];
+
+  const result = await fetchConversationSummariesWithPageFetcher(
+    async (offset) => {
+      requestedOffsets.push(offset);
+      const pageNumber = Math.floor(offset / pageLimit);
+
+      if (pageNumber >= totalPages) {
+        return {
+          pageInfo: createPageInfo(offset, pageLimit, null),
+          pageSummaries: [],
+        };
+      }
+
+      return {
+        pageInfo: createPageInfo(offset, pageLimit, null),
+        pageSummaries: Array.from({ length: pageLimit }, (_value, index) =>
+          createSummary(
+            `conv-${offset + index}`,
+            `2026-03-${String(((offset + index) % 28) + 1).padStart(2, "0")}T00:00:00.000Z`,
+          ),
+        ),
+      };
+    },
+    {
+      pageLimit,
+      parallelism: 3,
+    },
+  );
+
+  assert.equal(result.fetchedCount, pageLimit * totalPages);
+  assert.equal(result.pagesFetched, totalPages + 1);
+  assert.equal(requestedOffsets[0], 0);
+  assert.equal(requestedOffsets.at(-1), totalPages * pageLimit);
 });
