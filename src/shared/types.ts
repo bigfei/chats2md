@@ -91,6 +91,7 @@ export interface ConversationDetail {
   url: string;
   messages: ConversationMessage[];
   fileReferences: ConversationFileReference[];
+  footnotes: string[];
 }
 
 export interface SyncModalValues {

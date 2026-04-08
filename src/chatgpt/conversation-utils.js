@@ -127,42 +127,78 @@ function sortContentReferencesByStartIndex(contentReferences) {
 function replaceFirstOccurrence(text, matchedText, replacement) {
   const index = text.indexOf(matchedText);
   if (index === -1) {
-    return text;
+    return {
+      text,
+      replaced: false,
+    };
   }
 
-  return `${text.slice(0, index)}${replacement}${text.slice(index + matchedText.length)}`;
+  return {
+    text: `${text.slice(0, index)}${replacement}${text.slice(index + matchedText.length)}`,
+    replaced: true,
+  };
 }
 
-function buildReferenceId(reference, fallbackIndex, usedIds) {
-  const startIndex = toNonNegativeInteger(reference.start_idx);
-  const endIndex = toNonNegativeInteger(reference.end_idx);
-  const baseId = startIndex !== null && endIndex !== null ? `ref-${startIndex}-${endIndex}` : `ref-${fallbackIndex}`;
+function formatObsidianFootnoteDefinition(id, label, url) {
+  return `[^${id}]: [${escapeMarkdownLinkLabel(label)}](${url})`;
+}
 
-  let candidate = baseId;
-  let suffix = 2;
-  while (usedIds.has(candidate)) {
-    candidate = `${baseId}-${suffix}`;
-    suffix += 1;
+export function createConversationFootnoteRegistry() {
+  return {
+    nextId: 1,
+    keyToId: new Map(),
+    definitionsById: new Map(),
+  };
+}
+
+function ensureFootnoteIdAndDefinition(registry, label, url) {
+  const dedupKey = `${label}\u0000${url}`;
+  const existingId = registry.keyToId.get(dedupKey);
+
+  if (typeof existingId === "number") {
+    return existingId;
   }
 
-  usedIds.add(candidate);
-  return candidate;
+  const id = registry.nextId;
+  registry.nextId += 1;
+  registry.keyToId.set(dedupKey, id);
+  registry.definitionsById.set(id, formatObsidianFootnoteDefinition(id, label, url));
+
+  return id;
 }
 
-export function applyChatGptContentReferencesAsReferenceLinks(text, contentReferences) {
+function isValidFootnoteRegistry(value) {
+  return (
+    isRecord(value) &&
+    typeof value.nextId === "number" &&
+    value.keyToId instanceof Map &&
+    value.definitionsById instanceof Map
+  );
+}
+
+export function getConversationFootnoteDefinitions(registry) {
+  if (!isValidFootnoteRegistry(registry)) {
+    return [];
+  }
+
+  return Array.from(registry.definitionsById.entries())
+    .sort((left, right) => left[0] - right[0])
+    .map((entry) => entry[1]);
+}
+
+export function applyChatGptContentReferencesAsFootnotes(text, contentReferences, registry) {
   const sourceText = String(text ?? "");
   const sortedReferences = sortContentReferencesByStartIndex(Array.isArray(contentReferences) ? contentReferences : []);
 
   if (sortedReferences.length === 0) {
     return {
       text: sourceText,
-      references: [],
+      footnotes: [],
     };
   }
 
   let transformedText = sourceText;
-  const usedReferenceIds = new Set();
-  const referenceDefinitions = [];
+  const ensuredRegistry = isValidFootnoteRegistry(registry) ? registry : createConversationFootnoteRegistry();
 
   for (const [referenceIndex, reference] of sortedReferences.entries()) {
     const matchedText = readNonEmptyString(reference.matched_text);
@@ -172,21 +208,28 @@ export function applyChatGptContentReferencesAsReferenceLinks(text, contentRefer
 
     const url = readPrimaryContentReferenceUrl(reference);
     if (!url) {
-      transformedText = replaceFirstOccurrence(transformedText, matchedText, "");
+      transformedText = replaceFirstOccurrence(transformedText, matchedText, "").text;
       continue;
     }
 
-    const referenceId = buildReferenceId(reference, referenceIndex + 1, usedReferenceIds);
-    const label = readContentReferenceLabel(reference, referenceIndex + 1);
-    const replacement = `[${escapeMarkdownLinkLabel(label)}][${referenceId}]`;
-    referenceDefinitions.push(`[${referenceId}]: ${url}`);
+    if (!transformedText.includes(matchedText)) {
+      continue;
+    }
 
-    transformedText = replaceFirstOccurrence(transformedText, matchedText, replacement);
+    const label = readContentReferenceLabel(reference, referenceIndex + 1);
+    const footnoteId = ensureFootnoteIdAndDefinition(ensuredRegistry, label, url);
+    const replacement = `[^${footnoteId}]`;
+    const replaced = replaceFirstOccurrence(transformedText, matchedText, replacement);
+
+    transformedText = replaced.text;
+    if (!replaced.replaced) {
+      continue;
+    }
   }
 
   return {
     text: transformedText,
-    references: referenceDefinitions,
+    footnotes: getConversationFootnoteDefinitions(ensuredRegistry),
   };
 }
 

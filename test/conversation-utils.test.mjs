@@ -5,8 +5,10 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
-  applyChatGptContentReferencesAsReferenceLinks,
+  applyChatGptContentReferencesAsFootnotes,
+  createConversationFootnoteRegistry,
   extractConversationListPageInfo,
+  getConversationFootnoteDefinitions,
   getNextConversationListOffset,
   getDateBucketFromTimestamp,
   normalizeConversationTimestamp,
@@ -113,7 +115,7 @@ test("conversation list pagination follows API limit metadata", () => {
   assert.equal(getNextConversationListOffset(56, pageInfo, 50), 84);
 });
 
-test("applyChatGptContentReferencesAsReferenceLinks preserves fullwidth text", () => {
+test("applyChatGptContentReferencesAsFootnotes preserves fullwidth text", () => {
   const strings = [];
   collectStringValues(fullwidthBracketFixture, strings);
 
@@ -122,23 +124,23 @@ test("applyChatGptContentReferencesAsReferenceLinks preserves fullwidth text", (
   assert.match(fullwidthText, /【】中的文字/);
 });
 
-test("applyChatGptContentReferencesAsReferenceLinks uses matched_text replacements", () => {
+test("applyChatGptContentReferencesAsFootnotes uses matched_text replacements", () => {
   const message = findMessageWithContentReferences(fullwidthBracketFixture);
 
   assert.ok(message, "Fixture must include message content references.");
 
-  const { text, references } = applyChatGptContentReferencesAsReferenceLinks(message.text, message.contentReferences);
+  const { text, footnotes } = applyChatGptContentReferencesAsFootnotes(message.text, message.contentReferences);
 
   assert.match(text, /【文字】/);
   assert.doesNotMatch(text, /(?:cite|filecite)/);
   assert.doesNotMatch(text, /【1†source】/);
-  assert.match(text, /\[Gist\]\[ref-\d+-\d+\]/);
-  assert.ok(references.length > 0, "Expected generated reference-style links.");
-  assert.match(references[0], /^\[ref-\d+-\d+\]: https?:\/\//);
+  assert.match(text, /\[\^\d+\]/);
+  assert.ok(footnotes.length > 0, "Expected generated footnote definitions.");
+  assert.match(footnotes[0], /^\[\^\d+\]: \[[^\]]+\]\(https?:\/\//);
 });
 
-test("applyChatGptContentReferencesAsReferenceLinks skips whitespace-only matched_text", () => {
-  const { text, references } = applyChatGptContentReferencesAsReferenceLinks("hello world", [
+test("applyChatGptContentReferencesAsFootnotes skips whitespace-only matched_text", () => {
+  const { text, footnotes } = applyChatGptContentReferencesAsFootnotes("hello world", [
     {
       matched_text: " ",
       start_idx: 1,
@@ -149,5 +151,42 @@ test("applyChatGptContentReferencesAsReferenceLinks skips whitespace-only matche
   ]);
 
   assert.equal(text, "hello world");
-  assert.equal(references.length, 0);
+  assert.equal(footnotes.length, 0);
+});
+
+test("applyChatGptContentReferencesAsFootnotes reuses id for repeated label+URL across calls", () => {
+  const registry = createConversationFootnoteRegistry();
+  const repeatedReferences = [
+    {
+      matched_text: "citeturnAsearch0",
+      alt: "([Gist](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5))",
+      safe_urls: ["https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5"],
+    },
+  ];
+
+  const first = applyChatGptContentReferencesAsFootnotes("first citeturnAsearch0", repeatedReferences, registry);
+  const second = applyChatGptContentReferencesAsFootnotes("second citeturnAsearch0", repeatedReferences, registry);
+
+  assert.match(first.text, /\[\^1\]/);
+  assert.match(second.text, /\[\^1\]/);
+
+  const footnotes = getConversationFootnoteDefinitions(registry);
+  assert.equal(footnotes.length, 1);
+  assert.equal(
+    footnotes[0],
+    "[^1]: [Gist](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)",
+  );
+});
+
+test("applyChatGptContentReferencesAsFootnotes does not emit dangling definition when marker is missing", () => {
+  const { text, footnotes } = applyChatGptContentReferencesAsFootnotes("plain text", [
+    {
+      matched_text: "citeturnAsearch0",
+      alt: "([Gist](https://example.com))",
+      safe_urls: ["https://example.com"],
+    },
+  ]);
+
+  assert.equal(text, "plain text");
+  assert.equal(footnotes.length, 0);
 });

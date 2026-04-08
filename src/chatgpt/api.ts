@@ -1,7 +1,8 @@
-import { requestUrl } from "obsidian";
 import {
-  applyChatGptContentReferencesAsReferenceLinks,
+  applyChatGptContentReferencesAsFootnotes,
+  createConversationFootnoteRegistry,
   extractConversationListPageInfo,
+  getConversationFootnoteDefinitions,
   normalizeConversationTimestamp,
 } from "./conversation-utils";
 import {
@@ -11,7 +12,7 @@ import {
   type FetchConversationSummariesResult,
 } from "./conversation-list-fetch";
 import { normalizeFileDownloadInfo, type FileDownloadInfo } from "./file-download-info";
-import { requestBinary, requestJsonWithRetries } from "./request-core";
+import { requestBinary, requestJsonWithRetries, type RequestLikeFn } from "./request-core";
 
 import type {
   ChatGptRequestConfig,
@@ -30,6 +31,16 @@ const CONVERSATION_LIST_PAGE_LIMIT = 100;
 const DEFAULT_FIREFOX_USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:149.0) Gecko/20100101 Firefox/149.0";
 const RESERVED_HEADER_NAMES = new Set(["accept", "authorization", "chatgpt-account-id", "cookie", "user-agent"]);
+
+let requestUrlLoader: Promise<RequestLikeFn> | null = null;
+
+async function loadRequestUrl(): Promise<RequestLikeFn> {
+  if (!requestUrlLoader) {
+    requestUrlLoader = import("obsidian").then((module) => module.requestUrl as unknown as RequestLikeFn);
+  }
+
+  return requestUrlLoader;
+}
 
 interface SessionPayload {
   accessToken?: string;
@@ -55,6 +66,7 @@ export interface DownloadedFileContent {
 interface MappingExtractionResult {
   messages: ConversationMessage[];
   fileReferences: ConversationFileReference[];
+  footnotes: string[];
 }
 
 export interface ConversationDetailFetchResult {
@@ -220,6 +232,8 @@ async function requestJson(
   extraHeaders: Record<string, string>,
   signal?: AbortSignal,
 ): Promise<unknown> {
+  const requestUrl = await loadRequestUrl();
+
   return requestJsonWithRetries(
     requestUrl,
     {
@@ -241,6 +255,8 @@ async function requestArrayBuffer(
   options: { includeSessionHeaders?: boolean } = {},
   signal?: AbortSignal,
 ): Promise<DownloadedFileContent> {
+  const requestUrl = await loadRequestUrl();
+
   const headers =
     options.includeSessionHeaders === false
       ? {
@@ -552,21 +568,18 @@ function renderMessageMarkdown(
   message: UnknownRecord,
   nodeId: string,
   refs: Map<string, ConversationFileReference>,
+  footnoteRegistry: ReturnType<typeof createConversationFootnoteRegistry>,
 ): string {
   const author = toRecord(message.author);
   const role = readString(author?.role, readString(author?.name, "message")).toLowerCase();
   let body = renderMessageBody(message, refs);
   const metadataPlaceholders = extractMetadataPlaceholders(message, refs);
   const metadata = toRecord(message.metadata);
-  const citationRender = applyChatGptContentReferencesAsReferenceLinks(body, metadata?.content_references);
+  const citationRender = applyChatGptContentReferencesAsFootnotes(body, metadata?.content_references, footnoteRegistry);
   body = citationRender.text;
 
   if (metadataPlaceholders.length > 0) {
     body = [body, ...metadataPlaceholders].filter((part) => part.trim().length > 0).join("\n\n");
-  }
-
-  if (citationRender.references.length > 0) {
-    body = `${body.trimEnd()}\n\n${citationRender.references.join("\n")}`;
   }
 
   if (!body.trim()) {
@@ -613,6 +626,7 @@ function extractMessagesFromMapping(payload: UnknownRecord): MappingExtractionRe
 
   const messages: ConversationMessage[] = [];
   const fileReferences = new Map<string, ConversationFileReference>();
+  const footnoteRegistry = createConversationFootnoteRegistry();
 
   for (const nodeId of path) {
     const node = toRecord(mapping[nodeId]);
@@ -624,7 +638,7 @@ function extractMessagesFromMapping(payload: UnknownRecord): MappingExtractionRe
 
     const author = toRecord(message.author);
     const role = readString(author?.role, readString(author?.name, "message")).toLowerCase();
-    const markdown = renderMessageMarkdown(message, nodeId, fileReferences);
+    const markdown = renderMessageMarkdown(message, nodeId, fileReferences, footnoteRegistry);
 
     if (!markdown) {
       continue;
@@ -640,6 +654,7 @@ function extractMessagesFromMapping(payload: UnknownRecord): MappingExtractionRe
   return {
     messages,
     fileReferences: Array.from(fileReferences.values()),
+    footnotes: getConversationFootnoteDefinitions(footnoteRegistry),
   };
 }
 
@@ -671,6 +686,7 @@ function normalizeConversationDetail(
     url: `${BASE_URL}/c/${conversationId}`,
     messages: mappingData.messages,
     fileReferences: mappingData.fileReferences,
+    footnotes: mappingData.footnotes,
   };
 }
 

@@ -186,7 +186,15 @@ function buildTranscript(
 }
 
 function buildBody(conversation: ConversationDetail, notePath: string, assetLinks: ConversationAssetLinkMap): string {
-  return [`# ${conversation.title}`, "", buildTranscript(conversation, notePath, assetLinks)].join("\n");
+  const transcript = buildTranscript(conversation, notePath, assetLinks);
+  const footnotes = (Array.isArray(conversation.footnotes) ? conversation.footnotes : []).join("\n");
+  const sections = [`# ${conversation.title}`, "", transcript];
+
+  if (footnotes.length > 0) {
+    sections.push("", footnotes);
+  }
+
+  return sections.join("\n");
 }
 
 function buildNoteContent(
