@@ -1,6 +1,7 @@
 import { App, Notice } from "obsidian";
 
 import { fetchConversationDetailWithPayload, fetchConversationSummaries } from "../chatgpt/api";
+import { ConversationListPageFetchError } from "../chatgpt/conversation-list-fetch";
 import type { SyncExecutionControl, SyncProgressReporter } from "../ui/import-modal";
 import {
   DETAIL_FETCH_MAX_ATTEMPTS,
@@ -11,9 +12,10 @@ import {
 } from "../main/helpers";
 import { cleanupMovedConversationFolders } from "../main/folder-cleanup";
 import { formatConversationBrowseDelay, prepareConversationDetailFetch } from "./browse-delay";
-import { isSyncCancelledError, sleepWithAbort } from "./cancellation";
+import { isSyncCancelledError } from "./cancellation";
 import { ConsecutiveRateLimitGuard, isConsecutiveRateLimitPauseError } from "./rate-limit-guard";
 import { runWithRateLimitPauseRetry } from "./rate-limit-retry";
+import { retryTransientOperation } from "./transient-retry";
 import { hasIndexedConversationNote, indexConversationNotes, upsertConversationNote } from "../storage/note-writer";
 import { applyConversationSubsetSelection, openAccountSubsetSelectionPrompt } from "./account-subset-selection";
 import type {
@@ -227,6 +229,12 @@ export async function runFullSync(
                     `returned ${progress.pageCount} item(s), discovered ${totalLabel}.`,
                 );
               },
+              onPageRetry: (progress) => {
+                logWarn(
+                  `[${accountLabel}] Conversation-list retry ${progress.attemptNumber}/${progress.maxAttempts} ` +
+                    `(offset=${progress.offset}, limit=${progress.pageLimit}): ${progress.message}`,
+                );
+              },
             }),
           (message) => pauseForRateLimit(accountLabel, message),
         );
@@ -248,12 +256,13 @@ export async function runFullSync(
           return;
         }
         const message = error instanceof Error ? error.message : String(error);
+        const attempts = error instanceof ConversationListPageFetchError ? error.attempts : 1;
         counts.failed += 1;
         failures.push({
           id: account.accountId,
           title: accountLabel,
           message,
-          attempts: 1,
+          attempts,
         });
         if (shouldCollectReportEntries) {
           failedEntries.push({
@@ -733,46 +742,40 @@ async function fetchConversationDetailWithRetries(
   fetchConversationDetail: typeof fetchConversationDetailWithPayload = fetchConversationDetailWithPayload,
   onRequest?: () => void,
 ): Promise<{ detail: ConversationDetail; rawPayload: unknown } | null> {
-  let lastError: unknown;
+  try {
+    return await retryTransientOperation(
+      async () => {
+        await control.waitIfPaused();
 
-  for (let attempt = 1; attempt <= DETAIL_FETCH_MAX_ATTEMPTS; attempt += 1) {
-    try {
-      await control.waitIfPaused();
+        if (control.shouldStop()) {
+          throw control.getStopSignal()?.reason ?? new Error("Sync stopped by user.");
+        }
 
-      if (control.shouldStop()) {
-        return null;
-      }
-
-      onRequest?.();
-      return await fetchConversationDetail(requestConfig, summary.id, summary, control.getStopSignal());
-    } catch (error) {
-      lastError = error;
-
-      if (control.shouldStop() || isSyncCancelledError(error)) {
-        return null;
-      }
-
-      if (isConsecutiveRateLimitPauseError(error)) {
-        throw error;
-      }
-
-      if (attempt >= DETAIL_FETCH_MAX_ATTEMPTS) {
-        break;
-      }
-
-      const message = error instanceof Error ? error.message : String(error);
-      logger?.warn(`${displayTitle} detail fetch retry ${attempt + 1}/${DETAIL_FETCH_MAX_ATTEMPTS}: ${message}`);
-      progressModal.setRetry(displayTitle, index, total, attempt + 1, message);
-      await sleepWithAbort(attempt * 750, control.getStopSignal());
+        onRequest?.();
+        return await fetchConversationDetail(requestConfig, summary.id, summary, control.getStopSignal());
+      },
+      {
+        maxAttempts: DETAIL_FETCH_MAX_ATTEMPTS,
+        signal: control.getStopSignal(),
+        onRetry: (progress) => {
+          logger?.warn(`${displayTitle} detail fetch retry ${progress.nextAttemptNumber}/${progress.maxAttempts}: ${progress.message}`);
+          progressModal.setRetry(displayTitle, index, total, progress.nextAttemptNumber, progress.message);
+        },
+      },
+    );
+  } catch (error) {
+    if (control.shouldStop() || isSyncCancelledError(error)) {
+      return null;
     }
-  }
 
-  if (lastError) {
-    const message = lastError instanceof Error ? lastError.message : String(lastError);
+    if (isConsecutiveRateLimitPauseError(error)) {
+      throw error;
+    }
+
+    const message = error instanceof Error ? error.message : String(error);
     logger?.error(`${displayTitle} detail fetch failed after ${DETAIL_FETCH_MAX_ATTEMPTS} attempts: ${message}`);
+    throw error instanceof Error ? error : new Error(String(error));
   }
-
-  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 async function ensureSyncCanContinue(

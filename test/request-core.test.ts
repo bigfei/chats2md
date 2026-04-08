@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { requestBinary, requestJsonWithRetries } from "../src/chatgpt/request-core.ts";
+import { ChatGptRequestError, requestBinary, requestJsonWithRetries } from "../src/chatgpt/request-core.ts";
+import { SyncCancelledError } from "../src/sync/cancellation.ts";
+import { ConsecutiveRateLimitPauseError } from "../src/sync/rate-limit-guard.ts";
+import { retryTransientOperation, shouldRetryTransientSyncError } from "../src/sync/transient-retry.ts";
 
 test("requestJsonWithRetries sets throw=false and retries after HTTP 429", async () => {
   const calls: Array<{ url: string; method: string; throw: boolean }> = [];
@@ -159,4 +162,79 @@ test("requestBinary reports 429 failures to the monitor", async () => {
   );
 
   assert.deepEqual(events, ["rate-limited"]);
+});
+
+test("retryTransientOperation retries transient failures and reports next attempt", async () => {
+  const attempts: string[] = [];
+  const retries: Array<{ nextAttemptNumber: number; maxAttempts: number; message: string }> = [];
+  const delays: number[] = [];
+
+  const result = await retryTransientOperation(
+    async () => {
+      attempts.push("call");
+
+      if (attempts.length < 3) {
+        throw new Error(`boom-${attempts.length}`);
+      }
+
+      return "ok";
+    },
+    {
+      maxAttempts: 3,
+      onRetry: (progress) => {
+        retries.push(progress);
+      },
+      getDelayMs: (attemptNumber) => {
+        delays.push(attemptNumber);
+        return 0;
+      },
+    },
+  );
+
+  assert.equal(result, "ok");
+  assert.deepEqual(attempts, ["call", "call", "call"]);
+  assert.deepEqual(
+    retries.map((entry) => `${entry.nextAttemptNumber}/${entry.maxAttempts}:${entry.message}`),
+    ["2/3:boom-1", "3/3:boom-2"],
+  );
+  assert.deepEqual(delays, [1, 2]);
+});
+
+test("retryTransientOperation does not retry cancellation, rate-limit pause, or 429 errors", async () => {
+  await assert.rejects(
+    retryTransientOperation(
+      async () => {
+        throw new SyncCancelledError("stopped");
+      },
+      {
+        maxAttempts: 3,
+      },
+    ),
+    /stopped/,
+  );
+
+  await assert.rejects(
+    retryTransientOperation(
+      async () => {
+        throw new ConsecutiveRateLimitPauseError(6);
+      },
+      {
+        maxAttempts: 3,
+      },
+    ),
+    /Sync paused/,
+  );
+
+  await assert.rejects(
+    retryTransientOperation(
+      async () => {
+        throw new ChatGptRequestError("ChatGPT request failed", 429, '{"error":"rate_limited"}');
+      },
+      {
+        maxAttempts: 3,
+        shouldRetry: shouldRetryTransientSyncError,
+      },
+    ),
+    /HTTP 429/,
+  );
 });

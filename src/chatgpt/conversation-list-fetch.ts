@@ -1,6 +1,9 @@
 import { getNextConversationListOffset, shouldFetchNextConversationListPage } from "./conversation-utils";
+import { retryTransientOperation } from "../sync/transient-retry";
 
 import type { ConversationSummary } from "../shared/types";
+
+const CONVERSATION_LIST_PAGE_FETCH_MAX_ATTEMPTS = 3;
 
 export interface ConversationListPageInfo {
   limit: number;
@@ -15,6 +18,23 @@ export interface FetchConversationSummariesResult {
   uniqueConversationCount: number;
 }
 
+export class ConversationListPageFetchError extends Error {
+  readonly offset: number;
+  readonly limit: number;
+  readonly attempts: number;
+  readonly maxAttempts: number;
+
+  constructor(offset: number, limit: number, attempts: number, maxAttempts: number, cause: unknown) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    super(`Conversation-list request failed after ${attempts}/${maxAttempts} attempts (offset=${offset}, limit=${limit}): ${message}`);
+    this.name = "ConversationListPageFetchError";
+    this.offset = offset;
+    this.limit = limit;
+    this.attempts = attempts;
+    this.maxAttempts = maxAttempts;
+  }
+}
+
 export interface FetchConversationSummariesPageProgress {
   pageNumber: number;
   offset: number;
@@ -24,10 +44,21 @@ export interface FetchConversationSummariesPageProgress {
   expectedTotal: number | null;
 }
 
+export interface FetchConversationSummariesPageRetryProgress {
+  offset: number;
+  pageLimit: number;
+  attemptNumber: number;
+  maxAttempts: number;
+  message: string;
+}
+
 export interface FetchConversationSummariesWithPageFetcherOptions {
   pageLimit: number;
   parallelism: number;
   onPageFetched?: (progress: FetchConversationSummariesPageProgress) => void;
+  onPageRetry?: (progress: FetchConversationSummariesPageRetryProgress) => void;
+  getRetryDelayMs?: (attemptNumber: number) => number;
+  signal?: AbortSignal;
 }
 
 interface ConversationListPageFetchResult {
@@ -140,7 +171,7 @@ export async function fetchConversationSummariesWithPageFetcher(
     });
   };
 
-  const firstPage = await fetchPage(0);
+  const firstPage = await fetchPageWithContext(0, fetchPage, options);
   recordPage(0, firstPage.pageInfo, firstPage.pageSummaries);
 
   if (firstPage.pageSummaries.length === 0) {
@@ -173,7 +204,7 @@ export async function fetchConversationSummariesWithPageFetcher(
     const batchResults = new Map<number, Omit<ConversationListPageFetchResult, "offset">>();
 
     await runParallelOffsets(batchOffsets, options.parallelism, async (offset) => {
-      const page = await fetchPage(offset);
+      const page = await fetchPageWithContext(offset, fetchPage, options);
       batchResults.set(offset, page);
     });
 
@@ -220,4 +251,27 @@ export async function fetchConversationSummariesWithPageFetcher(
     rawItemCount,
     uniqueConversationCount: summaries.length,
   };
+}
+
+async function fetchPageWithContext(
+  offset: number,
+  fetchPage: (offset: number) => Promise<Omit<ConversationListPageFetchResult, "offset">>,
+  options: FetchConversationSummariesWithPageFetcherOptions,
+): Promise<Omit<ConversationListPageFetchResult, "offset">> {
+  return retryTransientOperation(() => fetchPage(offset), {
+    maxAttempts: CONVERSATION_LIST_PAGE_FETCH_MAX_ATTEMPTS,
+    signal: options.signal,
+    getDelayMs: options.getRetryDelayMs,
+    onRetry: (progress) => {
+      options.onPageRetry?.({
+        offset,
+        pageLimit: options.pageLimit,
+        attemptNumber: progress.nextAttemptNumber,
+        maxAttempts: progress.maxAttempts,
+        message: progress.message,
+      });
+    },
+    wrapFinalError: (error, attempts, maxAttempts) =>
+      new ConversationListPageFetchError(offset, options.pageLimit, attempts, maxAttempts, error),
+  });
 }

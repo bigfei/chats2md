@@ -9,6 +9,7 @@ import {
   fetchConversationSummariesWithPageFetcher,
   type ConversationListPageInfo,
   type FetchConversationSummariesPageProgress,
+  type FetchConversationSummariesPageRetryProgress,
   type FetchConversationSummariesResult,
 } from "./conversation-list-fetch";
 import { normalizeFileDownloadInfo, type FileDownloadInfo } from "./file-download-info";
@@ -26,7 +27,7 @@ import type {
 const BASE_URL = "https://chatgpt.com";
 const DEFAULT_LIST_PAGE_LIMIT = 28;
 const MAX_LIST_PAGE_LIMIT = 100;
-const CONVERSATION_LIST_FETCH_PARALLELISM = 3;
+const CONVERSATION_LIST_FETCH_PARALLELISM = 1;
 const CONVERSATION_LIST_PAGE_LIMIT = 100;
 const DEFAULT_FIREFOX_USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:149.0) Gecko/20100101 Firefox/149.0";
@@ -750,6 +751,7 @@ export function parseSessionJson(raw: string, pluginVersion = "0.1.0"): ChatGptR
 
 export interface FetchConversationSummariesOptions {
   onPageFetched?: (progress: FetchConversationSummariesPageProgress) => void;
+  onPageRetry?: (progress: FetchConversationSummariesPageRetryProgress) => void;
   signal?: AbortSignal;
 }
 
@@ -778,6 +780,8 @@ export async function fetchConversationSummaries(
       pageLimit: CONVERSATION_LIST_PAGE_LIMIT,
       parallelism: CONVERSATION_LIST_FETCH_PARALLELISM,
       onPageFetched: options.onPageFetched,
+      onPageRetry: options.onPageRetry,
+      signal: options.signal,
     },
   );
 }

@@ -308,7 +308,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
 
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
-      text: "Conversation-list pages are fetched in parallel. Conversation detail sync runs one conversation at a time.",
+      text: "Conversation-list pages are fetched one page at a time. Conversation detail sync runs one conversation at a time.",
     });
 
     new Setting(contentEl)
