@@ -1,10 +1,17 @@
-import { MarkdownView, Notice, Plugin, TFile, TFolder, addIcon, normalizePath } from "obsidian";
+import { MarkdownView, Notice, Plugin, TFile, TFolder, addIcon, normalizePath, type Editor } from "obsidian";
 
-import { fetchConversationDetailWithPayload, parseSessionJson } from "../chatgpt/api";
+import {
+  fetchConversationDetailWithPayload,
+  parseConversationDetailPayload,
+  parseSessionJson,
+  validateConversationListAccess,
+} from "../chatgpt/api";
+import { isChatGptRequestError } from "../chatgpt/request-core";
 import { SyncChatGptModal, type SyncExecutionControl, type SyncProgressReporter } from "../ui/import-modal";
 import { createSingleConversationNoteIndex, upsertConversationNote } from "../storage/note-writer";
 import { Chats2MdSettingTab } from "../ui/settings";
 import { ForceSyncUiController } from "../ui/force-sync-ui";
+import { resolveAssetFolderPaths } from "../storage/asset-storage";
 import {
   CONVERSATION_ACCOUNT_ID_KEY,
   CONVERSATION_CREATED_AT_KEY,
@@ -24,6 +31,7 @@ import {
   SyncRunLogger,
 } from "./helpers";
 import { syncConversationAssetsForConversation } from "./asset-sync";
+import { findMigratableLegacyAssetFileName, findReusableLocalAssetFileName } from "./asset-local-match";
 import { cleanupMovedConversationFolders } from "./folder-cleanup";
 import { runRebuildNotesFromCachedJson } from "./rebuild";
 import {
@@ -637,6 +645,210 @@ export default class Chats2MdPlugin extends Plugin {
     throw new Error(`Note frontmatter is missing ${CONVERSATION_ACCOUNT_ID_KEY} and ${CONVERSATION_USER_ID_KEY}.`);
   }
 
+  private shouldUseCachedJsonFallbackForForceSync(error: unknown): boolean {
+    return isChatGptRequestError(error) && error.status >= 400 && error.status < 500 && error.status !== 429;
+  }
+
+  private collectUniqueConversationAssetReferences(
+    conversation: ConversationDetail,
+  ): Array<{ fileId: string; logicalName: string }> {
+    const refsById = new Map<string, { fileId: string; logicalName: string }>();
+
+    for (const reference of conversation.fileReferences) {
+      if (!refsById.has(reference.fileId)) {
+        refsById.set(reference.fileId, {
+          fileId: reference.fileId,
+          logicalName: reference.logicalName,
+        });
+      }
+    }
+
+    return Array.from(refsById.values());
+  }
+
+  private findLocalAssetLinkInFolder(
+    folderPath: string,
+    ref: { fileId: string; logicalName: string },
+  ): { path: string; fileName: string } | null {
+    const folder = this.app.vault.getAbstractFileByPath(folderPath);
+
+    if (!(folder instanceof TFolder)) {
+      return null;
+    }
+
+    const files = folder.children.filter((child): child is TFile => child instanceof TFile);
+    const fileNames = files.map((entry) => entry.name);
+    const reusableName = findReusableLocalAssetFileName(fileNames, ref);
+    const legacyName = reusableName ? null : findMigratableLegacyAssetFileName(fileNames, ref);
+    const matchedName = reusableName ?? legacyName;
+
+    if (!matchedName) {
+      return null;
+    }
+
+    const matchedFile = files.find((entry) => entry.name === matchedName);
+
+    if (!matchedFile) {
+      return null;
+    }
+
+    return {
+      path: matchedFile.path,
+      fileName: matchedFile.name,
+    };
+  }
+
+  private resolveCachedConversationAssetLinks(
+    requestConfig: ChatGptRequestConfig,
+    conversation: ConversationDetail,
+  ): ConversationAssetLinkMap {
+    const refs = this.collectUniqueConversationAssetReferences(conversation);
+
+    if (refs.length === 0) {
+      return {};
+    }
+
+    const folderPaths = resolveAssetFolderPaths({
+      mode: this.settings.assetStorageMode,
+      baseFolder: this.settings.defaultFolder,
+      conversationPathTemplate: this.settings.conversationPathTemplate,
+      conversation: {
+        id: conversation.id,
+        title: conversation.title,
+        createdAt: conversation.createdAt,
+        updatedAt: conversation.updatedAt,
+      },
+      account: {
+        accountId: requestConfig.accountId,
+        email: requestConfig.userEmail,
+      },
+    });
+    const searchFolderPaths = Array.from(
+      new Set([
+        folderPaths.targetFolderPath,
+        folderPaths.globalFolderPath,
+        folderPaths.localFolderPath,
+        ...folderPaths.candidateFolderPaths,
+      ]),
+    );
+    const linkMap: ConversationAssetLinkMap = {};
+
+    for (const ref of refs) {
+      for (const folderPath of searchFolderPaths) {
+        const matched = this.findLocalAssetLinkInFolder(folderPath, ref);
+        if (!matched) {
+          continue;
+        }
+
+        linkMap[ref.fileId] = matched;
+        break;
+      }
+    }
+
+    return linkMap;
+  }
+
+  private async handleForceSyncNoteMove(
+    result: {
+      moved: boolean;
+      previousFilePath?: string;
+      filePath: string;
+    },
+    conversationId: string,
+  ): Promise<void> {
+    if (!result.moved || !result.previousFilePath) {
+      return;
+    }
+
+    try {
+      await this.moveConversationJsonSidecar(result.previousFilePath, result.filePath);
+    } catch (error) {
+      const warning = error instanceof Error ? error.message : String(error);
+      this.logWarn("JSON sidecar move warning", {
+        conversationId,
+        warning,
+      });
+    }
+
+    try {
+      const removedFolders = await cleanupMovedConversationFolders(
+        this.app,
+        result.previousFilePath,
+        result.filePath,
+        this.settings.assetStorageMode,
+      );
+      removedFolders.forEach((folderPath) => {
+        this.logInfo("Removed empty conversation folder", {
+          conversationId,
+          folderPath,
+        });
+      });
+    } catch (error) {
+      const warning = error instanceof Error ? error.message : String(error);
+      this.logWarn("Conversation folder cleanup warning", {
+        conversationId,
+        warning,
+      });
+    }
+  }
+
+  private async forceSyncConversationFromCachedJson(
+    file: TFile,
+    frontmatter: ConversationFrontmatterInfo,
+    requestConfig: ChatGptRequestConfig,
+    activeEditorContext?: { editor: Editor; filePath: string },
+  ): Promise<{
+    detail: ConversationDetail;
+    result: {
+      action: "created" | "updated" | "skipped";
+      filePath: string;
+      moved: boolean;
+      previousFilePath?: string;
+    };
+  }> {
+    const rawPayload = await this.readConversationJsonSidecar(file.path);
+
+    if (rawPayload === null) {
+      throw new Error(
+        `Cached JSON sidecar not found for "${file.path}". Run full sync with "Save conversation JSON" enabled first.`,
+      );
+    }
+
+    const fallbackSummary = {
+      title: frontmatter.title || file.basename || "Untitled Conversation",
+      createdAt: frontmatter.createdAt || frontmatter.updatedAt || "",
+      updatedAt: frontmatter.updatedAt || frontmatter.createdAt || "",
+    };
+    const detail = parseConversationDetailPayload(rawPayload, frontmatter.conversationId, fallbackSummary);
+    const assetLinks = this.resolveCachedConversationAssetLinks(requestConfig, detail);
+    const noteIndex = createSingleConversationNoteIndex(requestConfig.accountId, detail.id, file);
+    const result = await upsertConversationNote(
+      this.app,
+      noteIndex,
+      detail,
+      this.settings.defaultFolder,
+      {
+        accountId: requestConfig.accountId,
+        userId: requestConfig.userId,
+        userEmail: requestConfig.userEmail,
+      },
+      this.manifest.version,
+      this.settings.conversationPathTemplate,
+      this.settings.assetStorageMode,
+      frontmatter.listUpdatedAt || detail.updatedAt,
+      assetLinks,
+      true,
+      activeEditorContext,
+    );
+
+    await this.handleForceSyncNoteMove(result, detail.id);
+
+    return {
+      detail,
+      result,
+    };
+  }
+
   private async forceSyncConversationNote(file: TFile): Promise<void> {
     if (this.syncWorkerActive) {
       new Notice("A sync job is already running. Wait for it to finish.");
@@ -690,90 +902,104 @@ export default class Chats2MdPlugin extends Plugin {
     this.setSyncStatusBar(`ChatGPT sync: forcing ${fallbackSummary.title}`, true);
 
     try {
-      const detailResult = await fetchConversationDetailWithPayload(
-        requestConfig,
-        frontmatter.conversationId,
-        fallbackSummary,
-      );
-      const detail = detailResult.detail;
-      const assetLinks = await this.syncConversationAssets(
-        requestConfig,
-        detail,
-        this.settings.defaultFolder,
-        this.settings.conversationPathTemplate,
-        this.settings.assetStorageMode,
-        null,
-        accountLabel,
-        1,
-        1,
-      );
-      const noteIndex = createSingleConversationNoteIndex(requestConfig.accountId, detail.id, file);
-      const result = await upsertConversationNote(
-        this.app,
-        noteIndex,
-        detail,
-        this.settings.defaultFolder,
-        {
+      let useCachedJsonFallback = false;
+      let fallbackReason: string | null = null;
+
+      try {
+        await validateConversationListAccess(requestConfig);
+      } catch (error) {
+        if (!this.shouldUseCachedJsonFallbackForForceSync(error)) {
+          throw error;
+        }
+
+        useCachedJsonFallback = true;
+        fallbackReason = error instanceof Error ? error.message : String(error);
+        this.logWarn("Force sync validation warning: rebuilding from cached JSON", {
+          conversationId: frontmatter.conversationId,
           accountId: requestConfig.accountId,
-          userId: requestConfig.userId,
-          userEmail: requestConfig.userEmail,
-        },
-        this.manifest.version,
-        this.settings.conversationPathTemplate,
-        this.settings.assetStorageMode,
-        frontmatter.listUpdatedAt || detail.updatedAt,
-        assetLinks,
-        true,
-        activeEditorContext,
-      );
-      if (result.moved && result.previousFilePath) {
-        try {
-          await this.moveConversationJsonSidecar(result.previousFilePath, result.filePath);
-        } catch (error) {
-          const warning = error instanceof Error ? error.message : String(error);
-          this.logWarn("JSON sidecar move warning", {
-            conversationId: detail.id,
-            warning,
-          });
-        }
+          accountLabel,
+          warning: fallbackReason,
+        });
+        this.setSyncStatusBar(`ChatGPT sync: account unavailable, rebuilding ${fallbackSummary.title} from cache`, true);
+      }
 
-        try {
-          const removedFolders = await cleanupMovedConversationFolders(
-            this.app,
-            result.previousFilePath,
-            result.filePath,
-            this.settings.assetStorageMode,
-          );
-          removedFolders.forEach((folderPath) => {
-            this.logInfo("Removed empty conversation folder", {
+      let detail: ConversationDetail;
+      let result: {
+        action: "created" | "updated" | "skipped";
+        filePath: string;
+        moved: boolean;
+        previousFilePath?: string;
+      };
+
+      if (useCachedJsonFallback) {
+        ({ detail, result } = await this.forceSyncConversationFromCachedJson(
+          file,
+          frontmatter,
+          requestConfig,
+          activeEditorContext,
+        ));
+      } else {
+        const detailResult = await fetchConversationDetailWithPayload(
+          requestConfig,
+          frontmatter.conversationId,
+          fallbackSummary,
+        );
+        detail = detailResult.detail;
+        const assetLinks = await this.syncConversationAssets(
+          requestConfig,
+          detail,
+          this.settings.defaultFolder,
+          this.settings.conversationPathTemplate,
+          this.settings.assetStorageMode,
+          null,
+          accountLabel,
+          1,
+          1,
+        );
+        const noteIndex = createSingleConversationNoteIndex(requestConfig.accountId, detail.id, file);
+        result = await upsertConversationNote(
+          this.app,
+          noteIndex,
+          detail,
+          this.settings.defaultFolder,
+          {
+            accountId: requestConfig.accountId,
+            userId: requestConfig.userId,
+            userEmail: requestConfig.userEmail,
+          },
+          this.manifest.version,
+          this.settings.conversationPathTemplate,
+          this.settings.assetStorageMode,
+          frontmatter.listUpdatedAt || detail.updatedAt,
+          assetLinks,
+          true,
+          activeEditorContext,
+        );
+        await this.handleForceSyncNoteMove(result, detail.id);
+
+        if (this.settings.saveConversationJson) {
+          try {
+            await this.saveConversationJsonSidecar(result.filePath, detailResult.rawPayload);
+          } catch (error) {
+            const warning = error instanceof Error ? error.message : String(error);
+            this.logWarn("JSON sidecar save warning", {
               conversationId: detail.id,
-              folderPath,
+              warning,
             });
-          });
-        } catch (error) {
-          const warning = error instanceof Error ? error.message : String(error);
-          this.logWarn("Conversation folder cleanup warning", {
-            conversationId: detail.id,
-            warning,
-          });
+          }
         }
       }
 
-      if (this.settings.saveConversationJson) {
-        try {
-          await this.saveConversationJsonSidecar(result.filePath, detailResult.rawPayload);
-        } catch (error) {
-          const warning = error instanceof Error ? error.message : String(error);
-          this.logWarn("JSON sidecar save warning", {
-            conversationId: detail.id,
-            warning,
-          });
-        }
-      }
       const actionLabel = `${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}`;
-      this.setSyncStatusBar(`ChatGPT sync: ${actionLabel.toLowerCase()} "${detail.title}"`, false);
+      const statusSuffix = useCachedJsonFallback ? " from cached JSON" : "";
+      this.setSyncStatusBar(`ChatGPT sync: ${actionLabel.toLowerCase()} "${detail.title}"${statusSuffix}`, false);
       this.clearSyncStatusBar(6000);
-      new Notice(`Chats2MD ${actionLabel}: ${detail.title}`);
+      if (useCachedJsonFallback) {
+        const reasonSuffix = fallbackReason ? ` (${fallbackReason})` : "";
+        new Notice(`Chats2MD ${actionLabel} from cached JSON: ${detail.title}${reasonSuffix}`);
+      } else {
+        new Notice(`Chats2MD ${actionLabel}: ${detail.title}`);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.setSyncStatusBar(`ChatGPT sync failed: ${message}`, false);
