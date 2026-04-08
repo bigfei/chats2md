@@ -1,0 +1,1092 @@
+{
+  "title": "Obsidian Citation Setup",
+  "create_time": 1775645738.67357,
+  "update_time": 1775645780.089897,
+  "mapping": {
+    "client-created-root": {
+      "id": "client-created-root",
+      "message": null,
+      "parent": null,
+      "children": ["ae435389-b7d0-444b-91e5-83334e6c6665"]
+    },
+    "ae435389-b7d0-444b-91e5-83334e6c6665": {
+      "id": "ae435389-b7d0-444b-91e5-83334e6c6665",
+      "message": {
+        "id": "ae435389-b7d0-444b-91e5-83334e6c6665",
+        "author": { "role": "system", "name": null, "metadata": {} },
+        "create_time": null,
+        "update_time": null,
+        "content": { "content_type": "text", "parts": [""] },
+        "status": "finished_successfully",
+        "end_turn": true,
+        "weight": 0.0,
+        "metadata": { "is_visually_hidden_from_conversation": true, "can_save": false },
+        "recipient": "all",
+        "channel": null
+      },
+      "parent": "client-created-root",
+      "children": ["30caf556-06c0-42d4-bd70-2e069d7c6099"]
+    },
+    "30caf556-06c0-42d4-bd70-2e069d7c6099": {
+      "id": "30caf556-06c0-42d4-bd70-2e069d7c6099",
+      "message": {
+        "id": "30caf556-06c0-42d4-bd70-2e069d7c6099",
+        "author": { "role": "system", "name": null, "metadata": {} },
+        "create_time": null,
+        "update_time": null,
+        "content": { "content_type": "text", "parts": [""] },
+        "status": "finished_successfully",
+        "end_turn": true,
+        "weight": 0.0,
+        "metadata": {
+          "rebase_developer_message": true,
+          "is_visually_hidden_from_conversation": true,
+          "can_save": false
+        },
+        "recipient": "all",
+        "channel": null
+      },
+      "parent": "ae435389-b7d0-444b-91e5-83334e6c6665",
+      "children": ["7f327b91-ffe9-460e-a73a-c84ed62613a4"]
+    },
+    "7f327b91-ffe9-460e-a73a-c84ed62613a4": {
+      "id": "7f327b91-ffe9-460e-a73a-c84ed62613a4",
+      "message": {
+        "id": "7f327b91-ffe9-460e-a73a-c84ed62613a4",
+        "author": { "role": "system", "name": null, "metadata": {} },
+        "create_time": 1775645738.301835,
+        "update_time": null,
+        "content": { "content_type": "text", "parts": [""] },
+        "status": "finished_successfully",
+        "end_turn": null,
+        "weight": 0.0,
+        "metadata": {
+          "request_id": "849887ad-f42c-4e3d-abd4-808dcbdb61ab",
+          "message_source": null,
+          "turn_exchange_id": "9c30e024-afe2-4cc4-aeb1-2e4a58f9b25a",
+          "is_visually_hidden_from_conversation": true,
+          "can_save": false
+        },
+        "recipient": "all",
+        "channel": null
+      },
+      "parent": "30caf556-06c0-42d4-bd70-2e069d7c6099",
+      "children": ["14503ef5-0e82-4e95-a611-288f24099d76"]
+    },
+    "14503ef5-0e82-4e95-a611-288f24099d76": {
+      "id": "14503ef5-0e82-4e95-a611-288f24099d76",
+      "message": {
+        "id": "14503ef5-0e82-4e95-a611-288f24099d76",
+        "author": { "role": "user", "name": null, "metadata": {} },
+        "create_time": 1775645737.985,
+        "update_time": null,
+        "content": { "content_type": "text", "parts": ["how obsidaian citation works?"] },
+        "status": "finished_successfully",
+        "end_turn": null,
+        "weight": 1.0,
+        "metadata": {
+          "selected_github_repos": [],
+          "serialization_metadata": { "custom_symbol_offsets": [] },
+          "request_id": "849887ad-f42c-4e3d-abd4-808dcbdb61ab",
+          "message_source": null,
+          "turn_exchange_id": "9c30e024-afe2-4cc4-aeb1-2e4a58f9b25a",
+          "resolved_model_slug": "gpt-5-3",
+          "can_save": false
+        },
+        "recipient": "all",
+        "channel": null
+      },
+      "parent": "7f327b91-ffe9-460e-a73a-c84ed62613a4",
+      "children": ["23727a2c-e20a-4e76-9610-eb7140a5e455"]
+    },
+    "23727a2c-e20a-4e76-9610-eb7140a5e455": {
+      "id": "23727a2c-e20a-4e76-9610-eb7140a5e455",
+      "message": {
+        "id": "23727a2c-e20a-4e76-9610-eb7140a5e455",
+        "author": { "role": "assistant", "name": null, "metadata": {} },
+        "create_time": 1775645738.5991595,
+        "update_time": null,
+        "content": {
+          "content_type": "model_editable_context",
+          "model_set_context": "",
+          "repository": null,
+          "repo_summary": null,
+          "structured_context": null
+        },
+        "status": "finished_successfully",
+        "end_turn": null,
+        "weight": 1.0,
+        "metadata": {
+          "search_result_groups": [],
+          "request_id": "849887ad-f42c-4e3d-abd4-808dcbdb61ab",
+          "message_type": "next",
+          "turn_exchange_id": "9c30e024-afe2-4cc4-aeb1-2e4a58f9b25a",
+          "model_slug": "gpt-5-3",
+          "default_model_slug": "auto",
+          "can_save": false,
+          "parent_id": "14503ef5-0e82-4e95-a611-288f24099d76",
+          "model_switcher_deny": []
+        },
+        "recipient": "all",
+        "channel": null
+      },
+      "parent": "14503ef5-0e82-4e95-a611-288f24099d76",
+      "children": ["d1ab2d3f-dcaf-4d96-acc3-fbfedc3b5edc"]
+    },
+    "d1ab2d3f-dcaf-4d96-acc3-fbfedc3b5edc": {
+      "id": "d1ab2d3f-dcaf-4d96-acc3-fbfedc3b5edc",
+      "message": {
+        "id": "d1ab2d3f-dcaf-4d96-acc3-fbfedc3b5edc",
+        "author": { "role": "assistant", "name": null, "metadata": {} },
+        "create_time": 1775645738.598744,
+        "update_time": null,
+        "content": {
+          "content_type": "text",
+          "parts": [
+            "**entity[\"software\",\"Obsidian\",\"note-taking app\"] citations** depend on how you set them up, because Obsidian itself is just a Markdown editor—it doesn’t have built-in citation management like Word or LaTeX. Instead, it relies on plugins and external tools.\n\nHere’s a clear breakdown 👇\n\n---\n\n# 🧠 Core Idea\nObsidian citations usually work by combining:\n\n- A **reference manager** (e.g., entity[\"software\",\"Zotero\",\"reference manager\"])\n- A **BibTeX file** (`.bib`)\n- A plugin like **entity[\"software\",\"Citations plugin for Obsidian\",\"obsidian plugin\"]** or **entity[\"software\",\"Pandoc Reference List plugin\",\"obsidian plugin\"]**\n\n---\n\n# ⚙️ Typical Workflow (Most Common Setup)\n\n## 1. Manage references in Zotero\n- Store papers, books, etc.\n- Each item gets a **citation key** (e.g., `smith2020ai`)\n\n---\n\n## 2. Export to `.bib` file\n- Use a Zotero plugin like **Better BibTeX**\n- This creates something like:\n\n```bibtex\n@article{smith2020ai,\n  title={AI Research},\n  author={Smith, John},\n  year={2020}\n}\n```\n\n---\n\n## 3. Link `.bib` to Obsidian\n- In Citations plugin settings:\n  - Point to your `.bib` file\n  - Set citation format (e.g., `[@smith2020ai]`)\n\n---\n\n## 4. Insert citations in notes\nYou type:\n\n```\n[@smith2020ai]\n```\n\nOr use command palette → search citation → insert\n\n---\n\n## 5. What happens next?\n\n### Inside Obsidian\n- You see: `[@smith2020ai]` (just plain text or preview formatting)\n\n### When exporting (important!)\nUsing **entity[\"software\",\"Pandoc\",\"document converter\"]**:\n\n- Converts citations into formatted styles like APA, MLA\n- Automatically generates bibliography\n\nExample output:\n\n> Smith (2020) argues that...\n\n---\n\n# 🧩 Key Concepts\n\n## 🔑 Citation Key\n- Unique ID like `doe2021ml`\n- Used to reference a source\n\n---\n\n## 📚 Citation Syntax (Pandoc style)\n\n| Syntax | Meaning |\n|------|--------|\n| `[@key]` | normal citation |\n| `@key` | inline |\n| `[-@key]` | suppress author |\n| `[@key, p. 10]` | with page number |\n\n---\n\n## 📄 Bibliography\nYou add this in your note:\n\n```\n# References\n```\n\nPandoc fills it automatically on export.\n\n---\n\n# 🔌 Alternative Approaches\n\n### 1. Markdown-only (no plugins)\n- Just paste references manually\n- ❌ No automation\n\n---\n\n### 2. Full academic workflow\n- Zotero + Better BibTeX + Pandoc + Obsidian\n- ✅ Best for research / papers\n\n---\n\n### 3. Obsidian-only plugins\n- Some plugins store references as notes\n- More “wiki-style” than academic\n\n---\n\n# ⚡ Simple Mental Model\n\nThink of Obsidian citations as:\n\n> **“Tags that only become real citations when exported.”**\n\n---\n\n# 👍 Example End-to-End\n\nIn Obsidian note:\n\n```\nAI is evolving rapidly [@smith2020ai].\n\n# References\n```\n\nAfter Pandoc export (APA):\n\n```\nAI is evolving rapidly (Smith, 2020).\n\nReferences\nSmith, J. (2020). AI Research.\n```\n\n---\n\n# 🚀 If you want\nI can help you set up a **perfect workflow** based on your use case:\n\n- academic writing (APA/IEEE)\n- personal knowledge base\n- Zettelkasten-style notes\n- or fully automated PDF export\n\nJust tell me 👍"
+          ]
+        },
+        "status": "finished_successfully",
+        "end_turn": true,
+        "weight": 1.0,
+        "metadata": {
+          "finish_details": { "type": "stop", "stop_tokens": [200002] },
+          "is_complete": true,
+          "citations": [],
+          "content_references": [
+            {
+              "matched_text": "entity[\"software\",\"Obsidian\",\"note-taking app\"]",
+              "prefix": null,
+              "start_idx": 2,
+              "end_idx": 52,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "Obsidian",
+              "prompt_text": "Obsidian",
+              "type": "entity",
+              "name": "Obsidian",
+              "category": "software",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": { "disambiguation": "note-taking app" },
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": null
+            },
+            {
+              "matched_text": "entity[\"software\",\"Zotero\",\"reference manager\"]",
+              "prefix": null,
+              "start_idx": 389,
+              "end_idx": 439,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "Zotero",
+              "prompt_text": "Zotero",
+              "type": "entity",
+              "name": "Zotero",
+              "category": "software",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": { "disambiguation": "reference manager" },
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": null
+            },
+            {
+              "matched_text": "entity[\"software\",\"Citations plugin for Obsidian\",\"obsidian plugin\"]",
+              "prefix": null,
+              "start_idx": 488,
+              "end_idx": 559,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "Citations plugin for Obsidian",
+              "prompt_text": "Citations plugin for Obsidian",
+              "type": "entity",
+              "name": "Citations plugin for Obsidian",
+              "category": "software",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": { "disambiguation": "obsidian plugin" },
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": null
+            },
+            {
+              "matched_text": "entity[\"software\",\"Pandoc Reference List plugin\",\"obsidian plugin\"]",
+              "prefix": null,
+              "start_idx": 567,
+              "end_idx": 637,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "Pandoc Reference List plugin",
+              "prompt_text": "Pandoc Reference List plugin",
+              "type": "entity",
+              "name": "Pandoc Reference List plugin",
+              "category": "software",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": { "disambiguation": "obsidian plugin" },
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": null
+            },
+            {
+              "matched_text": "entity[\"software\",\"Pandoc\",\"document converter\"]",
+              "prefix": null,
+              "start_idx": 1450,
+              "end_idx": 1501,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "Pandoc",
+              "prompt_text": "Pandoc",
+              "type": "entity",
+              "name": "Pandoc",
+              "category": "software",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": { "disambiguation": "document converter" },
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": null
+            }
+          ],
+          "resolved_model_slug": "gpt-5-3",
+          "code_blocks": {
+            "0": { "id": "14swi1", "edited": false, "previewable": false, "preview_language": null },
+            "1": { "id": "76xhov", "edited": false, "previewable": false, "preview_language": null },
+            "2": { "id": "n6bejg", "edited": false, "previewable": false, "preview_language": null },
+            "3": { "id": "zdy9ai", "edited": false, "previewable": false, "preview_language": null },
+            "4": { "id": "fgyr1f", "edited": false, "previewable": false, "preview_language": null }
+          },
+          "search_result_groups": [],
+          "request_id": "849887ad-f42c-4e3d-abd4-808dcbdb61ab",
+          "message_type": "next",
+          "turn_exchange_id": "9c30e024-afe2-4cc4-aeb1-2e4a58f9b25a",
+          "model_slug": "gpt-5-3",
+          "default_model_slug": "auto",
+          "can_save": true,
+          "parent_id": "23727a2c-e20a-4e76-9610-eb7140a5e455",
+          "token_count": 857,
+          "model_switcher_deny": []
+        },
+        "recipient": "all",
+        "channel": "final"
+      },
+      "parent": "23727a2c-e20a-4e76-9610-eb7140a5e455",
+      "children": ["f005ee1e-8488-4a94-8c80-0cf7c5c6a401"]
+    },
+    "f005ee1e-8488-4a94-8c80-0cf7c5c6a401": {
+      "id": "f005ee1e-8488-4a94-8c80-0cf7c5c6a401",
+      "message": {
+        "id": "f005ee1e-8488-4a94-8c80-0cf7c5c6a401",
+        "author": { "role": "user", "name": null, "metadata": {} },
+        "create_time": 1775645767.206,
+        "update_time": null,
+        "content": { "content_type": "text", "parts": ["search web for exapmle"] },
+        "status": "finished_successfully",
+        "end_turn": null,
+        "weight": 1.0,
+        "metadata": {
+          "selected_github_repos": [],
+          "serialization_metadata": { "custom_symbol_offsets": [] },
+          "request_id": "0c949cd0-8691-49e9-aa1b-d777cdcecf6e",
+          "message_source": null,
+          "turn_exchange_id": "8e11ddab-4ef5-4002-8ae1-95d3a4cf2c1e",
+          "resolved_model_slug": "gpt-5-3",
+          "can_save": false
+        },
+        "recipient": "all",
+        "channel": null
+      },
+      "parent": "d1ab2d3f-dcaf-4d96-acc3-fbfedc3b5edc",
+      "children": ["3ad11d7a-f240-4e22-a0bb-94cb12fcc760"]
+    },
+    "3ad11d7a-f240-4e22-a0bb-94cb12fcc760": {
+      "id": "3ad11d7a-f240-4e22-a0bb-94cb12fcc760",
+      "message": {
+        "id": "3ad11d7a-f240-4e22-a0bb-94cb12fcc760",
+        "author": { "role": "system", "name": null, "metadata": {} },
+        "create_time": 1775645767.9465113,
+        "update_time": null,
+        "content": { "content_type": "text", "parts": [""] },
+        "status": "finished_successfully",
+        "end_turn": null,
+        "weight": 1.0,
+        "metadata": {
+          "citations": [],
+          "content_references": [
+            {
+              "matched_text": "entity[\"<entity_category>\", \"<entity_name>\", \"<city, state/province, country | address>\"]",
+              "prefix": null,
+              "start_idx": 3185,
+              "end_idx": 3277,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "<entity_name>",
+              "prompt_text": "<entity_name>",
+              "type": "entity",
+              "name": "<entity_name>",
+              "category": "<entity_category>",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": { "disambiguation": "<city, state/province, country | address>" },
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": null
+            },
+            {
+              "matched_text": "entity[\"<ref_id>\", \"<entity_name>\"]",
+              "prefix": null,
+              "start_idx": 3341,
+              "end_idx": 3379,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "<entity_name>",
+              "prompt_text": "<entity_name>",
+              "type": "entity",
+              "name": "<entity_name>",
+              "category": "<ref_id>",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": null,
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": null
+            },
+            {
+              "matched_text": "entity[\"turnXproductY\",\"Display title\",1]",
+              "prefix": null,
+              "start_idx": 6886,
+              "end_idx": 6930,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "Display title",
+              "prompt_text": "Display title",
+              "type": "entity",
+              "name": "Display title",
+              "category": "turnXproductY",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": null,
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": null
+            },
+            {
+              "matched_text": "product[\"turnXproductY\", \"Levi's Jeans 500\", {\"render_as\":\"hero\", \"description\":\"$single-sentence-product-description\"}]",
+              "prefix": null,
+              "start_idx": 6992,
+              "end_idx": 7115,
+              "safe_urls": [],
+              "refs": [],
+              "alt": null,
+              "prompt_text": null,
+              "type": "hidden",
+              "invalid": true
+            },
+            {
+              "matched_text": "product[\"turnXproductY\", \"Product Name\", {\"render_as\":\"block\", \"description\":\"$single-sentence-product-description\"}]",
+              "prefix": null,
+              "start_idx": 7187,
+              "end_idx": 7307,
+              "safe_urls": [],
+              "refs": [],
+              "alt": null,
+              "prompt_text": null,
+              "type": "hidden",
+              "invalid": true
+            },
+            {
+              "matched_text": "products{\"selections\":[[\"turnXproductY\",\"Display title\"],[\"turnXproductZ,turnXproductW\",\"Merged card title\"]],\"tags\":[\"optional tag\",\"optional tag\"]}",
+              "prefix": null,
+              "start_idx": 7854,
+              "end_idx": 8006,
+              "safe_urls": [],
+              "refs": [],
+              "alt": null,
+              "prompt_text": null,
+              "type": "hidden",
+              "invalid": true
+            },
+            {
+              "matched_text": "entity[\"turnXproductY\",\"Display title\"]",
+              "prefix": null,
+              "start_idx": 8527,
+              "end_idx": 8569,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "Display title",
+              "prompt_text": "Display title",
+              "type": "entity",
+              "name": "Display title",
+              "category": "turnXproductY",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": null,
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": null
+            },
+            {
+              "matched_text": "entity[\"<PRODUCT_REF_1_FROM_TOOL>\",\"Product A\"]",
+              "prefix": null,
+              "start_idx": 8673,
+              "end_idx": 8723,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "Product A",
+              "prompt_text": "Product A",
+              "type": "entity",
+              "name": "Product A",
+              "category": "<PRODUCT_REF_1_FROM_TOOL>",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": null,
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": null
+            },
+            {
+              "matched_text": "entity[\"<PRODUCT_REF_2_FROM_TOOL>\",\"Product B\"]",
+              "prefix": null,
+              "start_idx": 8726,
+              "end_idx": 8776,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "Product B",
+              "prompt_text": "Product B",
+              "type": "entity",
+              "name": "Product B",
+              "category": "<PRODUCT_REF_2_FROM_TOOL>",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": null,
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": null
+            },
+            {
+              "matched_text": "entity[\"<PRODUCT_REF_3_FROM_TOOL>\",\"Product C\"]",
+              "prefix": null,
+              "start_idx": 8779,
+              "end_idx": 8829,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "Product C",
+              "prompt_text": "Product C",
+              "type": "entity",
+              "name": "Product C",
+              "category": "<PRODUCT_REF_3_FROM_TOOL>",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": null,
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": null
+            },
+            {
+              "matched_text": "entity[\"<PRODUCT_REF_4_FROM_TOOL>\",\"Product D\"]",
+              "prefix": null,
+              "start_idx": 8832,
+              "end_idx": 8882,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "Product D",
+              "prompt_text": "Product D",
+              "type": "entity",
+              "name": "Product D",
+              "category": "<PRODUCT_REF_4_FROM_TOOL>",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": null,
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": null
+            },
+            {
+              "matched_text": "entity[\"<PRODUCT_REF_5_FROM_TOOL>\",\"Product E\"]",
+              "prefix": null,
+              "start_idx": 8885,
+              "end_idx": 8935,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "Product E",
+              "prompt_text": "Product E",
+              "type": "entity",
+              "name": "Product E",
+              "category": "<PRODUCT_REF_5_FROM_TOOL>",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": null,
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": null
+            },
+            {
+              "matched_text": "explore_more{\\\"selections\\\":[[\\\"turn0product1\\\",\\\"Product Title\\\"],[\\\"turn0product2\\\",\\\"Product Title\\\"],...]}",
+              "prefix": null,
+              "start_idx": 9531,
+              "end_idx": 9644,
+              "safe_urls": [],
+              "refs": [],
+              "alt": null,
+              "prompt_text": null,
+              "type": "hidden",
+              "invalid": true
+            },
+            {
+              "matched_text": "entity[\"turnXproductY\",\"Display title\"]",
+              "prefix": null,
+              "start_idx": 14927,
+              "end_idx": 14969,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "Display title",
+              "prompt_text": "Display title",
+              "type": "entity",
+              "name": "Display title",
+              "category": "turnXproductY",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": null,
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": null
+            }
+          ],
+          "resolved_model_slug": "gpt-5-3",
+          "request_id": "0c949cd0-8691-49e9-aa1b-d777cdcecf6e",
+          "message_type": "next",
+          "turn_exchange_id": "8e11ddab-4ef5-4002-8ae1-95d3a4cf2c1e",
+          "model_slug": "gpt-5-3",
+          "default_model_slug": "auto",
+          "parent_id": "f005ee1e-8488-4a94-8c80-0cf7c5c6a401",
+          "is_visually_hidden_from_conversation": true,
+          "can_save": false
+        },
+        "recipient": "assistant",
+        "channel": null
+      },
+      "parent": "f005ee1e-8488-4a94-8c80-0cf7c5c6a401",
+      "children": ["a1ec6fd9-0b33-4566-be98-8515a6dbde27"]
+    },
+    "a1ec6fd9-0b33-4566-be98-8515a6dbde27": {
+      "id": "a1ec6fd9-0b33-4566-be98-8515a6dbde27",
+      "message": {
+        "id": "a1ec6fd9-0b33-4566-be98-8515a6dbde27",
+        "author": { "role": "assistant", "name": null, "metadata": {} },
+        "create_time": 1775645767.916298,
+        "update_time": null,
+        "content": {
+          "content_type": "code",
+          "language": "unknown",
+          "response_format_name": null,
+          "text": "search(\"search web for exapmle\")"
+        },
+        "status": "finished_successfully",
+        "end_turn": null,
+        "weight": 1.0,
+        "metadata": {
+          "citations": [],
+          "content_references": [],
+          "resolved_model_slug": "gpt-5-3",
+          "request_id": "0c949cd0-8691-49e9-aa1b-d777cdcecf6e",
+          "message_type": "next",
+          "turn_exchange_id": "8e11ddab-4ef5-4002-8ae1-95d3a4cf2c1e",
+          "model_slug": "gpt-5-3",
+          "default_model_slug": "auto",
+          "parent_id": "3ad11d7a-f240-4e22-a0bb-94cb12fcc760",
+          "model_switcher_deny": [],
+          "can_save": false
+        },
+        "recipient": "web",
+        "channel": null
+      },
+      "parent": "3ad11d7a-f240-4e22-a0bb-94cb12fcc760",
+      "children": ["20598d45-6d1a-44bc-845f-6cde37a7ddd2"]
+    },
+    "20598d45-6d1a-44bc-845f-6cde37a7ddd2": {
+      "id": "20598d45-6d1a-44bc-845f-6cde37a7ddd2",
+      "message": {
+        "id": "20598d45-6d1a-44bc-845f-6cde37a7ddd2",
+        "author": { "role": "tool", "name": "web.run", "metadata": { "real_author": "tool:web.run" } },
+        "create_time": 1775645768.832466,
+        "update_time": null,
+        "content": { "content_type": "text", "parts": [""] },
+        "status": "finished_successfully",
+        "end_turn": null,
+        "weight": 1.0,
+        "metadata": {
+          "search_model_queries": {
+            "type": "search_model_queries",
+            "queries": ["obsidian citations example pandoc zotero obsidian citations plugin example"]
+          },
+          "request_id": "0c949cd0-8691-49e9-aa1b-d777cdcecf6e",
+          "message_type": "next",
+          "turn_exchange_id": "8e11ddab-4ef5-4002-8ae1-95d3a4cf2c1e",
+          "model_slug": "gpt-5-3",
+          "default_model_slug": "auto",
+          "parent_id": "d9f82a53-7bb8-4cf1-b6fb-f8a472489973",
+          "can_save": false
+        },
+        "recipient": "all",
+        "channel": null
+      },
+      "parent": "a1ec6fd9-0b33-4566-be98-8515a6dbde27",
+      "children": ["79abff3b-45f2-418d-906e-82c8ceb61810"]
+    },
+    "79abff3b-45f2-418d-906e-82c8ceb61810": {
+      "id": "79abff3b-45f2-418d-906e-82c8ceb61810",
+      "message": {
+        "id": "79abff3b-45f2-418d-906e-82c8ceb61810",
+        "author": { "role": "assistant", "name": null, "metadata": { "real_author": "tool:web" } },
+        "create_time": 1775645769.280489,
+        "update_time": null,
+        "content": {
+          "content_type": "text",
+          "parts": [
+            "Here’s a **real example from the web** showing how Obsidian citations actually look and work in practice.\n\n---\n\n# 📌 Real Example (from docs/tutorials)\n\nUsing the **entity[\"software\",\"Citations plugin for Obsidian\",\"obsidian plugin\"]**, you insert a citation like this:\n\n```markdown\n[@smith2020ai]\n```\n\nThis is a **Pandoc-style citation**. The plugin inserts it directly into your note citeturn0search3  \n\n---\n\n# 🧾 Example `.bib` (source file)\n\nYour reference (exported from entity[\"software\",\"Zotero\",\"reference manager\"]) might look like:\n\n```bibtex\n@article{smith2020ai,\n  title={AI Research},\n  author={Smith, John},\n  year={2020}\n}\n```\n\nThe plugin reads this `.bib` file to let you search and insert citations citeturn0search0  \n\n---\n\n# 🧠 Example Obsidian Note (REALISTIC)\n\n```markdown\nAI is evolving rapidly [@smith2020ai].\n\nMore studies confirm this trend [@smith2020ai, p. 12].\n\n# References\n```\n\n- You **type or insert** `[@smith2020ai]`\n- The plugin helps you **search + insert citation keys**\n- It stays as plain Markdown inside Obsidian\n\n---\n\n# 🔄 What Happens on Export\n\nWhen you export using **entity[\"software\",\"Pandoc\",\"document converter\"]**:\n\n### Output (APA style example):\n\n```text\nAI is evolving rapidly (Smith, 2020).\n\nMore studies confirm this trend (Smith, 2020, p. 12).\n\nReferences\nSmith, J. (2020). AI Research.\n```\n\n👉 Pandoc:\n- Converts `[@key]` → formatted citation  \n- Auto-generates bibliography from `.bib`\n\n---\n\n# 🎥 Video Example (step-by-step)\n\nvideoObsidian + Zotero citations workflow tutorialturn0youtube12\n\n---\n\n# 🧩 What the plugin actually does\n\nFrom real docs:\n\n- Lets you **search your bibliography inside Obsidian**\n- Inserts:\n  - citation keys (`[@key]`)\n  - or literature notes\n- Works with `.bib` or JSON exports citeturn0search0  \n\n---\n\n# ⚡ Key takeaway (based on real examples)\n\n👉 Obsidian citations are:\n\n- **Plain text markers** like `[@citekey]`\n- Powered by external data (`.bib`)\n- **Formatted only during export**, not inside Obsidian\n\n---\n\nIf you want, I can show you a **fully working setup (Zotero + Better BibTeX + Obsidian + Pandoc)** with exact config files and commands—very useful if you’re doing research or papers."
+          ]
+        },
+        "status": "finished_successfully",
+        "end_turn": true,
+        "weight": 1.0,
+        "metadata": {
+          "finish_details": { "type": "stop", "stop_tokens": [200002] },
+          "is_complete": true,
+          "content_references": [
+            {
+              "matched_text": "entity[\"software\",\"Citations plugin for Obsidian\",\"obsidian plugin\"]",
+              "prefix": null,
+              "start_idx": 164,
+              "end_idx": 235,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "Citations plugin for Obsidian",
+              "prompt_text": "Citations plugin for Obsidian",
+              "type": "entity",
+              "name": "Citations plugin for Obsidian",
+              "category": "software",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": { "disambiguation": "obsidian plugin" },
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": "8imz8MxJKIqacYYS"
+            },
+            {
+              "matched_text": "citeturn0search3",
+              "prefix": null,
+              "start_idx": 388,
+              "end_idx": 407,
+              "safe_urls": [
+                "https://ktmeaton.github.io/obsidian-site/obsidian-site/notes/Obsidian-Citations",
+                "https://ktmeaton.github.io/obsidian-site/obsidian-site/notes/Obsidian-Citations?utm_source=chatgpt.com"
+              ],
+              "refs": [],
+              "alt": "([Katherine Eaton](https://ktmeaton.github.io/obsidian-site/obsidian-site/notes/Obsidian-Citations?utm_source=chatgpt.com))",
+              "prompt_text": null,
+              "type": "grouped_webpages",
+              "items": [
+                {
+                  "title": "Obsidian Vault",
+                  "url": "https://ktmeaton.github.io/obsidian-site/obsidian-site/notes/Obsidian-Citations?utm_source=chatgpt.com",
+                  "attribution": "Katherine Eaton",
+                  "pub_date": null,
+                  "snippet": "",
+                  "attribution_segments": null,
+                  "supporting_websites": [],
+                  "refs": [{ "turn_index": 0, "ref_type": "search", "ref_index": 3 }],
+                  "hue": null,
+                  "attributions": null
+                }
+              ],
+              "fallback_items": null,
+              "status": "done",
+              "error": null,
+              "style": null
+            },
+            {
+              "matched_text": "entity[\"software\",\"Zotero\",\"reference manager\"]",
+              "prefix": null,
+              "start_idx": 480,
+              "end_idx": 530,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "Zotero",
+              "prompt_text": "Zotero",
+              "type": "entity",
+              "name": "Zotero",
+              "category": "software",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": { "disambiguation": "reference manager" },
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": "fY2LpA-rfwKrsex_"
+            },
+            {
+              "matched_text": "citeturn0search0",
+              "prefix": null,
+              "start_idx": 723,
+              "end_idx": 742,
+              "safe_urls": [
+                "https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin",
+                "https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com"
+              ],
+              "refs": [],
+              "alt": "([SimilarPlugins](https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com))",
+              "prompt_text": null,
+              "type": "grouped_webpages",
+              "items": [
+                {
+                  "title": "Citations | SimilarPlugins",
+                  "url": "https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com",
+                  "attribution": "SimilarPlugins",
+                  "pub_date": null,
+                  "snippet": "",
+                  "attribution_segments": null,
+                  "supporting_websites": [],
+                  "refs": [{ "turn_index": 0, "ref_type": "search", "ref_index": 0 }],
+                  "hue": null,
+                  "attributions": null
+                }
+              ],
+              "fallback_items": null,
+              "status": "done",
+              "error": null,
+              "style": null
+            },
+            {
+              "matched_text": "entity[\"software\",\"Pandoc\",\"document converter\"]",
+              "prefix": null,
+              "start_idx": 1118,
+              "end_idx": 1169,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "Pandoc",
+              "prompt_text": "Pandoc",
+              "type": "entity",
+              "name": "Pandoc",
+              "category": "software",
+              "priority": 1,
+              "metadata": null,
+              "entity_data": null,
+              "extra_params": { "disambiguation": "document converter" },
+              "status": "done",
+              "notes": null,
+              "entity_index": null,
+              "id": "b3NvH_M_jVMLCMV5"
+            },
+            {
+              "matched_text": "videoObsidian + Zotero citations workflow tutorialturn0youtube12",
+              "prefix": null,
+              "start_idx": 1491,
+              "end_idx": 1559,
+              "safe_urls": [
+                "https://img.youtube.com/vi/fTb3pwn54X8/maxresdefault.jpg",
+                "https://img.youtube.com/vi/fTb3pwn54X8/maxresdefault.jpg?utm_source=chatgpt.com",
+                "https://www.youtube.com/watch?v=fTb3pwn54X8",
+                "https://www.youtube.com/watch?v=fTb3pwn54X8&utm_source=chatgpt.com"
+              ],
+              "refs": [{ "turn_index": 0, "ref_type": "youtube", "ref_index": 12 }],
+              "alt": "[Obsidian + Zotero citations workflow tutorial](https://www.youtube.com/watch?v=fTb3pwn54X8&utm_source=chatgpt.com)\n",
+              "prompt_text": null,
+              "type": "video",
+              "title": "Obsidian + Zotero citations workflow tutorial",
+              "thumbnail_url": "https://img.youtube.com/vi/fTb3pwn54X8/maxresdefault.jpg?utm_source=chatgpt.com",
+              "url": "https://www.youtube.com/watch?v=fTb3pwn54X8&utm_source=chatgpt.com",
+              "video_site": "youtube",
+              "video_id": "fTb3pwn54X8"
+            },
+            {
+              "matched_text": "citeturn0search0",
+              "prefix": null,
+              "start_idx": 1774,
+              "end_idx": 1793,
+              "safe_urls": [
+                "https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin",
+                "https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com"
+              ],
+              "refs": [],
+              "alt": "([SimilarPlugins](https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com))",
+              "prompt_text": null,
+              "type": "grouped_webpages",
+              "items": [
+                {
+                  "title": "Citations | SimilarPlugins",
+                  "url": "https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com",
+                  "attribution": "SimilarPlugins",
+                  "pub_date": null,
+                  "snippet": "",
+                  "attribution_segments": null,
+                  "supporting_websites": [],
+                  "refs": [{ "turn_index": 0, "ref_type": "search", "ref_index": 0 }],
+                  "hue": null,
+                  "attributions": null
+                }
+              ],
+              "fallback_items": null,
+              "status": "done",
+              "error": null,
+              "style": null
+            },
+            {
+              "matched_text": " ",
+              "prefix": null,
+              "start_idx": 2196,
+              "end_idx": 2196,
+              "safe_urls": [],
+              "refs": [],
+              "alt": "",
+              "prompt_text": null,
+              "type": "sources_footnote",
+              "sources": [
+                {
+                  "title": "Obsidian Vault",
+                  "url": "https://ktmeaton.github.io/obsidian-site/obsidian-site/notes/Obsidian-Citations?utm_source=chatgpt.com",
+                  "attribution": "Katherine Eaton"
+                },
+                {
+                  "title": "Citations | SimilarPlugins",
+                  "url": "https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com",
+                  "attribution": "SimilarPlugins"
+                }
+              ],
+              "has_images": false
+            }
+          ],
+          "safe_urls": [
+            "https://img.youtube.com/vi/fTb3pwn54X8/maxresdefault.jpg",
+            "https://img.youtube.com/vi/fTb3pwn54X8/maxresdefault.jpg?utm_source=chatgpt.com",
+            "https://ktmeaton.github.io/obsidian-site/obsidian-site/notes/Obsidian-Citations",
+            "https://ktmeaton.github.io/obsidian-site/obsidian-site/notes/Obsidian-Citations?utm_source=chatgpt.com",
+            "https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin",
+            "https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com",
+            "https://www.youtube.com/watch?v=fTb3pwn54X8",
+            "https://www.youtube.com/watch?v=fTb3pwn54X8&utm_source=chatgpt.com"
+          ],
+          "search_result_groups": [
+            {
+              "type": "search_result_group",
+              "domain": "obsidianstats.com",
+              "entries": [
+                {
+                  "type": "search_result",
+                  "url": "https://www.obsidianstats.com/plugins/simple-citations?utm_source=chatgpt.com",
+                  "title": "Simple Citations - Add & update simple literature notes from Zotero.",
+                  "snippet": "Install Code  Description  Learning & Knowledge Management Plugin    Category: Learning & Knowledge Management  #citation#zotero#literature-notes  The Simple Citations plugin streamlines the process...",
+                  "ref_id": { "turn_index": 0, "ref_type": "search", "ref_index": 1 },
+                  "pub_date": null,
+                  "attribution": "obsidianstats.com"
+                },
+                {
+                  "type": "search_result",
+                  "url": "https://www.obsidianstats.com/posts/2025-05-30-zotero-plugins?utm_source=chatgpt.com",
+                  "title": "Best Obsidian Plugins to Integrate Zetero with Obsidian",
+                  "snippet": "BEST OBSIDIAN PLUGINS TO INTEGRATE ZETERO WITH OBSIDIAN  ByGanesh Kumar•Published 30-May-2025  G  Ganesh KumarCreator of Obsidian Stats  Ganessh Kumar R P is a software developer and a long-time Obsi...",
+                  "ref_id": { "turn_index": 0, "ref_type": "search", "ref_index": 11 },
+                  "pub_date": 1748563200.0,
+                  "attribution": "obsidianstats.com"
+                }
+              ]
+            },
+            {
+              "type": "search_result_group",
+              "domain": "github.com",
+              "entries": [
+                {
+                  "type": "search_result",
+                  "url": "https://github.com/cbx812/zotero-obsidian-citations?utm_source=chatgpt.com",
+                  "title": "GitHub - cbx812/zotero-obsidian-citations: A Zotero plugin that links Markdown files to Zotero items. Scans your Markdown reading notes stored outside of Zotero, tags the associated Zotero items, and lets you open the MD notes in Obsidian from the Zotero Item contextual menu.",
+                  "snippet": "A Zotero plugin that links Markdown files to Zotero items. Scans your Markdown reading notes stored outside of Zotero, tags the associated Zotero items, and lets you open the MD notes in Obsidian fro...",
+                  "ref_id": { "turn_index": 0, "ref_type": "search", "ref_index": 2 },
+                  "pub_date": null,
+                  "attribution": "github.com"
+                },
+                {
+                  "type": "search_result",
+                  "url": "https://github.com/hans/obsidian-citation-plugin?utm_source=chatgpt.com",
+                  "title": "GitHub - hans/obsidian-citation-plugin: Obsidian plugin which integrates your academic reference manager with the Obsidian editor. Search your references from within Obsidian and automatically create and reference literature notes for papers and books.",
+                  "snippet": "hans / obsidian-citation-plugin Public  * Notifications You must be signed in to change notification settings * Fork 99 * Star  Obsidian plugin which integrates your academic reference manager with t...",
+                  "ref_id": { "turn_index": 0, "ref_type": "search", "ref_index": 6 },
+                  "pub_date": null,
+                  "attribution": "github.com"
+                },
+                {
+                  "type": "search_result",
+                  "url": "https://github.com/OliverBalfour/obsidian-pandoc/wiki/Citations-%28work-in-progress%29?utm_source=chatgpt.com",
+                  "title": "Citations (work in progress) · OliverBalfour/obsidian-pandoc Wiki · GitHub",
+                  "snippet": "CITATIONS (WORK IN PROGRESS)  Jump to bottom  OliverBalfour edited this page Jun 26, 2021 · 4 revisions  PREFACE  Pandoc supports its own citations markdown extension which Obsidian doesn't have. Thi...",
+                  "ref_id": { "turn_index": 0, "ref_type": "search", "ref_index": 7 },
+                  "pub_date": 1624665600.0,
+                  "attribution": "github.com"
+                }
+              ]
+            },
+            {
+              "type": "search_result_group",
+              "domain": "foldl.me",
+              "entries": [
+                {
+                  "type": "search_result",
+                  "url": "https://www.foldl.me/obsidian-citation-plugin/?utm_source=chatgpt.com",
+                  "title": "obsidian-citation-plugin",
+                  "snippet": "PROJECT OBSIDIAN-CITATION-PLUGIN  obsidian-citation-plugin  This plugin for Obsidian integrates your academic reference manager with the Obsidian editing experience.  Image  The plugin supports readi...",
+                  "ref_id": { "turn_index": 0, "ref_type": "search", "ref_index": 4 },
+                  "pub_date": null,
+                  "attribution": "foldl.me"
+                }
+              ]
+            },
+            {
+              "type": "search_result_group",
+              "domain": "obsidian.md",
+              "entries": [
+                {
+                  "type": "search_result",
+                  "url": "https://forum.obsidian.md/t/new-plugin-citations-with-zotero/9793/351?utm_source=chatgpt.com",
+                  "title": "New plugin: Citations (with Zotero) - #351 by bryant.burkhart - Share & showcase - Obsidian Forum",
+                  "snippet": "NEW PLUGIN: CITATIONS (WITH ZOTERO)  Share & showcase  plugin-release  bryant.burkhart March 20, 2022, 7:22pm 351  Hey all,  I’ve been using this plugin in conjunction with zotero for drafting my the...",
+                  "ref_id": { "turn_index": 0, "ref_type": "search", "ref_index": 5 },
+                  "pub_date": 1647734400.0,
+                  "attribution": "obsidian.md"
+                },
+                {
+                  "type": "search_result",
+                  "url": "https://forum.obsidian.md/t/converting-citekey-citations-in-obsidian-to-citations-in-word-using-zotero/23099?utm_source=chatgpt.com",
+                  "title": "Converting citekey citations in Obsidian to citations in Word (using Zotero) - Help - Obsidian Forum",
+                  "snippet": "CONVERTING CITEKEY CITATIONS IN OBSIDIAN TO CITATIONS IN WORD (USING ZOTERO)  Help  DOra August 24, 2021, 11:58am 1  WHAT I’M TRYING TO DO  Hi everyone! I’m looking for a way to export my Obsidian no...",
+                  "ref_id": { "turn_index": 0, "ref_type": "search", "ref_index": 10 },
+                  "pub_date": 1629763200.0,
+                  "attribution": "obsidian.md"
+                }
+              ]
+            },
+            {
+              "type": "search_result_group",
+              "domain": "harvard.edu",
+              "entries": [
+                {
+                  "type": "search_result",
+                  "url": "https://ces-wiki.fas.harvard.edu/Using_Zotero_with_Obsidian_%2B_citations_plugin_to_auto_critique_with_AI?utm_source=chatgpt.com",
+                  "title": "Using Zotero with Obsidian + citations plugin to auto critique with AI - CES IT Wiki",
+                  "snippet": "USING ZOTERO WITH OBSIDIAN + CITATIONS PLUGIN TO AUTO CRITIQUE WITH AI  Jump to navigation Jump to search  MAKE SURE YOU ALREADY HAVE:  [edit | edit source]  * Obsidian installed  * Your Obsidian vaul...",
+                  "ref_id": { "turn_index": 0, "ref_type": "search", "ref_index": 8 },
+                  "pub_date": 1749513600.0,
+                  "attribution": "harvard.edu"
+                }
+              ]
+            },
+            {
+              "type": "search_result_group",
+              "domain": "system3.md",
+              "entries": [
+                {
+                  "type": "search_result",
+                  "url": "https://system3.md/observatory/plugins/obsidian-pandoc-reference-list?utm_source=chatgpt.com",
+                  "title": "Pandoc Reference List by mgmeyers - Obsidian plugin analytics | Observatory",
+                  "snippet": "PANDOC REFERENCE LIST  by mgmeyers  Citations & References  Display a formatted reference in the sidebar for each Pandoc citekey present in the current document.  Released May 11, 2022  61 versions...",
+                  "ref_id": { "turn_index": 0, "ref_type": "search", "ref_index": 9 },
+                  "pub_date": 1652227200.0,
+                  "attribution": "system3.md"
+                }
+              ]
+            }
+          ],
+          "citations": [],
+          "resolved_model_slug": "gpt-5-3",
+          "code_blocks": {
+            "0": { "id": "mvaq3j", "edited": false, "previewable": false, "preview_language": null },
+            "1": { "id": "5uev0s", "edited": false, "previewable": false, "preview_language": null },
+            "2": { "id": "0zm8np", "edited": false, "previewable": false, "preview_language": null },
+            "3": { "id": "hghbig", "edited": false, "previewable": false, "preview_language": null }
+          },
+          "request_id": "0c949cd0-8691-49e9-aa1b-d777cdcecf6e",
+          "message_type": "next",
+          "turn_exchange_id": "8e11ddab-4ef5-4002-8ae1-95d3a4cf2c1e",
+          "model_slug": "gpt-5-3",
+          "default_model_slug": "auto",
+          "can_save": true,
+          "parent_id": "fabc89fd-0605-4392-ad6a-717a3e65b51d",
+          "model_switcher_deny": []
+        },
+        "recipient": "all",
+        "channel": "final"
+      },
+      "parent": "20598d45-6d1a-44bc-845f-6cde37a7ddd2",
+      "children": []
+    }
+  },
+  "moderation_results": [],
+  "current_node": "79abff3b-45f2-418d-906e-82c8ceb61810",
+  "plugin_ids": null,
+  "conversation_id": "69d6340a-3540-839a-b200-dae0e364fc90",
+  "conversation_template_id": null,
+  "gizmo_id": null,
+  "gizmo_type": null,
+  "is_archived": false,
+  "is_starred": null,
+  "safe_urls": [
+    "https://ktmeaton.github.io/obsidian-site/obsidian-site/notes/Obsidian-Citations?utm_source=chatgpt.com",
+    "https://www.youtube.com/watch?v=fTb3pwn54X8&utm_source=chatgpt.com",
+    "https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com",
+    "https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin",
+    "https://img.youtube.com/vi/fTb3pwn54X8/maxresdefault.jpg?utm_source=chatgpt.com",
+    "https://img.youtube.com/vi/fTb3pwn54X8/maxresdefault.jpg",
+    "https://www.youtube.com/watch?v=fTb3pwn54X8",
+    "https://github.com/DIYgod/RSSHub-Radar",
+    "https://ktmeaton.github.io/obsidian-site/obsidian-site/notes/Obsidian-Citations"
+  ],
+  "blocked_urls": [],
+  "default_model_slug": "auto",
+  "atlas_mode_enabled": null,
+  "conversation_origin": null,
+  "is_read_only": null,
+  "voice": null,
+  "async_status": null,
+  "disabled_tool_ids": [],
+  "is_temporary_chat": false,
+  "is_do_not_remember": false,
+  "memory_scope": "global_enabled",
+  "context_scopes": [],
+  "sugar_item_id": null,
+  "sugar_item_visible": false,
+  "pinned_time": null,
+  "is_study_mode": false,
+  "owner": null
+}

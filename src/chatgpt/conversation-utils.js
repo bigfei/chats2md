@@ -60,10 +60,12 @@ function collectContentReferenceUrls(reference) {
     urls.push(url);
   };
 
-  if (Array.isArray(reference.safe_urls)) {
-    for (const safeUrl of reference.safe_urls) {
-      appendUrl(safeUrl);
-    }
+  appendUrl(reference?.url);
+
+  const sources = Array.isArray(reference.sources) ? reference.sources : [];
+  for (const source of sources) {
+    const sourceRecord = isRecord(source) ? source : null;
+    appendUrl(sourceRecord?.url);
   }
 
   const items = Array.isArray(reference.items) ? reference.items : [];
@@ -75,6 +77,14 @@ function collectContentReferenceUrls(reference) {
     for (const supportingWebsite of supportingWebsites) {
       const supportingRecord = isRecord(supportingWebsite) ? supportingWebsite : null;
       appendUrl(supportingRecord?.url);
+    }
+  }
+
+  appendUrl(reference?.thumbnail_url);
+
+  if (Array.isArray(reference.safe_urls)) {
+    for (const safeUrl of reference.safe_urls) {
+      appendUrl(safeUrl);
     }
   }
 
@@ -113,6 +123,27 @@ function readContentReferenceLabel(reference, fallbackIndex) {
     readNonEmptyString(firstItem?.title) ||
     readNonEmptyString(reference.type);
   return label || `Source ${fallbackIndex}`;
+}
+
+function readContentReferencePlainText(reference, fallbackIndex) {
+  const label =
+    readNonEmptyString(reference.alt) ||
+    readNonEmptyString(reference.name) ||
+    readNonEmptyString(reference.prompt_text) ||
+    readNonEmptyString(reference.title) ||
+    readContentReferenceLabel(reference, fallbackIndex);
+
+  return label || "";
+}
+
+function shouldRenderReferenceAsUnderlinedPlainText(reference) {
+  const type = readNonEmptyString(reference?.type);
+  return type === "entity";
+}
+
+function shouldRenderReferenceAsEmbeddedMedia(reference) {
+  const type = readNonEmptyString(reference?.type);
+  return type === "video";
 }
 
 function sortContentReferencesByStartIndex(contentReferences) {
@@ -207,16 +238,23 @@ export function applyChatGptContentReferencesAsFootnotes(text, contentReferences
     }
 
     const url = readPrimaryContentReferenceUrl(reference);
-    if (!url) {
-      transformedText = replaceFirstOccurrence(transformedText, matchedText, "").text;
-      continue;
-    }
-
     if (!transformedText.includes(matchedText)) {
       continue;
     }
 
+    if (!url) {
+      const plainText = readContentReferencePlainText(reference, referenceIndex + 1);
+      const replacement = shouldRenderReferenceAsUnderlinedPlainText(reference) ? `<u>${plainText}</u>` : plainText;
+      transformedText = replaceFirstOccurrence(transformedText, matchedText, replacement).text;
+      continue;
+    }
+
     const label = readContentReferenceLabel(reference, referenceIndex + 1);
+    if (shouldRenderReferenceAsEmbeddedMedia(reference)) {
+      const replacement = `${label}\n![](${url})`;
+      transformedText = replaceFirstOccurrence(transformedText, matchedText, replacement).text;
+      continue;
+    }
     const footnoteId = ensureFootnoteIdAndDefinition(ensuredRegistry, label, url);
     const replacement = `[^${footnoteId}]`;
     const replaced = replaceFirstOccurrence(transformedText, matchedText, replacement);

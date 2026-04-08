@@ -21,9 +21,11 @@ const __dirname = path.dirname(__filename);
 const detailFixturePath = path.join(__dirname, "fixtures", "conversation-detail-chinese-title.json");
 const listFixturePath = path.join(__dirname, "fixtures", "conversation-list.json");
 const fullwidthBracketFixturePath = path.join(__dirname, "fixtures", "conversation-detail-fullwidth-brackets.json");
+const fullMediaFixturePath = path.join(__dirname, "fixtures", "full-media.json");
 const detailFixture = JSON.parse(fs.readFileSync(detailFixturePath, "utf8"));
 const listFixture = JSON.parse(fs.readFileSync(listFixturePath, "utf8"));
 const fullwidthBracketFixture = JSON.parse(fs.readFileSync(fullwidthBracketFixturePath, "utf8"));
+const fullMediaFixture = JSON.parse(fs.readFileSync(fullMediaFixturePath, "utf8"));
 
 function collectStringValues(value, output) {
   if (typeof value === "string") {
@@ -68,6 +70,27 @@ function findMessageWithContentReferences(detailPayload) {
   }
 
   return null;
+}
+
+function findMessageById(detailPayload, messageId) {
+  const mapping = detailPayload?.mapping && typeof detailPayload.mapping === "object" ? detailPayload.mapping : {};
+  const node = mapping[messageId];
+  const message = node?.message;
+  const contentReferences = Array.isArray(message?.metadata?.content_references)
+    ? message.metadata.content_references
+    : [];
+  const parts = Array.isArray(message?.content?.parts)
+    ? message.content.parts.filter((part) => typeof part === "string")
+    : [];
+
+  if (!message || parts.length === 0) {
+    return null;
+  }
+
+  return {
+    text: parts.join("\n"),
+    contentReferences,
+  };
 }
 
 test("slugifyConversationTitle keeps Chinese titles", () => {
@@ -172,10 +195,7 @@ test("applyChatGptContentReferencesAsFootnotes reuses id for repeated label+URL 
 
   const footnotes = getConversationFootnoteDefinitions(registry);
   assert.equal(footnotes.length, 1);
-  assert.equal(
-    footnotes[0],
-    "[^1]: [Gist](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)",
-  );
+  assert.equal(footnotes[0], "[^1]: [Gist](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)");
 });
 
 test("applyChatGptContentReferencesAsFootnotes does not emit dangling definition when marker is missing", () => {
@@ -189,4 +209,42 @@ test("applyChatGptContentReferencesAsFootnotes does not emit dangling definition
 
   assert.equal(text, "plain text");
   assert.equal(footnotes.length, 0);
+});
+
+test("applyChatGptContentReferencesAsFootnotes renders ChatGPT entity refs as underlined text and webpage refs as footnotes", () => {
+  const message = findMessageById(fullMediaFixture, "79abff3b-45f2-418d-906e-82c8ceb61810");
+
+  assert.ok(message, "Fixture must include the cited assistant message.");
+
+  const { text, footnotes } = applyChatGptContentReferencesAsFootnotes(message.text, message.contentReferences);
+
+  assert.match(text, /Using the \*\*<u>Citations plugin for Obsidian<\/u>\*\*/);
+  assert.match(text, /exported from <u>Zotero<\/u>/);
+  assert.match(text, /using \*\*<u>Pandoc<\/u>\*\*/);
+  assert.doesNotMatch(text, /(?:cite|entity|video)/);
+  assert.match(text, /The plugin inserts it directly into your note \[\^1\]/);
+  assert.match(text, /Works with `\.bib` or JSON exports \[\^2\]/);
+  assert.equal(footnotes.length, 2);
+  assert.equal(
+    footnotes[0],
+    "[^1]: [Katherine Eaton](https://ktmeaton.github.io/obsidian-site/obsidian-site/notes/Obsidian-Citations?utm_source=chatgpt.com)",
+  );
+  assert.equal(
+    footnotes[1],
+    "[^2]: [SimilarPlugins](https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com)",
+  );
+});
+
+test("applyChatGptContentReferencesAsFootnotes renders ChatGPT video refs as Obsidian embeds", () => {
+  const message = findMessageById(fullMediaFixture, "79abff3b-45f2-418d-906e-82c8ceb61810");
+
+  assert.ok(message, "Fixture must include the cited assistant message.");
+
+  const { text } = applyChatGptContentReferencesAsFootnotes(message.text, message.contentReferences);
+
+  assert.match(
+    text,
+    /Obsidian \+ Zotero citations workflow tutorial\n!\[]\(https:\/\/www\.youtube\.com\/watch\?v=fTb3pwn54X8&utm_source=chatgpt\.com\)/,
+  );
+  assert.doesNotMatch(text, /img\.youtube\.com/);
 });
