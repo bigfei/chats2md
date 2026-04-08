@@ -2,11 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  ONE_MONTH_SYNC_RANGE_MS,
   filterConversationSummariesByCreatedDateRange,
   filterConversationSummariesByLatestCreatedCount,
   getConversationCreatedAtSpan,
-  shouldPromptForDateRange,
 } from "../src/sync/date-range.ts";
 import type { ConversationSummary } from "../src/shared/types.ts";
 
@@ -19,29 +17,6 @@ function createSummary(id: string, createdAt: string, updatedAt = createdAt): Co
     url: `https://chatgpt.com/c/${id}`,
   };
 }
-
-test("shouldPromptForDateRange is false when created_at span is exactly 30 days", () => {
-  const summaries = [
-    createSummary("conv-1", "2026-01-01T00:00:00.000Z"),
-    createSummary("conv-2", "2026-01-31T00:00:00.000Z"),
-  ];
-
-  const span = getConversationCreatedAtSpan(summaries);
-  assert.ok(span);
-  assert.equal(span.spanMs, ONE_MONTH_SYNC_RANGE_MS);
-  assert.equal(shouldPromptForDateRange(span), false);
-});
-
-test("shouldPromptForDateRange is true when created_at span is greater than 30 days", () => {
-  const summaries = [
-    createSummary("conv-1", "2026-01-01T00:00:00.000Z"),
-    createSummary("conv-2", "2026-02-01T00:00:00.000Z"),
-  ];
-
-  const span = getConversationCreatedAtSpan(summaries);
-  assert.ok(span);
-  assert.equal(shouldPromptForDateRange(span), true);
-});
 
 test("filterConversationSummariesByCreatedDateRange keeps inclusive boundaries", () => {
   const summaries = [

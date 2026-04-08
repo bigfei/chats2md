@@ -150,7 +150,7 @@ class SyncDateRangeModal extends Modal {
 
     contentEl.createEl("p", {
       cls: "chats2md-modal__status",
-      text: `Found ${this.options.context.discoveredCount} conversations spanning more than 30 days.`,
+      text: `Found ${this.options.context.discoveredCount} conversations.`,
     });
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
