@@ -248,6 +248,17 @@ export function sortAccounts(accounts: StoredSessionAccount[]): StoredSessionAcc
   });
 }
 
+export function getStoredAccountDisplayName(
+  account: Pick<StoredSessionAccount, "email" | "accountId">,
+): string {
+  return account.email.trim().length > 0 ? account.email : account.accountId;
+}
+
+export function formatStoredAccountLabel(account: Pick<StoredSessionAccount, "email" | "accountId">): string {
+  const displayName = getStoredAccountDisplayName(account);
+  return displayName === account.accountId ? account.accountId : `${displayName} (${account.accountId})`;
+}
+
 export function removeStoredAccount(settings: { accounts: StoredSessionAccount[] }, accountId: string): void {
   settings.accounts = settings.accounts.filter((account) => account.accountId !== accountId);
 }

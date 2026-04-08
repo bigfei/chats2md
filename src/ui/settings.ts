@@ -1,7 +1,11 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 
 import { parseSessionJson, validateConversationListAccess } from "../chatgpt/api";
-import { DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE, formatAssetStorageMode } from "../main/helpers";
+import {
+  DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE,
+  formatAssetStorageMode,
+  getStoredAccountDisplayName,
+} from "../main/helpers";
 import { CONVERSATION_PATH_TEMPLATE_PRESETS } from "../path/template";
 import { FolderSuggest } from "./folder-suggest";
 import type Chats2MdPlugin from "../main";
@@ -215,7 +219,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     for (const account of accounts) {
       new Setting(containerEl)
-        .setName(account.email.trim().length > 0 ? account.email : account.accountId)
+        .setName(getStoredAccountDisplayName(account))
         .setDesc(this.describeAccount(account))
         .addButton((button) => {
           button
@@ -242,7 +246,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
             .setWarning()
             .setButtonText("Delete")
             .onClick(async () => {
-              const label = account.email.trim().length > 0 ? account.email : account.accountId;
+              const label = getStoredAccountDisplayName(account);
               const confirmed = window.confirm(`Delete account session for ${label}?`);
 
               if (!confirmed) {
@@ -283,7 +287,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       onSave: async (raw, parsed) => {
         await validateConversationListAccess(parsed);
         const saved = await this.plugin.upsertSessionAccount(raw, parsed);
-        const label = saved.email.trim().length > 0 ? saved.email : saved.accountId;
+        const label = getStoredAccountDisplayName(saved);
         new Notice(`Saved session for ${label}.`);
         this.display();
       },
@@ -291,7 +295,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
   }
 
   private async validateAccount(account: StoredSessionAccount): Promise<void> {
-    const label = account.email.trim().length > 0 ? account.email : account.accountId;
+    const label = getStoredAccountDisplayName(account);
     const raw = this.plugin.getSessionSecret(account.secretId);
 
     if (!raw || raw.trim().length === 0) {
