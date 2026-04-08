@@ -52,7 +52,8 @@ async function loadRequestUrl(): Promise<RequestLikeFn> {
   if (!requestUrlLoader) {
     requestUrlLoader = Promise.resolve().then(() => {
       try {
-        const module = Function("return require('obsidian')")() as { requestUrl?: unknown };
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const module = require("obsidian") as { requestUrl?: unknown };
         if (typeof module.requestUrl !== "function") {
           throw new Error("obsidian.requestUrl is unavailable.");
         }
