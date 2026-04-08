@@ -32,16 +32,6 @@ const DEFAULT_FIREFOX_USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:149.0) Gecko/20100101 Firefox/149.0";
 const RESERVED_HEADER_NAMES = new Set(["accept", "authorization", "chatgpt-account-id", "cookie", "user-agent"]);
 
-let requestUrlLoader: Promise<RequestLikeFn> | null = null;
-
-async function loadRequestUrl(): Promise<RequestLikeFn> {
-  if (!requestUrlLoader) {
-    requestUrlLoader = import("obsidian").then((module) => module.requestUrl as unknown as RequestLikeFn);
-  }
-
-  return requestUrlLoader;
-}
-
 interface SessionPayload {
   accessToken?: string;
   cookie?: string;
@@ -54,6 +44,28 @@ interface SessionPayload {
   account?: {
     id?: string;
   };
+}
+
+let requestUrlLoader: Promise<RequestLikeFn> | null = null;
+
+async function loadRequestUrl(): Promise<RequestLikeFn> {
+  if (!requestUrlLoader) {
+    requestUrlLoader = Promise.resolve().then(() => {
+      try {
+        const module = Function("return require('obsidian')")() as { requestUrl?: unknown };
+        if (typeof module.requestUrl !== "function") {
+          throw new Error("obsidian.requestUrl is unavailable.");
+        }
+
+        return module.requestUrl as RequestLikeFn;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to load Obsidian requestUrl: ${message}`);
+      }
+    });
+  }
+
+  return requestUrlLoader;
 }
 
 type UnknownRecord = Record<string, unknown>;
