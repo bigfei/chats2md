@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { shouldRestoreActiveSyncModal } from "../src/main/sync-modal-state.ts";
 
-test("shouldRestoreActiveSyncModal reopens a minimized sync dialog", () => {
+test("shouldRestoreActiveSyncModal reopens a hidden sync dialog", () => {
   assert.equal(
     shouldRestoreActiveSyncModal({
       syncWorkerActive: true,

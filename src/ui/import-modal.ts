@@ -44,7 +44,7 @@ interface SyncModalOptions {
   initialSkipExistingLocalConversations: boolean;
   accounts: StoredSessionAccount[];
   onSubmit: (values: SyncModalValues, progress: SyncProgressReporter, control: SyncExecutionControl) => Promise<void>;
-  onSyncDialogHidden?: (reason: "minimize" | "dismiss" | "stop") => void;
+  onSyncDialogHidden?: (reason: "dismiss" | "stop") => void;
 }
 
 function formatCounts(counts: ImportProgressCounts): string {
@@ -394,7 +394,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
   private isSyncing = false;
   private isPaused = false;
   private stopRequested = false;
-  private closeReason: "minimize" | "dismiss" | "stop" = "dismiss";
+  private closeReason: "dismiss" | "stop" = "dismiss";
   private pauseWaiters: Array<() => void> = [];
   private stopController: AbortController | null = null;
 
@@ -757,9 +757,6 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
         this.pauseButton = button.buttonEl;
       })
       .addButton((button) => {
-        button.setButtonText("Minimize").onClick(() => this.minimize());
-      })
-      .addButton((button) => {
         button.setButtonText("Hide").onClick(() => this.closeWithReason("dismiss"));
       })
       .addButton((button) => {
@@ -788,15 +785,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     this.applyStatusText();
   }
 
-  private minimize(): void {
-    if (!this.isSyncing) {
-      return;
-    }
-
-    this.closeWithReason("minimize");
-  }
-
-  private closeWithReason(reason: "minimize" | "dismiss" | "stop"): void {
+  private closeWithReason(reason: "dismiss" | "stop"): void {
     this.closeReason = reason;
     this.close();
   }
