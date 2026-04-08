@@ -44,7 +44,7 @@ interface SyncModalOptions {
   initialSkipExistingLocalConversations: boolean;
   accounts: StoredSessionAccount[];
   onSubmit: (values: SyncModalValues, progress: SyncProgressReporter, control: SyncExecutionControl) => Promise<void>;
-  onSyncDialogHidden?: (reason: "minimize" | "close") => void;
+  onSyncDialogHidden?: (reason: "minimize" | "dismiss" | "stop") => void;
 }
 
 function formatCounts(counts: ImportProgressCounts): string {
@@ -154,11 +154,11 @@ class SyncDateRangeModal extends Modal {
     });
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
-      text: `created_at range: ${this.fullStartDate} to ${this.fullEndDate}.`,
+      text: `Conversation dates found: ${this.fullStartDate} to ${this.fullEndDate}.`,
     });
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
-      text: "Choose one subset mode. created_at date range and latest N are mutually exclusive.",
+      text: "Choose one sync range. Date range and newest conversations cannot be used together.",
     });
 
     new Setting(contentEl)
@@ -175,9 +175,9 @@ class SyncDateRangeModal extends Modal {
       .setDesc("Choose which part of the discovered list to sync.")
       .addDropdown((dropdown) => {
         dropdown
-          .addOption("all", "Full discovered range")
-          .addOption("range", "Created_at date range")
-          .addOption("latest-count", "Latest N by created_at")
+          .addOption("all", "All conversations found")
+          .addOption("range", "Conversation date range")
+          .addOption("latest-count", "Newest conversations")
           .setValue(this.filterMode)
           .onChange((value) => {
             this.filterMode = value === "range" || value === "latest-count" ? value : "all";
@@ -187,7 +187,7 @@ class SyncDateRangeModal extends Modal {
 
     this.startDateSetting = new Setting(contentEl)
       .setName("Start date")
-      .setDesc("Inclusive lower bound, based on created_at.")
+      .setDesc("First conversation date to include.")
       .addText((component) => {
         component.inputEl.type = "date";
         component.inputEl.min = this.fullStartDate;
@@ -200,8 +200,8 @@ class SyncDateRangeModal extends Modal {
       });
 
     this.latestCountSetting = new Setting(contentEl)
-      .setName("Latest conversation count")
-      .setDesc("Sync only the newest N conversations by created_at.")
+      .setName("Number of newest conversations")
+      .setDesc("Sync only the newest conversations by conversation date.")
       .addText((component) => {
         component.inputEl.type = "number";
         component.inputEl.min = "1";
@@ -214,7 +214,7 @@ class SyncDateRangeModal extends Modal {
 
     this.endDateSetting = new Setting(contentEl)
       .setName("End date")
-      .setDesc("Inclusive upper bound, based on created_at.")
+      .setDesc("Last conversation date to include.")
       .addText((component) => {
         component.inputEl.type = "date";
         component.inputEl.min = this.fullStartDate;
@@ -261,7 +261,7 @@ class SyncDateRangeModal extends Modal {
     if (this.filterMode === "latest-count") {
       const count = parsePositiveIntegerInput(this.latestCount);
       if (count === null) {
-        new Notice("Latest conversation count must be a positive whole number.");
+        new Notice("Number of newest conversations must be a positive whole number.");
         return;
       }
 
@@ -394,7 +394,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
   private isSyncing = false;
   private isPaused = false;
   private stopRequested = false;
-  private closeReason: "minimize" | "close" = "close";
+  private closeReason: "minimize" | "dismiss" | "stop" = "dismiss";
   private pauseWaiters: Array<() => void> = [];
   private stopController: AbortController | null = null;
 
@@ -417,7 +417,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
 
   onClose(): void {
     if (this.isSyncing) {
-      if (this.closeReason === "close") {
+      if (this.closeReason === "stop") {
         this.stopRequested = true;
         this.stopController?.abort("Sync stopped by user.");
       }
@@ -425,7 +425,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
       this.options.onSyncDialogHidden?.(this.closeReason);
     }
 
-    this.closeReason = "close";
+    this.closeReason = "dismiss";
     this.isPaused = false;
     this.releasePauseWaiters();
     this.pauseButton = null;
@@ -614,7 +614,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
 
     contentEl.createEl("p", {
       cls: "chats2md-modal__hint",
-      text: "Mode: full conversation-list discovery. Results are ordered locally by created_at (newest first).",
+      text: "Mode: full conversation discovery. Results are ordered locally by conversation date, newest first.",
     });
 
     contentEl.createEl("p", {
@@ -760,7 +760,10 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
         button.setButtonText("Minimize").onClick(() => this.minimize());
       })
       .addButton((button) => {
-        button.setButtonText("Close").onClick(() => this.closeWithReason("close"));
+        button.setButtonText("Hide").onClick(() => this.closeWithReason("dismiss"));
+      })
+      .addButton((button) => {
+        button.setWarning().setButtonText("Stop").onClick(() => this.closeWithReason("stop"));
       });
 
     this.updatePauseButton();
@@ -793,7 +796,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     this.closeWithReason("minimize");
   }
 
-  private closeWithReason(reason: "minimize" | "close"): void {
+  private closeWithReason(reason: "minimize" | "dismiss" | "stop"): void {
     this.closeReason = reason;
     this.close();
   }

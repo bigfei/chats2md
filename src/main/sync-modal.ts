@@ -48,7 +48,7 @@ function createSyncModal(host: any): SyncChatGptModal | null {
     accounts,
     onSubmit: async (values, progress, control): Promise<void> => handleSync(host, values, progress, control, modal),
     onSyncDialogHidden: (reason) => {
-      if (reason === "close") {
+      if (reason === "stop") {
         host.suppressSyncStatusBarUpdates = true;
         host.clearSyncStatusBar(0, true);
         return;
