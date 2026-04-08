@@ -1,8 +1,6 @@
 import type { ConversationSummary } from "../shared/types";
 import { sortConversationSummariesByCreatedAtDesc } from "../chatgpt/conversation-list-fetch";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-export const ONE_MONTH_SYNC_RANGE_MS = 30 * DAY_MS;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export interface ConversationCreatedAtSpan {
@@ -87,10 +85,6 @@ export function getConversationCreatedAtSpan(summaries: ConversationSummary[]): 
     spanMs: Math.max(0, maxTimestamp - minTimestamp),
     validCount,
   };
-}
-
-export function shouldPromptForDateRange(span: ConversationCreatedAtSpan | null): boolean {
-  return (span?.spanMs ?? 0) > ONE_MONTH_SYNC_RANGE_MS;
 }
 
 export function filterConversationSummariesByCreatedDateRange(

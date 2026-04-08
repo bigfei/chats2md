@@ -15,13 +15,7 @@ import { isSyncCancelledError, sleepWithAbort } from "./cancellation";
 import { ConsecutiveRateLimitGuard, isConsecutiveRateLimitPauseError } from "./rate-limit-guard";
 import { runWithRateLimitPauseRetry } from "./rate-limit-retry";
 import { hasIndexedConversationNote, indexConversationNotes, upsertConversationNote } from "../storage/note-writer";
-import {
-  filterConversationSummariesByCreatedDateRange,
-  filterConversationSummariesByLatestCreatedCount,
-  getConversationCreatedAtSpan,
-  shouldPromptForDateRange,
-  toIsoUtcDate,
-} from "./date-range";
+import { applyConversationSubsetSelection, openAccountSubsetSelectionPrompt } from "./account-subset-selection";
 import type {
   AssetStorageMode,
   ChatGptRequestConfig,
@@ -286,49 +280,43 @@ export async function runFullSync(
         continue;
       }
 
-      const createdAtSpan = getConversationCreatedAtSpan(summaries);
-      const discoveredStartDate = toIsoUtcDate(createdAtSpan?.minCreatedAt ?? "");
-      const discoveredEndDate = toIsoUtcDate(createdAtSpan?.maxCreatedAt ?? "");
-      const discoveredRangeLabel =
-        discoveredStartDate && discoveredEndDate ? `${discoveredStartDate} to ${discoveredEndDate}` : "unknown";
-
-      if (shouldPromptForDateRange(createdAtSpan) && createdAtSpan) {
-        if (!(await ensureCanContinue())) {
-          return;
-        }
-
-        progressModal.setPreparing(
-          `Syncing ${accountLabel} (${accountIndex + 1}/${selectedAccounts.length}): choose conversation filter...`,
-        );
-        logInfo(`[${accountLabel}] created_at span exceeds 30 days (${discoveredRangeLabel}). Waiting for selection.`);
-
-        const selection = await progressModal.selectDateRange({
+      const subsetPromptResult = await openAccountSubsetSelectionPrompt(
+        {
           accountLabel,
-          discoveredCount,
-          minCreatedAt: createdAtSpan.minCreatedAt,
-          maxCreatedAt: createdAtSpan.maxCreatedAt,
+          accountIndex,
+          totalAccounts: selectedAccounts.length,
+          summaries,
           skipExistingLocalConversations,
-        });
+        },
+        {
+          ensureCanContinue,
+          setPreparing: (message) => {
+            progressModal.setPreparing(message);
+          },
+          logInfo,
+          selectDateRange: (context) => progressModal.selectDateRange(context),
+        },
+      );
 
-        if (!(await ensureCanContinue())) {
-          return;
-        }
+      if (subsetPromptResult.status === "stop") {
+        return;
+      }
 
-        if (selection.mode === "skip-account") {
-          logInfo(`[${accountLabel}] Selection canceled. Skipping account.`);
-          continue;
-        }
+      if (subsetPromptResult.status === "skip-account") {
+        logInfo(`[${accountLabel}] Selection canceled. Skipping account.`);
+        continue;
+      }
 
+      const discoveredRangeLabel = subsetPromptResult.discoveredRangeLabel;
+
+      if (subsetPromptResult.status === "selected") {
+        const selection = subsetPromptResult.selection;
         skipExistingLocalConversations = selection.skipExistingLocalConversations;
         values.skipExistingLocalConversations = selection.skipExistingLocalConversations;
 
         if (selection.mode === "range") {
           try {
-            summaries = filterConversationSummariesByCreatedDateRange(
-              summaries,
-              selection.startDate,
-              selection.endDate,
-            );
+            summaries = applyConversationSubsetSelection(summaries, selection);
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             counts.failed += 1;
@@ -359,7 +347,7 @@ export async function runFullSync(
           );
         } else if (selection.mode === "latest-count") {
           try {
-            summaries = filterConversationSummariesByLatestCreatedCount(summaries, selection.count);
+            summaries = applyConversationSubsetSelection(summaries, selection);
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             counts.failed += 1;

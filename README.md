@@ -25,7 +25,7 @@
 2. Start sync from the ribbon icon or command palette.
 3. Choose whether to sync all configured accounts or a single account.
 4. The plugin fetches the full conversation list for each selected account.
-5. If the discovered `created_at` span is larger than 30 days, the plugin prompts you to sync:
+5. After fetching each account's conversation list, the plugin prompts you to sync:
    - the full discovered range,
    - a date range, or
    - the latest N conversations by `created_at`.
