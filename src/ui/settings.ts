@@ -279,12 +279,10 @@ export class Chats2MdSettingTab extends PluginSettingTab {
     return fragment;
   }
   private openSessionEditor(account?: StoredSessionAccount): void {
-    const initialValue = account ? (this.plugin.getSessionSecret(account.secretId) ?? "") : "";
-
     new SessionEditorModal(this.app, {
       title: account ? "Edit account session JSON" : "Add account session JSON",
       pluginVersion: this.plugin.manifest.version,
-      initialValue,
+      hasExistingSecret: Boolean(account),
       onSave: async (raw, parsed) => {
         await validateConversationListAccess(parsed);
         const saved = await this.plugin.upsertSessionAccount(raw, parsed);

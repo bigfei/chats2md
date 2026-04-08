@@ -32,10 +32,6 @@ import {
   upsertSessionAccount as upsertSessionAccountHelper,
 } from "./session-account";
 import {
-  enableSettingsPaneIcon as enableSettingsPaneIconHelper,
-  syncSettingsPaneIconObserver as syncSettingsPaneIconObserverHelper,
-} from "./settings-pane-icon";
-import {
   handleSync as handleSyncHelper,
   openSyncModal as openSyncModalHelper,
   startAllAccountsSync as startAllAccountsSyncHelper,
@@ -81,9 +77,6 @@ export default class Chats2MdPlugin extends Plugin {
   private syncWorkerActive = false;
   private syncStatusClearTimer: number | null = null;
   private suppressSyncStatusBarUpdates = false;
-  private settingsPaneIconObserver: MutationObserver | null = null;
-  private settingsPaneIconObserverRoot: HTMLElement | null = null;
-  private settingsPaneIconSyncScheduled = false;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -96,7 +89,7 @@ export default class Chats2MdPlugin extends Plugin {
 
     this.addCommand({
       id: "import-chatgpt-conversations",
-      name: "All Account Sync",
+      name: "Sync all accounts",
       callback: () => {
         this.startAllAccountsSync();
       },
@@ -111,9 +104,7 @@ export default class Chats2MdPlugin extends Plugin {
     });
 
     const settingTab = new Chats2MdSettingTab(this.app, this);
-    settingTab.icon = CHATGPT_IMPORT_SYNC_ICON_ID;
     this.addSettingTab(settingTab);
-    this.enableSettingsPaneIcon();
 
     this.syncStatusBarEl = this.addStatusBarItem();
     this.syncStatusBarEl.classList.add("chats2md-sync-statusbar");
@@ -163,20 +154,9 @@ export default class Chats2MdPlugin extends Plugin {
         this.forceSyncUiController?.addForceSyncMenuItem(menu, file);
       }),
     );
-    this.registerEvent(this.app.workspace.on("layout-change", () => this.syncSettingsPaneIconObserver()));
-    this.registerEvent(this.app.workspace.on("active-leaf-change", () => this.syncSettingsPaneIconObserver()));
     this.app.workspace.onLayoutReady(() => {
       this.forceSyncUiController?.refreshMarkdownSyncActions();
-      this.syncSettingsPaneIconObserver();
     });
-  }
-
-  private enableSettingsPaneIcon(): void {
-    enableSettingsPaneIconHelper(this, CHATGPT_IMPORT_SYNC_ICON_ID);
-  }
-
-  private syncSettingsPaneIconObserver(): void {
-    syncSettingsPaneIconObserverHelper(this, CHATGPT_IMPORT_SYNC_ICON_ID);
   }
 
   async loadSettings(): Promise<void> {
@@ -403,7 +383,7 @@ export default class Chats2MdPlugin extends Plugin {
     }
 
     if (existing instanceof TFile) {
-      await this.app.vault.modify(existing, serialized);
+      await this.app.vault.process(existing, () => serialized);
       return sidecarPath;
     }
 

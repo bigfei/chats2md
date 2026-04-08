@@ -125,18 +125,3 @@
   margin-top: auto;
   --icon-size: 18px;
 }
-
-.vertical-tab-nav-item.chats2md-settings-nav-item {
-  --icon-size: 16px;
-}
-
-.vertical-tab-nav-item.chats2md-settings-nav-item .vertical-tab-nav-item-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.vertical-tab-nav-item.chats2md-settings-nav-item .vertical-tab-nav-item-icon svg {
-  width: var(--icon-size);
-  height: var(--icon-size);
-}

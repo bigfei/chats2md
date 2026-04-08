@@ -14,7 +14,7 @@
 
 ## What the plugin does
 
-- Adds an `All Account Sync` command.
+- Adds a `Sync all accounts` command.
 - Adds a `Rebuild from JSON` command.
 - Adds a ribbon action to open the sync flow.
 - Adds a per-note `Force sync from ChatGPT` action for synced ChatGPT notes.
