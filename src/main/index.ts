@@ -2,7 +2,7 @@ import { MarkdownView, Notice, Plugin, TFile, TFolder, addIcon, normalizePath } 
 
 import { fetchConversationDetailWithPayload, parseSessionJson } from "../chatgpt/api";
 import { SyncChatGptModal, type SyncExecutionControl, type SyncProgressReporter } from "../ui/import-modal";
-import { indexConversationNotes, upsertConversationNote } from "../storage/note-writer";
+import { createSingleConversationNoteIndex, upsertConversationNote } from "../storage/note-writer";
 import { Chats2MdSettingTab } from "../ui/settings";
 import { ForceSyncUiController } from "../ui/force-sync-ui";
 import {
@@ -484,6 +484,7 @@ export default class Chats2MdPlugin extends Plugin {
         ),
       moveConversationJsonSidecar: (sourceNotePath, targetNotePath) =>
         this.moveConversationJsonSidecar(sourceNotePath, targetNotePath),
+      shouldGenerateSyncReport: () => this.settings.generateSyncReport,
       writeSyncReport: (report) => this.writeSyncReport(report),
       getAccounts: () => this.getAccounts(),
       logInfo: (message, context) => this.logInfo(message, context),
@@ -706,7 +707,7 @@ export default class Chats2MdPlugin extends Plugin {
         1,
         1,
       );
-      const noteIndex = indexConversationNotes(this.app);
+      const noteIndex = createSingleConversationNoteIndex(requestConfig.accountId, detail.id, file);
       const result = await upsertConversationNote(
         this.app,
         noteIndex,

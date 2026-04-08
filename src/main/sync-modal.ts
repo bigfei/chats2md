@@ -122,6 +122,7 @@ export async function handleSync(
         getRequestConfig: (account) => host.getRequestConfig(account),
         getAccountLabel: (account) => host.getAccountLabel(account),
         shouldSaveConversationJson: () => host.settings.saveConversationJson,
+        shouldGenerateSyncReport: () => host.settings.generateSyncReport,
         saveConversationJsonSidecar: (notePath, payload) => host.saveConversationJsonSidecar(notePath, payload),
         moveConversationJsonSidecar: (sourceNotePath, targetNotePath) =>
           host.moveConversationJsonSidecar(sourceNotePath, targetNotePath),

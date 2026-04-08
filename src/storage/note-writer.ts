@@ -257,6 +257,14 @@ function buildConversationKey(accountId: string, conversationId: string): string
   return `${accountId}::${conversationId}`;
 }
 
+export function createSingleConversationNoteIndex(
+  accountId: string,
+  conversationId: string,
+  file: TFile,
+): Map<string, TFile> {
+  return new Map([[buildConversationKey(accountId, conversationId), file]]);
+}
+
 function findIndexedConversationNote(
   noteIndex: Map<string, TFile>,
   accountId: string,

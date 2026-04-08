@@ -199,7 +199,7 @@ export async function syncConversationAssetsForConversation(
     const perAssetPrefix = `${logPrefix} Asset ${assetIndex + 1}/${downloadRefs.length} (${ref.fileId})`;
 
     try {
-      const reusableFileName = findReusableLocalAssetFileName(Array.from(usedNames), ref);
+      const reusableFileName = findReusableLocalAssetFileName(usedNames, ref);
       if (reusableFileName) {
         const reusablePath = normalizePath(`${assetFolderPath}/${reusableFileName}`);
         const reusableExisting = host.app.vault.getAbstractFileByPath(reusablePath);

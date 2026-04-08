@@ -59,6 +59,7 @@ export interface MainRebuildHost {
     stopSignal?: AbortSignal,
   ): Promise<ConversationAssetLinkMap>;
   moveConversationJsonSidecar(sourceNotePath: string, targetNotePath: string): Promise<boolean>;
+  shouldGenerateSyncReport(): boolean;
   writeSyncReport(report: SyncRunReport): Promise<string | null>;
   getAccounts(): StoredSessionAccount[];
   logInfo(message: string, context?: unknown): void;
@@ -83,6 +84,7 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
   const startedAt = new Date().toISOString();
   let runStatus: SyncRunStatus = "completed";
   const counts = createEmptyCounts();
+  const shouldCollectReportEntries = host.shouldGenerateSyncReport();
   const createdEntries: SyncReportConversationEntry[] = [];
   const updatedEntries: SyncReportConversationEntry[] = [];
   const movedEntries: SyncReportConversationEntry[] = [];
@@ -141,15 +143,17 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
 
       if (!frontmatter.conversationId) {
         counts.failed += 1;
-        failedEntries.push({
-          accountId: frontmatter.accountId || "unknown-account",
-          accountLabel: frontmatter.accountId || "unknown-account",
-          conversationId: "unknown-conversation",
-          title: displayTitle,
-          conversationUrl: null,
-          notePath: note.path,
-          message: `Missing ${CONVERSATION_ID_KEY} in note frontmatter.`,
-        });
+        if (shouldCollectReportEntries) {
+          failedEntries.push({
+            accountId: frontmatter.accountId || "unknown-account",
+            accountLabel: frontmatter.accountId || "unknown-account",
+            conversationId: "unknown-conversation",
+            title: displayTitle,
+            conversationUrl: null,
+            notePath: note.path,
+            message: `Missing ${CONVERSATION_ID_KEY} in note frontmatter.`,
+          });
+        }
         logError(`Skipping ${note.path}: missing ${CONVERSATION_ID_KEY}.`);
         continue;
       }
@@ -166,15 +170,17 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         counts.failed += 1;
-        failedEntries.push({
-          accountId: frontmatter.accountId || "unknown-account",
-          accountLabel: frontmatter.accountId || "unknown-account",
-          conversationId: frontmatter.conversationId,
-          title: fallbackSummary.title,
-          conversationUrl: null,
-          notePath: note.path,
-          message,
-        });
+        if (shouldCollectReportEntries) {
+          failedEntries.push({
+            accountId: frontmatter.accountId || "unknown-account",
+            accountLabel: frontmatter.accountId || "unknown-account",
+            conversationId: frontmatter.conversationId,
+            title: fallbackSummary.title,
+            conversationUrl: null,
+            notePath: note.path,
+            message,
+          });
+        }
         logError(`Skipping ${note.path}: ${message}`);
         continue;
       }
@@ -186,15 +192,17 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         counts.failed += 1;
-        failedEntries.push({
-          accountId: account.accountId,
-          accountLabel,
-          conversationId: frontmatter.conversationId,
-          title: fallbackSummary.title,
-          conversationUrl: null,
-          notePath: note.path,
-          message,
-        });
+        if (shouldCollectReportEntries) {
+          failedEntries.push({
+            accountId: account.accountId,
+            accountLabel,
+            conversationId: frontmatter.conversationId,
+            title: fallbackSummary.title,
+            conversationUrl: null,
+            notePath: note.path,
+            message,
+          });
+        }
         logError(`[${accountLabel}] Failed to load session for ${note.path}: ${message}`);
         continue;
       }
@@ -257,14 +265,16 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
         );
 
         counts[result.action] += 1;
-        const reportEntry: SyncReportConversationEntry = {
-          accountId: requestConfig.accountId,
-          accountLabel,
-          conversationId: detail.id,
-          title: detail.title,
-          conversationUrl: detail.url,
-          notePath: result.filePath,
-        };
+        const reportEntry: SyncReportConversationEntry | null = shouldCollectReportEntries
+          ? {
+              accountId: requestConfig.accountId,
+              accountLabel,
+              conversationId: detail.id,
+              title: detail.title,
+              conversationUrl: detail.url,
+              notePath: result.filePath,
+            }
+          : null;
         const warnings: string[] = [];
 
         if (result.moved && result.previousFilePath) {
@@ -296,25 +306,27 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
           }
         }
 
-        if (warnings.length > 0) {
+        if (reportEntry && warnings.length > 0) {
           reportEntry.message = warnings.join(" ");
         }
 
-        if (result.action === "created") {
+        if (reportEntry && result.action === "created") {
           createdEntries.push(reportEntry);
-        } else if (result.action === "updated") {
+        } else if (reportEntry && result.action === "updated") {
           updatedEntries.push(reportEntry);
         }
 
         if (result.moved) {
           counts.moved += 1;
-          const moveMessage = reportEntry.message
+          const moveMessage = reportEntry?.message
             ? `Moved to match current layout template. ${reportEntry.message}`
             : "Moved to match current layout template.";
-          movedEntries.push({
-            ...reportEntry,
-            message: moveMessage,
-          });
+          if (reportEntry) {
+            movedEntries.push({
+              ...reportEntry,
+              message: moveMessage,
+            });
+          }
         }
 
         logInfo(
@@ -323,15 +335,17 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         counts.failed += 1;
-        failedEntries.push({
-          accountId: requestConfig.accountId,
-          accountLabel,
-          conversationId: frontmatter.conversationId,
-          title: fallbackSummary.title,
-          conversationUrl: null,
-          notePath: note.path,
-          message,
-        });
+        if (shouldCollectReportEntries) {
+          failedEntries.push({
+            accountId: requestConfig.accountId,
+            accountLabel,
+            conversationId: frontmatter.conversationId,
+            title: fallbackSummary.title,
+            conversationUrl: null,
+            notePath: note.path,
+            message,
+          });
+        }
         logError(
           `[${accountLabel}] (${noteIndexValue + 1}/${notes.length}) Failed to rebuild "${displayTitle}": ${message}`,
         );

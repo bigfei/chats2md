@@ -26,9 +26,36 @@ function getStem(fileName: string): string {
   return dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
 }
 
-function findUniqueStemMatch(fileNames: string[], stem: string): string | null {
-  const matches = fileNames.filter((fileName) => getStem(fileName) === stem);
-  return matches.length === 1 ? (matches[0] ?? null) : null;
+function hasFileName(fileNames: Iterable<string>, candidate: string): boolean {
+  if (fileNames instanceof Set) {
+    return fileNames.has(candidate);
+  }
+
+  for (const fileName of fileNames) {
+    if (fileName === candidate) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function findUniqueStemMatch(fileNames: Iterable<string>, stem: string): string | null {
+  let match: string | null = null;
+
+  for (const fileName of fileNames) {
+    if (getStem(fileName) !== stem) {
+      continue;
+    }
+
+    if (match !== null) {
+      return null;
+    }
+
+    match = fileName;
+  }
+
+  return match;
 }
 
 export function buildStableAssetFileName(
@@ -45,7 +72,7 @@ export function buildStableAssetFileName(
   return extension ? `${normalizedFileId}${extension}` : normalizedFileId;
 }
 
-export function findReusableLocalAssetFileName(fileNames: string[], ref: LocalAssetReference): string | null {
+export function findReusableLocalAssetFileName(fileNames: Iterable<string>, ref: LocalAssetReference): string | null {
   const normalizedFileId = sanitizePathPart(ref.fileId);
   const logicalExtension = extractKnownExtension(ref.logicalName);
   const exactCandidates = [logicalExtension ? `${normalizedFileId}${logicalExtension}` : "", normalizedFileId].filter(
@@ -53,7 +80,7 @@ export function findReusableLocalAssetFileName(fileNames: string[], ref: LocalAs
   );
 
   for (const candidate of exactCandidates) {
-    if (fileNames.includes(candidate)) {
+    if (hasFileName(fileNames, candidate)) {
       return candidate;
     }
   }

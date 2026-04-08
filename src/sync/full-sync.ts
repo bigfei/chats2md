@@ -45,6 +45,7 @@ export interface FullSyncContext {
   getRequestConfig(account: StoredSessionAccount): ChatGptRequestConfig;
   getAccountLabel(account: StoredSessionAccount): string;
   shouldSaveConversationJson(): boolean;
+  shouldGenerateSyncReport(): boolean;
   saveConversationJsonSidecar(notePath: string, payload: unknown): Promise<string>;
   moveConversationJsonSidecar(sourceNotePath: string, targetNotePath: string): Promise<boolean>;
   syncConversationAssets(
@@ -73,6 +74,7 @@ export async function runFullSync(
 ): Promise<void> {
   const counts = createEmptyCounts();
   const failures: ImportFailure[] = [];
+  const shouldCollectReportEntries = context.shouldGenerateSyncReport();
   const createdEntries: SyncReportConversationEntry[] = [];
   const updatedEntries: SyncReportConversationEntry[] = [];
   const movedEntries: SyncReportConversationEntry[] = [];
@@ -190,15 +192,17 @@ export async function runFullSync(
           message,
           attempts: 1,
         });
-        failedEntries.push({
-          accountId: account.accountId,
-          accountLabel,
-          conversationId: account.accountId,
-          title: accountLabel,
-          conversationUrl: null,
-          notePath: null,
-          message,
-        });
+        if (shouldCollectReportEntries) {
+          failedEntries.push({
+            accountId: account.accountId,
+            accountLabel,
+            conversationId: account.accountId,
+            title: accountLabel,
+            conversationUrl: null,
+            notePath: null,
+            message,
+          });
+        }
         logError(`[${accountLabel}] Failed to load session: ${message}`);
         continue;
       }
@@ -257,15 +261,17 @@ export async function runFullSync(
           message,
           attempts: 1,
         });
-        failedEntries.push({
-          accountId: requestConfig.accountId,
-          accountLabel,
-          conversationId: account.accountId,
-          title: `${accountLabel} conversation list`,
-          conversationUrl: null,
-          notePath: null,
-          message,
-        });
+        if (shouldCollectReportEntries) {
+          failedEntries.push({
+            accountId: requestConfig.accountId,
+            accountLabel,
+            conversationId: account.accountId,
+            title: `${accountLabel} conversation list`,
+            conversationUrl: null,
+            notePath: null,
+            message,
+          });
+        }
         logError(`[${accountLabel}] Failed to fetch conversation list: ${message}`);
         continue;
       }
@@ -332,15 +338,17 @@ export async function runFullSync(
               message,
               attempts: 1,
             });
-            failedEntries.push({
-              accountId: requestConfig.accountId,
-              accountLabel,
-              conversationId: account.accountId,
-              title: `${accountLabel} date range`,
-              conversationUrl: null,
-              notePath: null,
-              message,
-            });
+            if (shouldCollectReportEntries) {
+              failedEntries.push({
+                accountId: requestConfig.accountId,
+                accountLabel,
+                conversationId: account.accountId,
+                title: `${accountLabel} date range`,
+                conversationUrl: null,
+                notePath: null,
+                message,
+              });
+            }
             logError(`[${accountLabel}] Invalid date range selection: ${message}`);
             continue;
           }
@@ -361,15 +369,17 @@ export async function runFullSync(
               message,
               attempts: 1,
             });
-            failedEntries.push({
-              accountId: requestConfig.accountId,
-              accountLabel,
-              conversationId: account.accountId,
-              title: `${accountLabel} latest count`,
-              conversationUrl: null,
-              notePath: null,
-              message,
-            });
+            if (shouldCollectReportEntries) {
+              failedEntries.push({
+                accountId: requestConfig.accountId,
+                accountLabel,
+                conversationId: account.accountId,
+                title: `${accountLabel} latest count`,
+                conversationUrl: null,
+                notePath: null,
+                message,
+              });
+            }
             logError(`[${accountLabel}] Invalid latest count selection: ${message}`);
             continue;
           }
@@ -521,14 +531,16 @@ export async function runFullSync(
               );
 
               counts[result.action] += 1;
-              const reportEntry: SyncReportConversationEntry = {
-                accountId: requestConfig.accountId,
-                accountLabel,
-                conversationId: detail.id,
-                title: detail.title,
-                conversationUrl: detail.url,
-                notePath: result.filePath,
-              };
+              const reportEntry: SyncReportConversationEntry | null = shouldCollectReportEntries
+                ? {
+                    accountId: requestConfig.accountId,
+                    accountLabel,
+                    conversationId: detail.id,
+                    title: detail.title,
+                    conversationUrl: detail.url,
+                    notePath: result.filePath,
+                  }
+                : null;
               const reportWarnings: string[] = [];
 
               if (result.moved && result.previousFilePath) {
@@ -581,25 +593,27 @@ export async function runFullSync(
                 }
               }
 
-              if (reportWarnings.length > 0) {
+              if (reportEntry && reportWarnings.length > 0) {
                 reportEntry.message = reportWarnings.join(" ");
               }
 
-              if (result.action === "created") {
+              if (reportEntry && result.action === "created") {
                 createdEntries.push(reportEntry);
-              } else if (result.action === "updated") {
+              } else if (reportEntry && result.action === "updated") {
                 updatedEntries.push(reportEntry);
               }
 
               if (result.moved) {
                 counts.moved += 1;
-                const moveMessage = reportEntry.message
+                const moveMessage = reportEntry?.message
                   ? `Moved to match current layout template. ${reportEntry.message}`
                   : "Moved to match current layout template.";
-                movedEntries.push({
-                  ...reportEntry,
-                  message: moveMessage,
-                });
+                if (reportEntry) {
+                  movedEntries.push({
+                    ...reportEntry,
+                    message: moveMessage,
+                  });
+                }
               }
               logInfo(
                 `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) ${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}: "${summary.title}".`,
@@ -629,15 +643,17 @@ export async function runFullSync(
             message,
             attempts: DETAIL_FETCH_MAX_ATTEMPTS,
           });
-          failedEntries.push({
-            accountId: requestConfig.accountId,
-            accountLabel,
-            conversationId: summary.id,
-            title: summary.title,
-            conversationUrl: summary.url,
-            notePath: null,
-            message,
-          });
+          if (shouldCollectReportEntries) {
+            failedEntries.push({
+              accountId: requestConfig.accountId,
+              accountLabel,
+              conversationId: summary.id,
+              title: summary.title,
+              conversationUrl: summary.url,
+              notePath: null,
+              message,
+            });
+          }
           logError(
             `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed: "${summary.title}" - ${message}`,
           );
