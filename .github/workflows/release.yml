@@ -33,8 +33,7 @@ jobs:
       - name: Read manifest version
         id: manifest
         run: |
-          version=$(node -e 'console.log(JSON.parse(require("node:fs").readFileSync("manifest.json", "utf8")).version)')
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          node -e 'const fs = require("node:fs"); const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8")); fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${manifest.version}\n`);'
 
       - name: Validate tag matches manifest version
         run: |
