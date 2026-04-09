@@ -1,6 +1,6 @@
 import { App, Notice } from "obsidian";
 
-import { fetchConversationDetailWithPayload, fetchConversationSummaries } from "../chatgpt/api";
+import { fetchConversationSummaries } from "../chatgpt/api";
 import { ConversationListPageFetchError } from "../chatgpt/conversation-list-fetch";
 import type { AccountHealthResult } from "../main/account-health";
 import type { SyncExecutionControl, SyncProgressReporter } from "../ui/import-modal";
@@ -14,9 +14,10 @@ import { cleanupMovedConversationFolders } from "../main/folder-cleanup";
 import { formatConversationBrowseDelay, prepareConversationDetailFetch } from "./browse-delay";
 import { isSyncCancelledError } from "./cancellation";
 import { createSyncRunState, filterHealthyAccountsForAllScope, recordSyncFailure } from "./full-sync-helpers";
-import { ConsecutiveRateLimitGuard, isConsecutiveRateLimitPauseError } from "./rate-limit-guard";
+import { ensureSyncCanContinue, fetchConversationDetailWithRetries } from "./full-sync-detail-fetch";
+import { finalizeFullSyncRun } from "./full-sync-finalize";
+import { ConsecutiveRateLimitGuard } from "./rate-limit-guard";
 import { runWithRateLimitPauseRetry } from "./rate-limit-retry";
-import { retryTransientOperation } from "./transient-retry";
 import { hasIndexedConversationNote, indexConversationNotes, upsertConversationNote } from "../storage/note-writer";
 import { applyConversationSubsetSelection, openAccountSubsetSelectionPrompt } from "./account-subset-selection";
 import type {
@@ -29,7 +30,6 @@ import type {
   SyncRunStatus,
   SyncTuningSettings,
   ConversationSummary,
-  ImportProgressCounts,
   StoredSessionAccount,
   SyncModalValues,
 } from "../shared/types";
@@ -751,8 +751,8 @@ export async function runFullSync(
     }
   } finally {
     const finishedAt = new Date().toISOString();
-    try {
-      const reportPath = await context.writeSyncReport({
+    await finalizeFullSyncRun(
+      {
         startedAt,
         finishedAt,
         status: runStatus,
@@ -772,83 +772,13 @@ export async function runFullSync(
         updated: updatedEntries,
         moved: movedEntries,
         failed: failedEntries,
-      });
-      if (reportPath) {
-        logInfo(`Sync report saved: ${reportPath}`);
-      } else {
-        logInfo("Sync report generation skipped (disabled in settings).");
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logWarn(`Sync report generation failed: ${message}`);
-    }
-
-    if (syncLogger) {
-      await syncLogger.flush();
-    }
-  }
-}
-
-async function fetchConversationDetailWithRetries(
-  requestConfig: ChatGptRequestConfig,
-  summary: { id: string; title: string; createdAt: string; updatedAt: string },
-  index: number,
-  total: number,
-  progressModal: SyncProgressReporter,
-  displayTitle: string,
-  control: SyncExecutionControl,
-  logger: SyncRunLogger | null,
-  maxAttempts: number,
-  fetchConversationDetail: typeof fetchConversationDetailWithPayload = fetchConversationDetailWithPayload,
-  onRequest?: () => void,
-): Promise<{ detail: ConversationDetail; rawPayload: unknown } | null> {
-  try {
-    return await retryTransientOperation(
-      async () => {
-        await control.waitIfPaused();
-
-        if (control.shouldStop()) {
-          throw control.getStopSignal()?.reason ?? new Error("Sync stopped by user.");
-        }
-
-        onRequest?.();
-        return await fetchConversationDetail(requestConfig, summary.id, summary, control.getStopSignal());
       },
       {
-        maxAttempts,
-        signal: control.getStopSignal(),
-        onRetry: (progress) => {
-          logger?.warn(`${displayTitle} detail fetch retry ${progress.nextAttemptNumber}/${progress.maxAttempts}: ${progress.message}`);
-          progressModal.setRetry(displayTitle, index, total, progress.nextAttemptNumber, progress.maxAttempts, progress.message);
-        },
+        writeSyncReport: (report) => context.writeSyncReport(report),
+        syncLogger,
+        logInfo,
+        logWarn,
       },
     );
-  } catch (error) {
-    if (control.shouldStop() || isSyncCancelledError(error)) {
-      return null;
-    }
-
-    if (isConsecutiveRateLimitPauseError(error)) {
-      throw error;
-    }
-
-    const message = error instanceof Error ? error.message : String(error);
-    logger?.error(`${displayTitle} detail fetch failed after ${maxAttempts} attempts: ${message}`);
-    throw error instanceof Error ? error : new Error(String(error));
   }
-}
-
-async function ensureSyncCanContinue(
-  control: SyncExecutionControl,
-  progressModal: SyncProgressReporter,
-  counts: ImportProgressCounts,
-): Promise<boolean> {
-  await control.waitIfPaused();
-
-  if (!control.shouldStop()) {
-    return true;
-  }
-
-  progressModal.fail("Sync stopped by user.", counts);
-  return false;
 }

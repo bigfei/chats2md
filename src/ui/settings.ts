@@ -18,7 +18,6 @@ import { DEFAULT_SYNC_TUNING_SETTINGS } from "../shared/types";
 import type { StoredSessionAccount } from "../shared/types";
 import {
   buildAccountDescriptionLines,
-  buildSyncReportCleanupNotice,
   CONVERSATION_PATH_TEMPLATE_DESCRIPTION_LINES,
   createAdvancedNumberSettingDefinitions,
   CUSTOM_TEMPLATE_OPTION,
@@ -26,8 +25,15 @@ import {
   normalizeDefaultLatestConversationCountInput,
   normalizeSyncReportFolderInput,
   parseSettingsNumberInput,
-  summarizeAccountHealthResults,
 } from "./settings-helpers";
+import {
+  applyConversationTemplatePresetSelection,
+  runCheckAccountAction,
+  runCheckAllAccountsAction,
+  runDeleteAccountSessionAction,
+  runSaveSessionAction,
+  runSyncReportCleanupAction,
+} from "./settings-actions";
 
 function isKnownTemplatePreset(template: string): boolean {
   return CONVERSATION_PATH_TEMPLATE_PRESETS.includes(template as (typeof CONVERSATION_PATH_TEMPLATE_PRESETS)[number]);
@@ -104,14 +110,14 @@ export class Chats2MdSettingTab extends PluginSettingTab {
               : CUSTOM_TEMPLATE_OPTION,
           )
           .onChange(async (value) => {
-            if (value === CUSTOM_TEMPLATE_OPTION) {
-              return;
-            }
-
-            this.plugin.settings.conversationPathTemplate = value;
-            await this.plugin.saveSettings();
-            new Notice(`Applied conversation template: ${value}`);
-            this.display();
+            await applyConversationTemplatePresetSelection(value, {
+              setConversationPathTemplate: (nextValue) => {
+                this.plugin.settings.conversationPathTemplate = nextValue;
+              },
+              saveSettings: () => this.plugin.saveSettings(),
+              notice: (message) => new Notice(message),
+              rerender: () => this.display(),
+            });
           });
       })
       .addText((component) => {
@@ -164,20 +170,13 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         .setDesc("Remove generated sync report markdown and sync log files from the configured report folder.")
         .addButton((button) => {
           button.setButtonText("Keep latest 10").onClick(async () => {
-            const confirmed = window.confirm("Delete older generated sync reports/logs and keep only the latest 10 files?");
-            if (!confirmed) {
-              return;
-            }
-
-            button.setDisabled(true);
-            try {
-              const result = await this.plugin.cleanupSyncReports(this.plugin.settings.defaultFolder, {
-                keepLatest: 10,
-              });
-              new Notice(buildSyncReportCleanupNotice(result, 10));
-            } finally {
-              button.setDisabled(false);
-            }
+            await runSyncReportCleanupAction({
+              confirm: (message) => window.confirm(message),
+              cleanupSyncReports: (options) => this.plugin.cleanupSyncReports(this.plugin.settings.defaultFolder, options),
+              keepLatest: 10,
+              notice: (message) => new Notice(message),
+              setDisabled: (disabled) => button.setDisabled(disabled),
+            });
           });
         })
         .addButton((button) => {
@@ -185,18 +184,12 @@ export class Chats2MdSettingTab extends PluginSettingTab {
             .setWarning()
             .setButtonText("Clear all")
             .onClick(async () => {
-              const confirmed = window.confirm("Delete all generated sync report and sync log files from the configured report folder?");
-              if (!confirmed) {
-                return;
-              }
-
-              button.setDisabled(true);
-              try {
-                const result = await this.plugin.cleanupSyncReports(this.plugin.settings.defaultFolder);
-                new Notice(buildSyncReportCleanupNotice(result));
-              } finally {
-                button.setDisabled(false);
-              }
+              await runSyncReportCleanupAction({
+                confirm: (message) => window.confirm(message),
+                cleanupSyncReports: () => this.plugin.cleanupSyncReports(this.plugin.settings.defaultFolder),
+                notice: (message) => new Notice(message),
+                setDisabled: (disabled) => button.setDisabled(disabled),
+              });
             });
         });
     }
@@ -310,17 +303,13 @@ export class Chats2MdSettingTab extends PluginSettingTab {
             .setWarning()
             .setButtonText("Delete")
             .onClick(async () => {
-              const label = getStoredAccountDisplayName(account);
-              const confirmed = window.confirm(`Delete account session for ${label}?`);
-
-              if (!confirmed) {
-                return;
-              }
-
-              await this.plugin.removeSessionAccount(account.accountId);
-              this.transientHealthResults.delete(account.accountId);
-              new Notice(`Deleted account session for ${label}.`);
-              this.display();
+              await runDeleteAccountSessionAction(account, {
+                confirm: (message) => window.confirm(message),
+                removeSessionAccount: (accountId) => this.plugin.removeSessionAccount(accountId),
+                clearTransientHealthResult: (accountId) => this.transientHealthResults.delete(accountId),
+                notice: (message) => new Notice(message),
+                rerender: () => this.display(),
+              });
             });
         });
 
@@ -456,57 +445,33 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       pluginVersion: this.plugin.manifest.version,
       hasExistingSecret: Boolean(account),
       onSave: async (raw, parsed) => {
-        const result = await checkRequestConfigHealth(parsed);
-
-        if (result.status !== "healthy") {
-          throw new Error(result.message);
-        }
-
-        const saved = await this.plugin.upsertSessionAccount(raw, parsed);
-        this.transientHealthResults.delete(saved.accountId);
-        const label = getStoredAccountDisplayName(saved);
-        new Notice(`Saved session for ${label}.`);
-        this.display();
+        await runSaveSessionAction(raw, parsed, {
+          checkRequestConfigHealth,
+          upsertSessionAccount: (sessionRaw, requestConfig) => this.plugin.upsertSessionAccount(sessionRaw, requestConfig),
+          clearTransientHealthResult: (accountId) => this.transientHealthResults.delete(accountId),
+          notice: (message) => new Notice(message),
+          rerender: () => this.display(),
+        });
       },
     }).open();
   }
 
   private async checkAllAccounts(): Promise<void> {
-    const accounts = this.plugin.getAccounts();
-
-    if (accounts.length === 0) {
-      new Notice("No account sessions configured.");
-      return;
-    }
-
-    for (const account of accounts) {
-      const result = await this.plugin.checkAccountHealth(account);
-      this.transientHealthResults.set(account.accountId, result);
-    }
-
-    new Notice(summarizeAccountHealthResults(this.transientHealthResults.values()).notice);
-    this.display();
+    await runCheckAllAccountsAction(this.plugin.getAccounts(), {
+      checkAccountHealth: (account) => this.plugin.checkAccountHealth(account),
+      setTransientHealthResult: (accountId, result) => this.transientHealthResults.set(accountId, result),
+      notice: (message) => new Notice(message),
+      rerender: () => this.display(),
+    });
   }
 
   private async checkAccount(account: StoredSessionAccount): Promise<void> {
-    const label = getStoredAccountDisplayName(account);
-    const result = await this.plugin.checkAccountHealth(account);
-    this.transientHealthResults.set(account.accountId, result);
-    this.reportAccountHealth(label, account.accountId, result);
-    this.display();
-  }
-
-  private reportAccountHealth(label: string, accountId: string, result: AccountHealthResult): void {
-    if (result.status === "healthy") {
-      new Notice(`Account is healthy for ${label}.`);
-      return;
-    }
-
-    new Notice(`Health check warning for ${label}: ${result.message}`);
-    this.plugin.logError("Account health check issue", {
-      accountId,
-      status: result.status,
-      message: result.message,
+    await runCheckAccountAction(account, {
+      checkAccountHealth: (currentAccount) => this.plugin.checkAccountHealth(currentAccount),
+      setTransientHealthResult: (accountId, result) => this.transientHealthResults.set(accountId, result),
+      notice: (message) => new Notice(message),
+      rerender: () => this.display(),
+      logError: (message, context) => this.plugin.logError(message, context),
     });
   }
 }
