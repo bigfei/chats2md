@@ -21,14 +21,10 @@ console.log("  3. Confirm the Chats2MD plugin is enabled.");
 console.log("  4. Close Obsidian when the vault is ready.");
 console.log("");
 
-const child = spawn(
-  "npx",
-  ["electron", appPath, "open", `obsidian://open?vault=${vaultId}`],
-  {
-    cwd: pluginRoot,
-    stdio: "inherit",
-  },
-);
+const child = spawn("npx", ["electron", appPath, "open", `obsidian://open?vault=${vaultId}`], {
+  cwd: pluginRoot,
+  stdio: "inherit",
+});
 
 child.on("exit", (code) => {
   process.exit(code ?? 0);

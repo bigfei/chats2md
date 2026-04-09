@@ -4,12 +4,7 @@ import { fetchConversationSummaries } from "../chatgpt/api";
 import { ConversationListPageFetchError } from "../chatgpt/conversation-list-fetch";
 import type { AccountHealthResult } from "../main/account-health";
 import type { SyncExecutionControl, SyncProgressReporter } from "../ui/import-modal";
-import {
-  createEmptyCounts,
-  formatActionLabel,
-  summarizeCounts,
-  type SyncRunLogger,
-} from "../main/helpers";
+import { createEmptyCounts, formatActionLabel, summarizeCounts, type SyncRunLogger } from "../main/helpers";
 import { cleanupMovedConversationFolders } from "../main/folder-cleanup";
 import { formatConversationBrowseDelay, prepareConversationDetailFetch } from "./browse-delay";
 import { isSyncCancelledError } from "./cancellation";

@@ -1,6 +1,10 @@
 import { checkRequestConfigHealth, type AccountHealthResult } from "../main/account-health";
 import { getStoredAccountDisplayName } from "../main/helpers";
-import { CUSTOM_TEMPLATE_OPTION, buildSyncReportCleanupNotice, summarizeAccountHealthResults } from "./settings-helpers";
+import {
+  CUSTOM_TEMPLATE_OPTION,
+  buildSyncReportCleanupNotice,
+  summarizeAccountHealthResults,
+} from "./settings-helpers";
 
 import type { ChatGptRequestConfig, StoredSessionAccount } from "../shared/types";
 
@@ -23,15 +27,13 @@ export async function applyConversationTemplatePresetSelection(
   dependencies.rerender();
 }
 
-export async function runSyncReportCleanupAction(
-  dependencies: {
-    confirm: (message: string) => boolean;
-    cleanupSyncReports: (options?: { keepLatest: number }) => Promise<{ removedPaths: string[]; keptPaths: string[] }>;
-    keepLatest?: number;
-    notice: (message: string) => void;
-    setDisabled: (disabled: boolean) => void;
-  },
-): Promise<void> {
+export async function runSyncReportCleanupAction(dependencies: {
+  confirm: (message: string) => boolean;
+  cleanupSyncReports: (options?: { keepLatest: number }) => Promise<{ removedPaths: string[]; keptPaths: string[] }>;
+  keepLatest?: number;
+  notice: (message: string) => void;
+  setDisabled: (disabled: boolean) => void;
+}): Promise<void> {
   const confirmationMessage =
     dependencies.keepLatest === undefined
       ? "Delete all generated sync report and sync log files from the configured report folder?"

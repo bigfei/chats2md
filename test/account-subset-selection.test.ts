@@ -112,7 +112,10 @@ test("openAccountSubsetSelectionPrompt stops before opening the selector when co
 });
 
 test("applyConversationSubsetSelection keeps all rows for all mode", () => {
-  const summaries = [createSummary("conv-1", "2026-03-01T00:00:00.000Z"), createSummary("conv-2", "2026-03-02T00:00:00.000Z")];
+  const summaries = [
+    createSummary("conv-1", "2026-03-01T00:00:00.000Z"),
+    createSummary("conv-2", "2026-03-02T00:00:00.000Z"),
+  ];
 
   const selected = applyConversationSubsetSelection(summaries, {
     mode: "all",
@@ -126,7 +129,10 @@ test("applyConversationSubsetSelection keeps all rows for all mode", () => {
 });
 
 test("openAccountSubsetSelectionPrompt passes through the configured latest-count default", async () => {
-  const summaries = [createSummary("conv-1", "2026-03-01T00:00:00.000Z"), createSummary("conv-2", "2026-03-02T00:00:00.000Z")];
+  const summaries = [
+    createSummary("conv-1", "2026-03-01T00:00:00.000Z"),
+    createSummary("conv-2", "2026-03-02T00:00:00.000Z"),
+  ];
   let receivedDefault: number | null = null;
 
   await openAccountSubsetSelectionPrompt(

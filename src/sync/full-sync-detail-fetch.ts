@@ -36,8 +36,17 @@ export async function fetchConversationDetailWithRetries(
         maxAttempts,
         signal: control.getStopSignal(),
         onRetry: (progress) => {
-          logger?.warn(`${displayTitle} detail fetch retry ${progress.nextAttemptNumber}/${progress.maxAttempts}: ${progress.message}`);
-          progressModal.setRetry(displayTitle, index, total, progress.nextAttemptNumber, progress.maxAttempts, progress.message);
+          logger?.warn(
+            `${displayTitle} detail fetch retry ${progress.nextAttemptNumber}/${progress.maxAttempts}: ${progress.message}`,
+          );
+          progressModal.setRetry(
+            displayTitle,
+            index,
+            total,
+            progress.nextAttemptNumber,
+            progress.maxAttempts,
+            progress.message,
+          );
         },
       },
     );

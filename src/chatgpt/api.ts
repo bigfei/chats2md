@@ -1,7 +1,4 @@
-import {
-  extractConversationListPageInfo,
-  normalizeConversationTimestamp,
-} from "./conversation-utils";
+import { extractConversationListPageInfo, normalizeConversationTimestamp } from "./conversation-utils";
 import { parseConversationDetailPayload as parseConversationDetailPayloadImpl } from "./conversation-detail-parser";
 import {
   fetchConversationSummariesWithPageFetcher,
@@ -13,11 +10,7 @@ import {
 import { normalizeFileDownloadInfo, type FileDownloadInfo } from "./file-download-info";
 import { requestBinary, requestJsonWithRetries, type RequestLikeFn } from "./request-core";
 
-import type {
-  ChatGptRequestConfig,
-  ConversationDetail,
-  ConversationSummary,
-} from "../shared/types";
+import type { ChatGptRequestConfig, ConversationDetail, ConversationSummary } from "../shared/types";
 
 export { parseConversationDetailPayload } from "./conversation-detail-parser";
 export { buildDefaultUserAgent, normalizeObsidianMathDelimiters, parseSessionJson } from "./session-config";

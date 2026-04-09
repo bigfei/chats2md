@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Read manifest version
+        id: manifest
+        run: echo "version=$(node -p \"JSON.parse(require('node:fs').readFileSync('manifest.json', 'utf8')).version\")" >> "$GITHUB_OUTPUT"
+
+      - name: Validate tag matches manifest version
+        run: |
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "This workflow publishes releases only for tag refs."
+            exit 1
+          fi
+
+          if [ "${GITHUB_REF_NAME}" != "${{ steps.manifest.outputs.version }}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match manifest version ${{ steps.manifest.outputs.version }}."
+            exit 1
+          fi
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: Verify release assets exist
+        run: |
+          test -f main.js
+          test -f manifest.json
+          test -f styles.css
+          test -f "release/chats2md-${GITHUB_REF_NAME}.zip"
+
+      - name: Publish GitHub release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          zip_path="release/chats2md-${tag}.zip"
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" main.js manifest.json styles.css "$zip_path" --clobber
+          else
+            gh release create "$tag" main.js manifest.json styles.css "$zip_path" \
+              --title "$tag" \
+              --notes "Release ${tag}"
+          fi

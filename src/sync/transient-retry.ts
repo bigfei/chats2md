@@ -49,7 +49,8 @@ export async function retryTransientOperation<T>(
 ): Promise<T> {
   let lastError: unknown;
   const shouldRetry = options.shouldRetry ?? shouldRetryTransientSyncError;
-  const getDelayMs = options.getDelayMs ?? ((attemptNumber: number) => attemptNumber * DEFAULT_TRANSIENT_RETRY_DELAY_STEP_MS);
+  const getDelayMs =
+    options.getDelayMs ?? ((attemptNumber: number) => attemptNumber * DEFAULT_TRANSIENT_RETRY_DELAY_STEP_MS);
 
   for (let attempt = 1; attempt <= options.maxAttempts; attempt += 1) {
     try {

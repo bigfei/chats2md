@@ -1,6 +1,10 @@
 import { App, MarkdownView, Notice, TFile, TFolder } from "obsidian";
 
-import { fetchConversationDetailWithPayload, parseConversationDetailPayload, validateConversationListAccess } from "../chatgpt/api";
+import {
+  fetchConversationDetailWithPayload,
+  parseConversationDetailPayload,
+  validateConversationListAccess,
+} from "../chatgpt/api";
 import { isChatGptRequestError } from "../chatgpt/request-core";
 import { createSingleConversationNoteIndex, upsertConversationNote } from "../storage/note-writer";
 import { resolveAssetFolderPaths } from "../storage/asset-storage";

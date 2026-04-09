@@ -172,7 +172,8 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           button.setButtonText("Keep latest 10").onClick(async () => {
             await runSyncReportCleanupAction({
               confirm: (message) => window.confirm(message),
-              cleanupSyncReports: (options) => this.plugin.cleanupSyncReports(this.plugin.settings.defaultFolder, options),
+              cleanupSyncReports: (options) =>
+                this.plugin.cleanupSyncReports(this.plugin.settings.defaultFolder, options),
               keepLatest: 10,
               notice: (message) => new Notice(message),
               setDisabled: (disabled) => button.setDisabled(disabled),
@@ -279,24 +280,20 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           });
         })
         .addButton((button) => {
-          button
-            .setButtonText("Check health")
-            .onClick(async () => {
-              button.setDisabled(true);
+          button.setButtonText("Check health").onClick(async () => {
+            button.setDisabled(true);
 
-              try {
-                await this.checkAccount(account);
-              } finally {
-                button.setDisabled(false);
-              }
-            });
+            try {
+              await this.checkAccount(account);
+            } finally {
+              button.setDisabled(false);
+            }
+          });
         })
         .addButton((button) => {
-          button
-            .setButtonText("Edit")
-            .onClick(() => {
-              this.openSessionEditor(account);
-            });
+          button.setButtonText("Edit").onClick(() => {
+            this.openSessionEditor(account);
+          });
         })
         .addButton((button) => {
           button
@@ -323,17 +320,15 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       .setName("Health checks")
       .setDesc("Run transient health checks for all accounts. Results are shown only in this settings pane.")
       .addButton((button) => {
-        button
-          .setButtonText("Check all accounts")
-          .onClick(async () => {
-            button.setDisabled(true);
+        button.setButtonText("Check all accounts").onClick(async () => {
+          button.setDisabled(true);
 
-            try {
-              await this.checkAllAccounts();
-            } finally {
-              button.setDisabled(false);
-            }
-          });
+          try {
+            await this.checkAllAccounts();
+          } finally {
+            button.setDisabled(false);
+          }
+        });
       });
 
     this.renderAdvancedSyncTuningSection(containerEl);
@@ -390,7 +385,9 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     new Setting(sectionEl)
       .setName("Default newest conversations count")
-      .setDesc("Default: blank = all discovered conversations. Prefills the Newest conversations field in the sync subset modal.")
+      .setDesc(
+        "Default: blank = all discovered conversations. Prefills the Newest conversations field in the sync subset modal.",
+      )
       .addText((component) => {
         component.inputEl.type = "number";
         component.inputEl.min = "1";
@@ -447,7 +444,8 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       onSave: async (raw, parsed) => {
         await runSaveSessionAction(raw, parsed, {
           checkRequestConfigHealth,
-          upsertSessionAccount: (sessionRaw, requestConfig) => this.plugin.upsertSessionAccount(sessionRaw, requestConfig),
+          upsertSessionAccount: (sessionRaw, requestConfig) =>
+            this.plugin.upsertSessionAccount(sessionRaw, requestConfig),
           clearTransientHealthResult: (accountId) => this.transientHealthResults.delete(accountId),
           notice: (message) => new Notice(message),
           rerender: () => this.display(),

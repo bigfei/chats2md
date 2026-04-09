@@ -14,7 +14,10 @@ import {
 
 test("settings helpers normalize text inputs to their defaults", () => {
   assert.equal(normalizeConversationPathTemplateInput("   "), "{date}/{slug}");
-  assert.equal(normalizeConversationPathTemplateInput(" {date}/{slug}/{conversation_id} "), "{date}/{slug}/{conversation_id}");
+  assert.equal(
+    normalizeConversationPathTemplateInput(" {date}/{slug}/{conversation_id} "),
+    "{date}/{slug}/{conversation_id}",
+  );
   assert.equal(normalizeSyncReportFolderInput(" "), "<syncFolder>/sync-result");
   assert.equal(normalizeSyncReportFolderInput(" reports "), "reports");
 });

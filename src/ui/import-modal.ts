@@ -469,7 +469,10 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
         button.setButtonText("Hide").onClick(() => this.closeWithReason("dismiss"));
       })
       .addButton((button) => {
-        button.setWarning().setButtonText("Stop").onClick(() => this.closeWithReason("stop"));
+        button
+          .setWarning()
+          .setButtonText("Stop")
+          .onClick(() => this.closeWithReason("stop"));
       });
 
     this.updatePauseButton();

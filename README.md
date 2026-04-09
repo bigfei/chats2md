@@ -112,6 +112,7 @@ The zip contains:
 - `chats2md/styles.css`
 
 For community-plugin releases, publish a GitHub release and attach `main.js`, `manifest.json`, and `styles.css` as binary assets.
+The full release and Obsidian submission checklist lives in [`docs/releasing.md`](docs/releasing.md).
 
 ## Sample vault
 

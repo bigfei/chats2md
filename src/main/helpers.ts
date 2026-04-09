@@ -314,10 +314,7 @@ export function normalizeDefaultLatestConversationCount(value: unknown): number 
   return Math.min(MAX_TUNING_LATEST_COUNT, normalized);
 }
 
-export function normalizeSyncTuningSettings(
-  value: unknown,
-  fallback: SyncTuningSettings,
-): SyncTuningSettings {
+export function normalizeSyncTuningSettings(value: unknown, fallback: SyncTuningSettings): SyncTuningSettings {
   const record = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
   const conversationDetailBrowseDelayMinMs = clampInteger(
     record.conversationDetailBrowseDelayMinMs,
@@ -375,9 +372,7 @@ export function sortAccounts(accounts: StoredSessionAccount[]): StoredSessionAcc
   });
 }
 
-export function getStoredAccountDisplayName(
-  account: Pick<StoredSessionAccount, "email" | "accountId">,
-): string {
+export function getStoredAccountDisplayName(account: Pick<StoredSessionAccount, "email" | "accountId">): string {
   return account.email.trim().length > 0 ? account.email : account.accountId;
 }
 

@@ -19,18 +19,18 @@ interface FolderLike {
 function isFileLike(value: unknown): value is FileLike {
   return Boolean(
     value &&
-      typeof value === "object" &&
-      typeof (value as FileLike).path === "string" &&
-      typeof (value as FileLike).name === "string",
+    typeof value === "object" &&
+    typeof (value as FileLike).path === "string" &&
+    typeof (value as FileLike).name === "string",
   );
 }
 
 function isFolderLike(value: unknown): value is FolderLike {
   return Boolean(
     value &&
-      typeof value === "object" &&
-      typeof (value as FolderLike).path === "string" &&
-      Array.isArray((value as FolderLike).children),
+    typeof value === "object" &&
+    typeof (value as FolderLike).path === "string" &&
+    Array.isArray((value as FolderLike).children),
   );
 }
 

@@ -128,7 +128,10 @@ test("runDeleteAccountSessionAction respects confirmation and rerenders after de
 
 test("runCheckAllAccountsAction reports empty state and summarizes results", async () => {
   const notices: string[] = [];
-  const healthResults = new Map<string, { status: "healthy" | "disable-and-skip"; checkedAt: string; message: string }>();
+  const healthResults = new Map<
+    string,
+    { status: "healthy" | "disable-and-skip"; checkedAt: string; message: string }
+  >();
   let renders = 0;
 
   await runCheckAllAccountsAction([], {
@@ -157,7 +160,10 @@ test("runCheckAllAccountsAction reports empty state and summarizes results", asy
   });
 
   assert.equal(healthResults.size, 2);
-  assert.deepEqual(notices, ["No account sessions configured.", "Account health check complete. 1 healthy, 1 unhealthy."]);
+  assert.deepEqual(notices, [
+    "No account sessions configured.",
+    "Account health check complete. 1 healthy, 1 unhealthy.",
+  ]);
   assert.equal(renders, 1);
 });
 
@@ -168,7 +174,11 @@ test("runCheckAccountAction reports healthy and unhealthy results", async () => 
   let renders = 0;
 
   await runCheckAccountAction(account, {
-    checkAccountHealth: async () => ({ status: "healthy" as const, checkedAt: "2026-04-09T00:00:00.000Z", message: "ok" }),
+    checkAccountHealth: async () => ({
+      status: "healthy" as const,
+      checkedAt: "2026-04-09T00:00:00.000Z",
+      message: "ok",
+    }),
     setTransientHealthResult: (accountId, result) => transientResults.set(accountId, result),
     notice: (message) => notices.push(message),
     rerender: () => {
@@ -215,7 +225,7 @@ test("runSaveSessionAction validates, saves, clears health state, and rerenders"
   let renders = 0;
 
   await runSaveSessionAction(
-    "{\"accessToken\":\"token\"}",
+    '{"accessToken":"token"}',
     {
       accessToken: "token",
       accountId: "acc-1",
@@ -225,7 +235,11 @@ test("runSaveSessionAction validates, saves, clears health state, and rerenders"
       userAgent: "agent",
     },
     {
-      checkRequestConfigHealth: async () => ({ status: "healthy", checkedAt: "2026-04-09T00:00:00.000Z", message: "ok" }),
+      checkRequestConfigHealth: async () => ({
+        status: "healthy",
+        checkedAt: "2026-04-09T00:00:00.000Z",
+        message: "ok",
+      }),
       upsertSessionAccount: async () => account,
       clearTransientHealthResult: (accountId) => clearedIds.push(accountId),
       notice: (message) => notices.push(message),
@@ -238,7 +252,7 @@ test("runSaveSessionAction validates, saves, clears health state, and rerenders"
   await assert.rejects(
     () =>
       runSaveSessionAction(
-        "{\"accessToken\":\"token\"}",
+        '{"accessToken":"token"}',
         {
           accessToken: "token",
           accountId: "acc-1",

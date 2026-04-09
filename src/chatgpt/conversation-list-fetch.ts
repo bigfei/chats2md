@@ -24,7 +24,9 @@ export class ConversationListPageFetchError extends Error {
 
   constructor(offset: number, limit: number, attempts: number, maxAttempts: number, cause: unknown) {
     const message = cause instanceof Error ? cause.message : String(cause);
-    super(`Conversation-list request failed after ${attempts}/${maxAttempts} attempts (offset=${offset}, limit=${limit}): ${message}`);
+    super(
+      `Conversation-list request failed after ${attempts}/${maxAttempts} attempts (offset=${offset}, limit=${limit}): ${message}`,
+    );
     this.name = "ConversationListPageFetchError";
     this.offset = offset;
     this.limit = limit;

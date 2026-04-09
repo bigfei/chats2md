@@ -406,7 +406,10 @@ function normalizeConversationDetail(
     id: readString(record.conversation_id ?? record.id, conversationId),
     title: readString(record.title, fallback?.title ?? "Untitled Conversation"),
     createdAt,
-    updatedAt: normalizeConversationTimestamp(record.update_time ?? record.updated_time, fallback?.updatedAt ?? createdAt),
+    updatedAt: normalizeConversationTimestamp(
+      record.update_time ?? record.updated_time,
+      fallback?.updatedAt ?? createdAt,
+    ),
     url: `${BASE_URL}/c/${conversationId}`,
     messages: mappingData.messages,
     fileReferences: mappingData.fileReferences,

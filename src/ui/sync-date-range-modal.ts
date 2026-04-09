@@ -7,10 +7,7 @@ import {
   type ConversationSyncSubsetMode,
   withSkipExistingLocalConversations,
 } from "./sync-subset";
-import type {
-  ConversationSyncDateRangePromptContext,
-  ConversationSyncDateRangeSelection,
-} from "../shared/types";
+import type { ConversationSyncDateRangePromptContext, ConversationSyncDateRangeSelection } from "../shared/types";
 
 interface SyncDateRangeModalOptions {
   context: ConversationSyncDateRangePromptContext;
@@ -39,10 +36,7 @@ function parsePositiveIntegerInput(value: string): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-function resolveInitialLatestConversationCount(
-  discoveredCount: number,
-  configuredDefault: number | null,
-): string {
+function resolveInitialLatestConversationCount(discoveredCount: number, configuredDefault: number | null): string {
   if (!Number.isFinite(discoveredCount) || discoveredCount < 1) {
     return "1";
   }

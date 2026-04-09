@@ -7,9 +7,7 @@
       "id": "client-created-root",
       "message": null,
       "parent": null,
-      "children": [
-        "004e6623-f061-40ee-9b91-ada555ec2fc6"
-      ]
+      "children": ["004e6623-f061-40ee-9b91-ada555ec2fc6"]
     },
     "004e6623-f061-40ee-9b91-ada555ec2fc6": {
       "id": "004e6623-f061-40ee-9b91-ada555ec2fc6",
@@ -24,9 +22,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": true,
@@ -39,9 +35,7 @@
         "channel": null
       },
       "parent": "client-created-root",
-      "children": [
-        "4441c302-0019-40e2-b866-09210b038e09"
-      ]
+      "children": ["4441c302-0019-40e2-b866-09210b038e09"]
     },
     "4441c302-0019-40e2-b866-09210b038e09": {
       "id": "4441c302-0019-40e2-b866-09210b038e09",
@@ -56,9 +50,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": true,
@@ -72,9 +64,7 @@
         "channel": null
       },
       "parent": "004e6623-f061-40ee-9b91-ada555ec2fc6",
-      "children": [
-        "973a8bd1-5a5a-45c2-be99-1740aa794214"
-      ]
+      "children": ["973a8bd1-5a5a-45c2-be99-1740aa794214"]
     },
     "973a8bd1-5a5a-45c2-be99-1740aa794214": {
       "id": "973a8bd1-5a5a-45c2-be99-1740aa794214",
@@ -89,9 +79,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -106,9 +94,7 @@
         "channel": null
       },
       "parent": "4441c302-0019-40e2-b866-09210b038e09",
-      "children": [
-        "466873ec-1a67-4447-a67e-611db568fd7f"
-      ]
+      "children": ["466873ec-1a67-4447-a67e-611db568fd7f"]
     },
     "466873ec-1a67-4447-a67e-611db568fd7f": {
       "id": "466873ec-1a67-4447-a67e-611db568fd7f",
@@ -123,9 +109,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            "do a compare of LInear vs paperclip vs multica.ai tools in agent ?"
-          ]
+          "parts": ["do a compare of LInear vs paperclip vs multica.ai tools in agent ?"]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -133,9 +117,7 @@
         "metadata": {
           "developer_mode_connector_ids": [],
           "selected_github_repos": [],
-          "system_hints": [
-            "search"
-          ],
+          "system_hints": ["search"],
           "serialization_metadata": {
             "custom_symbol_offsets": []
           },
@@ -149,9 +131,7 @@
         "channel": null
       },
       "parent": "973a8bd1-5a5a-45c2-be99-1740aa794214",
-      "children": [
-        "626568c3-bb16-43c1-a65a-51204ecdc247"
-      ]
+      "children": ["626568c3-bb16-43c1-a65a-51204ecdc247"]
     },
     "626568c3-bb16-43c1-a65a-51204ecdc247": {
       "id": "626568c3-bb16-43c1-a65a-51204ecdc247",
@@ -166,9 +146,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -192,9 +170,7 @@
         "channel": null
       },
       "parent": "466873ec-1a67-4447-a67e-611db568fd7f",
-      "children": [
-        "8ec1de7d-c13b-449b-9bf3-9b81c9cf2a76"
-      ]
+      "children": ["8ec1de7d-c13b-449b-9bf3-9b81c9cf2a76"]
     },
     "8ec1de7d-c13b-449b-9bf3-9b81c9cf2a76": {
       "id": "8ec1de7d-c13b-449b-9bf3-9b81c9cf2a76",
@@ -234,9 +210,7 @@
         "channel": null
       },
       "parent": "626568c3-bb16-43c1-a65a-51204ecdc247",
-      "children": [
-        "24cc9374-1991-4637-b03f-af67a3677d69"
-      ]
+      "children": ["24cc9374-1991-4637-b03f-af67a3677d69"]
     },
     "24cc9374-1991-4637-b03f-af67a3677d69": {
       "id": "24cc9374-1991-4637-b03f-af67a3677d69",
@@ -251,9 +225,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -277,9 +249,7 @@
         "channel": null
       },
       "parent": "8ec1de7d-c13b-449b-9bf3-9b81c9cf2a76",
-      "children": [
-        "bf581740-8d45-4414-99b5-2fec9500eda1"
-      ]
+      "children": ["bf581740-8d45-4414-99b5-2fec9500eda1"]
     },
     "bf581740-8d45-4414-99b5-2fec9500eda1": {
       "id": "bf581740-8d45-4414-99b5-2fec9500eda1",
@@ -325,9 +295,7 @@
         "channel": null
       },
       "parent": "24cc9374-1991-4637-b03f-af67a3677d69",
-      "children": [
-        "3cb277f0-9e95-4892-827f-cc147e150a3f"
-      ]
+      "children": ["3cb277f0-9e95-4892-827f-cc147e150a3f"]
     },
     "3cb277f0-9e95-4892-827f-cc147e150a3f": {
       "id": "3cb277f0-9e95-4892-827f-cc147e150a3f",
@@ -372,9 +340,7 @@
         "channel": "commentary"
       },
       "parent": "bf581740-8d45-4414-99b5-2fec9500eda1",
-      "children": [
-        "4bc0fc09-34fc-4235-8922-02415c6787f5"
-      ]
+      "children": ["4bc0fc09-34fc-4235-8922-02415c6787f5"]
     },
     "4bc0fc09-34fc-4235-8922-02415c6787f5": {
       "id": "4bc0fc09-34fc-4235-8922-02415c6787f5",
@@ -399,9 +365,7 @@
         "metadata": {
           "finish_details": {
             "type": "stop",
-            "stop_tokens": [
-              200012
-            ]
+            "stop_tokens": [200012]
           },
           "is_complete": true,
           "citations": [],
@@ -444,9 +408,7 @@
         "channel": null
       },
       "parent": "3cb277f0-9e95-4892-827f-cc147e150a3f",
-      "children": [
-        "58301ce8-5fdf-417a-8014-58ca2fcaf148"
-      ]
+      "children": ["58301ce8-5fdf-417a-8014-58ca2fcaf148"]
     },
     "58301ce8-5fdf-417a-8014-58ca2fcaf148": {
       "id": "58301ce8-5fdf-417a-8014-58ca2fcaf148",
@@ -463,9 +425,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -499,9 +459,7 @@
         "channel": null
       },
       "parent": "4bc0fc09-34fc-4235-8922-02415c6787f5",
-      "children": [
-        "79c0f089-66bb-4b4f-9bee-81ee45249ee9"
-      ]
+      "children": ["79c0f089-66bb-4b4f-9bee-81ee45249ee9"]
     },
     "79c0f089-66bb-4b4f-9bee-81ee45249ee9": {
       "id": "79c0f089-66bb-4b4f-9bee-81ee45249ee9",
@@ -518,9 +476,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -828,9 +784,7 @@
         "channel": null
       },
       "parent": "58301ce8-5fdf-417a-8014-58ca2fcaf148",
-      "children": [
-        "cfb62d10-5cb6-4828-b553-34dbcee67a8b"
-      ]
+      "children": ["cfb62d10-5cb6-4828-b553-34dbcee67a8b"]
     },
     "cfb62d10-5cb6-4828-b553-34dbcee67a8b": {
       "id": "cfb62d10-5cb6-4828-b553-34dbcee67a8b",
@@ -855,9 +809,7 @@
         "metadata": {
           "finish_details": {
             "type": "stop",
-            "stop_tokens": [
-              200012
-            ]
+            "stop_tokens": [200012]
           },
           "is_complete": true,
           "citations": [],
@@ -900,9 +852,7 @@
         "channel": null
       },
       "parent": "79c0f089-66bb-4b4f-9bee-81ee45249ee9",
-      "children": [
-        "52ad74bf-8cbe-47a9-b5d4-9d5c3e8df4fa"
-      ]
+      "children": ["52ad74bf-8cbe-47a9-b5d4-9d5c3e8df4fa"]
     },
     "52ad74bf-8cbe-47a9-b5d4-9d5c3e8df4fa": {
       "id": "52ad74bf-8cbe-47a9-b5d4-9d5c3e8df4fa",
@@ -919,9 +869,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -955,9 +903,7 @@
         "channel": null
       },
       "parent": "cfb62d10-5cb6-4828-b553-34dbcee67a8b",
-      "children": [
-        "10fcdfca-59b2-4397-bb96-a2b50dd2b5fe"
-      ]
+      "children": ["10fcdfca-59b2-4397-bb96-a2b50dd2b5fe"]
     },
     "10fcdfca-59b2-4397-bb96-a2b50dd2b5fe": {
       "id": "10fcdfca-59b2-4397-bb96-a2b50dd2b5fe",
@@ -974,9 +920,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -1173,9 +1117,7 @@
         "channel": null
       },
       "parent": "52ad74bf-8cbe-47a9-b5d4-9d5c3e8df4fa",
-      "children": [
-        "7d49f82d-1677-4722-b2c9-87739b34fe83"
-      ]
+      "children": ["7d49f82d-1677-4722-b2c9-87739b34fe83"]
     },
     "7d49f82d-1677-4722-b2c9-87739b34fe83": {
       "id": "7d49f82d-1677-4722-b2c9-87739b34fe83",
@@ -1200,9 +1142,7 @@
         "metadata": {
           "finish_details": {
             "type": "stop",
-            "stop_tokens": [
-              200012
-            ]
+            "stop_tokens": [200012]
           },
           "is_complete": true,
           "citations": [],
@@ -1245,9 +1185,7 @@
         "channel": null
       },
       "parent": "10fcdfca-59b2-4397-bb96-a2b50dd2b5fe",
-      "children": [
-        "1af64639-20be-4d8f-b277-b6f65e12ddd1"
-      ]
+      "children": ["1af64639-20be-4d8f-b277-b6f65e12ddd1"]
     },
     "1af64639-20be-4d8f-b277-b6f65e12ddd1": {
       "id": "1af64639-20be-4d8f-b277-b6f65e12ddd1",
@@ -1264,9 +1202,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -1300,9 +1236,7 @@
         "channel": null
       },
       "parent": "7d49f82d-1677-4722-b2c9-87739b34fe83",
-      "children": [
-        "4ec7a5fe-e51b-4080-b3ac-c07b1f152054"
-      ]
+      "children": ["4ec7a5fe-e51b-4080-b3ac-c07b1f152054"]
     },
     "4ec7a5fe-e51b-4080-b3ac-c07b1f152054": {
       "id": "4ec7a5fe-e51b-4080-b3ac-c07b1f152054",
@@ -1319,9 +1253,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -1382,9 +1314,7 @@
         "channel": null
       },
       "parent": "1af64639-20be-4d8f-b277-b6f65e12ddd1",
-      "children": [
-        "4f8324a1-605b-4cb3-86d4-428a7187ae9c"
-      ]
+      "children": ["4f8324a1-605b-4cb3-86d4-428a7187ae9c"]
     },
     "4f8324a1-605b-4cb3-86d4-428a7187ae9c": {
       "id": "4f8324a1-605b-4cb3-86d4-428a7187ae9c",
@@ -1429,9 +1359,7 @@
         "channel": "commentary"
       },
       "parent": "4ec7a5fe-e51b-4080-b3ac-c07b1f152054",
-      "children": [
-        "5aedac66-e20b-43a8-9b98-25565d597c00"
-      ]
+      "children": ["5aedac66-e20b-43a8-9b98-25565d597c00"]
     },
     "5aedac66-e20b-43a8-9b98-25565d597c00": {
       "id": "5aedac66-e20b-43a8-9b98-25565d597c00",
@@ -1456,9 +1384,7 @@
         "metadata": {
           "finish_details": {
             "type": "stop",
-            "stop_tokens": [
-              200012
-            ]
+            "stop_tokens": [200012]
           },
           "is_complete": true,
           "citations": [],
@@ -1485,9 +1411,7 @@
         "channel": null
       },
       "parent": "4f8324a1-605b-4cb3-86d4-428a7187ae9c",
-      "children": [
-        "d2cb1dab-ddb4-49da-a363-80bec1565faa"
-      ]
+      "children": ["d2cb1dab-ddb4-49da-a363-80bec1565faa"]
     },
     "d2cb1dab-ddb4-49da-a363-80bec1565faa": {
       "id": "d2cb1dab-ddb4-49da-a363-80bec1565faa",
@@ -1504,9 +1428,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -1618,9 +1540,7 @@
         "channel": null
       },
       "parent": "5aedac66-e20b-43a8-9b98-25565d597c00",
-      "children": [
-        "6b4422a5-6ef5-4f81-82a6-8e0c6adf1c67"
-      ]
+      "children": ["6b4422a5-6ef5-4f81-82a6-8e0c6adf1c67"]
     },
     "6b4422a5-6ef5-4f81-82a6-8e0c6adf1c67": {
       "id": "6b4422a5-6ef5-4f81-82a6-8e0c6adf1c67",
@@ -1667,9 +1587,7 @@
         "channel": null
       },
       "parent": "d2cb1dab-ddb4-49da-a363-80bec1565faa",
-      "children": [
-        "c795e90b-6c4e-4823-b4eb-aec6a84a749a"
-      ]
+      "children": ["c795e90b-6c4e-4823-b4eb-aec6a84a749a"]
     },
     "c795e90b-6c4e-4823-b4eb-aec6a84a749a": {
       "id": "c795e90b-6c4e-4823-b4eb-aec6a84a749a",
@@ -1686,9 +1604,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -1736,9 +1652,7 @@
         "channel": null
       },
       "parent": "6b4422a5-6ef5-4f81-82a6-8e0c6adf1c67",
-      "children": [
-        "7d1b4706-3197-4ab3-aa2f-3d89e139eccc"
-      ]
+      "children": ["7d1b4706-3197-4ab3-aa2f-3d89e139eccc"]
     },
     "7d1b4706-3197-4ab3-aa2f-3d89e139eccc": {
       "id": "7d1b4706-3197-4ab3-aa2f-3d89e139eccc",
@@ -1777,9 +1691,7 @@
         "channel": null
       },
       "parent": "c795e90b-6c4e-4823-b4eb-aec6a84a749a",
-      "children": [
-        "749c40d8-61e4-4d99-bcef-ece15d41280b"
-      ]
+      "children": ["749c40d8-61e4-4d99-bcef-ece15d41280b"]
     },
     "749c40d8-61e4-4d99-bcef-ece15d41280b": {
       "id": "749c40d8-61e4-4d99-bcef-ece15d41280b",
@@ -1806,9 +1718,7 @@
         "metadata": {
           "finish_details": {
             "type": "stop",
-            "stop_tokens": [
-              200002
-            ]
+            "stop_tokens": [200002]
           },
           "is_complete": true,
           "content_references": [
@@ -1920,10 +1830,7 @@
               "prefix": null,
               "start_idx": 834,
               "end_idx": 872,
-              "safe_urls": [
-                "https://linear.app/docs/agents-in-linear",
-                "https://linear.app/docs/mcp"
-              ],
+              "safe_urls": ["https://linear.app/docs/agents-in-linear", "https://linear.app/docs/mcp"],
               "refs": [],
               "alt": "([Linear](https://linear.app/docs/agents-in-linear))",
               "prompt_text": null,
@@ -1971,10 +1878,7 @@
               "prefix": null,
               "start_idx": 1082,
               "end_idx": 1120,
-              "safe_urls": [
-                "https://github.com/paperclipai/paperclip",
-                "https://paperclipai.net/"
-              ],
+              "safe_urls": ["https://github.com/paperclipai/paperclip", "https://paperclipai.net/"],
               "refs": [],
               "alt": "([GitHub](https://github.com/paperclipai/paperclip))",
               "prompt_text": null,
@@ -2022,10 +1926,7 @@
               "prefix": null,
               "start_idx": 1330,
               "end_idx": 1368,
-              "safe_urls": [
-                "https://github.com/multica-ai/multica/wiki",
-                "https://multica.ai/"
-              ],
+              "safe_urls": ["https://github.com/multica-ai/multica/wiki", "https://multica.ai/"],
               "refs": [],
               "alt": "([GitHub](https://github.com/multica-ai/multica/wiki))",
               "prompt_text": null,
@@ -2073,9 +1974,7 @@
               "prefix": null,
               "start_idx": 1696,
               "end_idx": 1718,
-              "safe_urls": [
-                "https://linear.app/docs/agents-in-linear"
-              ],
+              "safe_urls": ["https://linear.app/docs/agents-in-linear"],
               "refs": [],
               "alt": "([Linear](https://linear.app/docs/agents-in-linear))",
               "prompt_text": null,
@@ -2110,9 +2009,7 @@
               "prefix": null,
               "start_idx": 2046,
               "end_idx": 2068,
-              "safe_urls": [
-                "https://linear.app/docs/mcp"
-              ],
+              "safe_urls": ["https://linear.app/docs/mcp"],
               "refs": [],
               "alt": "([Linear](https://linear.app/docs/mcp))",
               "prompt_text": null,
@@ -2266,10 +2163,7 @@
               "prefix": null,
               "start_idx": 2985,
               "end_idx": 3023,
-              "safe_urls": [
-                "https://github.com/paperclipai/paperclip",
-                "https://paperclipai.net/"
-              ],
+              "safe_urls": ["https://github.com/paperclipai/paperclip", "https://paperclipai.net/"],
               "refs": [],
               "alt": "([paperclipai.net](https://paperclipai.net/))",
               "prompt_text": null,
@@ -2317,9 +2211,7 @@
               "prefix": null,
               "start_idx": 3107,
               "end_idx": 3129,
-              "safe_urls": [
-                "https://paperclipai.net/"
-              ],
+              "safe_urls": ["https://paperclipai.net/"],
               "refs": [],
               "alt": "([paperclipai.net](https://paperclipai.net/))",
               "prompt_text": null,
@@ -2354,9 +2246,7 @@
               "prefix": null,
               "start_idx": 3185,
               "end_idx": 3207,
-              "safe_urls": [
-                "https://paperclipai.net/"
-              ],
+              "safe_urls": ["https://paperclipai.net/"],
               "refs": [],
               "alt": "([paperclipai.net](https://paperclipai.net/))",
               "prompt_text": null,
@@ -2391,9 +2281,7 @@
               "prefix": null,
               "start_idx": 3265,
               "end_idx": 3287,
-              "safe_urls": [
-                "https://paperclipai.net/"
-              ],
+              "safe_urls": ["https://paperclipai.net/"],
               "refs": [],
               "alt": "([paperclipai.net](https://paperclipai.net/))",
               "prompt_text": null,
@@ -2428,9 +2316,7 @@
               "prefix": null,
               "start_idx": 3363,
               "end_idx": 3385,
-              "safe_urls": [
-                "https://paperclipai.net/"
-              ],
+              "safe_urls": ["https://paperclipai.net/"],
               "refs": [],
               "alt": "([paperclipai.net](https://paperclipai.net/))",
               "prompt_text": null,
@@ -2465,10 +2351,7 @@
               "prefix": null,
               "start_idx": 3466,
               "end_idx": 3504,
-              "safe_urls": [
-                "https://github.com/paperclipai/paperclip",
-                "https://paperclipai.net/"
-              ],
+              "safe_urls": ["https://github.com/paperclipai/paperclip", "https://paperclipai.net/"],
               "refs": [],
               "alt": "([GitHub](https://github.com/paperclipai/paperclip))",
               "prompt_text": null,
@@ -2516,10 +2399,7 @@
               "prefix": null,
               "start_idx": 4265,
               "end_idx": 4303,
-              "safe_urls": [
-                "https://github.com/multica-ai/multica/wiki",
-                "https://multica.ai/"
-              ],
+              "safe_urls": ["https://github.com/multica-ai/multica/wiki", "https://multica.ai/"],
               "refs": [],
               "alt": "([GitHub](https://github.com/multica-ai/multica/wiki))",
               "prompt_text": null,
@@ -2567,9 +2447,7 @@
               "prefix": null,
               "start_idx": 4409,
               "end_idx": 4431,
-              "safe_urls": [
-                "https://multica.ai/"
-              ],
+              "safe_urls": ["https://multica.ai/"],
               "refs": [],
               "alt": "([multica.ai](https://multica.ai/))",
               "prompt_text": null,
@@ -2604,9 +2482,7 @@
               "prefix": null,
               "start_idx": 4504,
               "end_idx": 4526,
-              "safe_urls": [
-                "https://multica.ai/"
-              ],
+              "safe_urls": ["https://multica.ai/"],
               "refs": [],
               "alt": "([multica.ai](https://multica.ai/))",
               "prompt_text": null,
@@ -2641,10 +2517,7 @@
               "prefix": null,
               "start_idx": 4584,
               "end_idx": 4622,
-              "safe_urls": [
-                "https://github.com/multica-ai/multica/wiki",
-                "https://multica.ai/"
-              ],
+              "safe_urls": ["https://github.com/multica-ai/multica/wiki", "https://multica.ai/"],
               "refs": [],
               "alt": "([GitHub](https://github.com/multica-ai/multica/wiki))",
               "prompt_text": null,
@@ -2692,10 +2565,7 @@
               "prefix": null,
               "start_idx": 4740,
               "end_idx": 4778,
-              "safe_urls": [
-                "https://github.com/multica-ai/multica/wiki",
-                "https://multica.ai/"
-              ],
+              "safe_urls": ["https://github.com/multica-ai/multica/wiki", "https://multica.ai/"],
               "refs": [],
               "alt": "([GitHub](https://github.com/multica-ai/multica/wiki))",
               "prompt_text": null,
@@ -2743,9 +2613,7 @@
               "prefix": null,
               "start_idx": 4888,
               "end_idx": 4910,
-              "safe_urls": [
-                "https://multica.ai/"
-              ],
+              "safe_urls": ["https://multica.ai/"],
               "refs": [],
               "alt": "([multica.ai](https://multica.ai/))",
               "prompt_text": null,
@@ -2859,10 +2727,7 @@
               "prefix": null,
               "start_idx": 6073,
               "end_idx": 6111,
-              "safe_urls": [
-                "https://github.com/multica-ai/multica/wiki",
-                "https://multica.ai/"
-              ],
+              "safe_urls": ["https://github.com/multica-ai/multica/wiki", "https://multica.ai/"],
               "refs": [],
               "alt": "([GitHub](https://github.com/multica-ai/multica/wiki))",
               "prompt_text": null,
@@ -2910,10 +2775,7 @@
               "prefix": null,
               "start_idx": 6302,
               "end_idx": 6340,
-              "safe_urls": [
-                "https://github.com/paperclipai/paperclip",
-                "https://paperclipai.net/"
-              ],
+              "safe_urls": ["https://github.com/paperclipai/paperclip", "https://paperclipai.net/"],
               "refs": [],
               "alt": "([paperclipai.net](https://paperclipai.net/))",
               "prompt_text": null,
@@ -3837,9 +3699,7 @@
         "channel": "final"
       },
       "parent": "7d1b4706-3197-4ab3-aa2f-3d89e139eccc",
-      "children": [
-        "74e7d648-506d-41d1-a6cf-7493cacad438"
-      ]
+      "children": ["74e7d648-506d-41d1-a6cf-7493cacad438"]
     },
     "74e7d648-506d-41d1-a6cf-7493cacad438": {
       "id": "74e7d648-506d-41d1-a6cf-7493cacad438",
@@ -3867,9 +3727,7 @@
           "selected_mcp_sources": [],
           "selected_sources": [],
           "selected_github_repos": [],
-          "system_hints": [
-            "connector:connector_openai_deep_research"
-          ],
+          "system_hints": ["connector:connector_openai_deep_research"],
           "deep_research_version": "standard",
           "venus_model_variant": "standard",
           "serialization_metadata": {
@@ -3885,9 +3743,7 @@
         "channel": null
       },
       "parent": "749c40d8-61e4-4d99-bcef-ece15d41280b",
-      "children": [
-        "9f3e64c3-57a1-4dc2-9eba-947ad6ce2dff"
-      ]
+      "children": ["9f3e64c3-57a1-4dc2-9eba-947ad6ce2dff"]
     },
     "9f3e64c3-57a1-4dc2-9eba-947ad6ce2dff": {
       "id": "9f3e64c3-57a1-4dc2-9eba-947ad6ce2dff",
@@ -3902,9 +3758,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": true,
@@ -3925,9 +3779,7 @@
         "channel": null
       },
       "parent": "74e7d648-506d-41d1-a6cf-7493cacad438",
-      "children": [
-        "3b1d2cb6-996d-4859-b7bd-4ad7cead2955"
-      ]
+      "children": ["3b1d2cb6-996d-4859-b7bd-4ad7cead2955"]
     },
     "3b1d2cb6-996d-4859-b7bd-4ad7cead2955": {
       "id": "3b1d2cb6-996d-4859-b7bd-4ad7cead2955",
@@ -3942,9 +3794,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": true,
@@ -3965,9 +3815,7 @@
         "channel": null
       },
       "parent": "9f3e64c3-57a1-4dc2-9eba-947ad6ce2dff",
-      "children": [
-        "3e70387d-aaf7-4e65-baf8-8d06bd2fee6b"
-      ]
+      "children": ["3e70387d-aaf7-4e65-baf8-8d06bd2fee6b"]
     },
     "3e70387d-aaf7-4e65-baf8-8d06bd2fee6b": {
       "id": "3e70387d-aaf7-4e65-baf8-8d06bd2fee6b",
@@ -3992,9 +3840,7 @@
         "metadata": {
           "finish_details": {
             "type": "stop",
-            "stop_tokens": [
-              200012
-            ]
+            "stop_tokens": [200012]
           },
           "is_complete": true,
           "chatgpt_sdk": {
@@ -4039,9 +3885,7 @@
         "channel": "commentary"
       },
       "parent": "3b1d2cb6-996d-4859-b7bd-4ad7cead2955",
-      "children": [
-        "c7ac271f-e3a6-4fb9-ac10-525d216a8a2a"
-      ]
+      "children": ["c7ac271f-e3a6-4fb9-ac10-525d216a8a2a"]
     },
     "c7ac271f-e3a6-4fb9-ac10-525d216a8a2a": {
       "id": "c7ac271f-e3a6-4fb9-ac10-525d216a8a2a",
@@ -4208,9 +4052,7 @@
         "channel": "commentary"
       },
       "parent": "3e70387d-aaf7-4e65-baf8-8d06bd2fee6b",
-      "children": [
-        "7645809f-33bc-486a-93b7-bc0b8d1757cc"
-      ]
+      "children": ["7645809f-33bc-486a-93b7-bc0b8d1757cc"]
     },
     "7645809f-33bc-486a-93b7-bc0b8d1757cc": {
       "id": "7645809f-33bc-486a-93b7-bc0b8d1757cc",
@@ -4253,9 +4095,7 @@
         "channel": null
       },
       "parent": "c7ac271f-e3a6-4fb9-ac10-525d216a8a2a",
-      "children": [
-        "4de5ddb4-5646-401e-8026-d2477958967a"
-      ]
+      "children": ["4de5ddb4-5646-401e-8026-d2477958967a"]
     },
     "4de5ddb4-5646-401e-8026-d2477958967a": {
       "id": "4de5ddb4-5646-401e-8026-d2477958967a",
@@ -4270,9 +4110,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": true,
@@ -4304,9 +4142,7 @@
         "channel": null
       },
       "parent": "7645809f-33bc-486a-93b7-bc0b8d1757cc",
-      "children": [
-        "f72da5c6-def5-44a6-8aeb-db15019a4427"
-      ]
+      "children": ["f72da5c6-def5-44a6-8aeb-db15019a4427"]
     },
     "f72da5c6-def5-44a6-8aeb-db15019a4427": {
       "id": "f72da5c6-def5-44a6-8aeb-db15019a4427",
@@ -4321,9 +4157,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -4343,9 +4177,7 @@
         "channel": null
       },
       "parent": "4de5ddb4-5646-401e-8026-d2477958967a",
-      "children": [
-        "0ec33480-2793-406e-b654-48bf28be0146"
-      ]
+      "children": ["0ec33480-2793-406e-b654-48bf28be0146"]
     },
     "0ec33480-2793-406e-b654-48bf28be0146": {
       "id": "0ec33480-2793-406e-b654-48bf28be0146",
@@ -4360,9 +4192,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -4382,9 +4212,7 @@
         "channel": null
       },
       "parent": "f72da5c6-def5-44a6-8aeb-db15019a4427",
-      "children": [
-        "efc2961d-a1bb-42ab-8b4e-147046b90e0c"
-      ]
+      "children": ["efc2961d-a1bb-42ab-8b4e-147046b90e0c"]
     },
     "efc2961d-a1bb-42ab-8b4e-147046b90e0c": {
       "id": "efc2961d-a1bb-42ab-8b4e-147046b90e0c",
@@ -4423,9 +4251,7 @@
         "channel": null
       },
       "parent": "0ec33480-2793-406e-b654-48bf28be0146",
-      "children": [
-        "6d586943-0bf2-4011-a88a-0e8eb5efdd65"
-      ]
+      "children": ["6d586943-0bf2-4011-a88a-0e8eb5efdd65"]
     },
     "6d586943-0bf2-4011-a88a-0e8eb5efdd65": {
       "id": "6d586943-0bf2-4011-a88a-0e8eb5efdd65",
@@ -4440,9 +4266,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": true,
@@ -4464,9 +4288,7 @@
         "channel": null
       },
       "parent": "efc2961d-a1bb-42ab-8b4e-147046b90e0c",
-      "children": [
-        "36c8a2a1-abd2-4e1e-85c4-8e66d7da33ae"
-      ]
+      "children": ["36c8a2a1-abd2-4e1e-85c4-8e66d7da33ae"]
     },
     "36c8a2a1-abd2-4e1e-85c4-8e66d7da33ae": {
       "id": "36c8a2a1-abd2-4e1e-85c4-8e66d7da33ae",
@@ -4512,9 +4334,7 @@
         "channel": null
       },
       "parent": "6d586943-0bf2-4011-a88a-0e8eb5efdd65",
-      "children": [
-        "536f7511-171b-4b70-90f2-20bdb6db4a28"
-      ]
+      "children": ["536f7511-171b-4b70-90f2-20bdb6db4a28"]
     },
     "536f7511-171b-4b70-90f2-20bdb6db4a28": {
       "id": "536f7511-171b-4b70-90f2-20bdb6db4a28",
@@ -4559,9 +4379,7 @@
         "channel": "commentary"
       },
       "parent": "36c8a2a1-abd2-4e1e-85c4-8e66d7da33ae",
-      "children": [
-        "093bfb1c-d0c1-4f05-8a11-81e7c21f0ab5"
-      ]
+      "children": ["093bfb1c-d0c1-4f05-8a11-81e7c21f0ab5"]
     },
     "093bfb1c-d0c1-4f05-8a11-81e7c21f0ab5": {
       "id": "093bfb1c-d0c1-4f05-8a11-81e7c21f0ab5",
@@ -4578,9 +4396,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -4613,9 +4429,7 @@
         "channel": null
       },
       "parent": "536f7511-171b-4b70-90f2-20bdb6db4a28",
-      "children": [
-        "10d93a94-16ec-494e-b498-e1383af1fd9b"
-      ]
+      "children": ["10d93a94-16ec-494e-b498-e1383af1fd9b"]
     },
     "10d93a94-16ec-494e-b498-e1383af1fd9b": {
       "id": "10d93a94-16ec-494e-b498-e1383af1fd9b",
@@ -4654,9 +4468,7 @@
         "channel": null
       },
       "parent": "093bfb1c-d0c1-4f05-8a11-81e7c21f0ab5",
-      "children": [
-        "0b05a7ab-7618-4e18-a82a-0bd089efcbb0"
-      ]
+      "children": ["0b05a7ab-7618-4e18-a82a-0bd089efcbb0"]
     },
     "0b05a7ab-7618-4e18-a82a-0bd089efcbb0": {
       "id": "0b05a7ab-7618-4e18-a82a-0bd089efcbb0",
@@ -4673,9 +4485,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -4704,9 +4514,7 @@
         "channel": null
       },
       "parent": "10d93a94-16ec-494e-b498-e1383af1fd9b",
-      "children": [
-        "353a67db-c986-46a9-9545-de8b2ec264fa"
-      ]
+      "children": ["353a67db-c986-46a9-9545-de8b2ec264fa"]
     },
     "353a67db-c986-46a9-9545-de8b2ec264fa": {
       "id": "353a67db-c986-46a9-9545-de8b2ec264fa",
@@ -4723,9 +4531,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -4880,9 +4686,7 @@
         "channel": null
       },
       "parent": "0b05a7ab-7618-4e18-a82a-0bd089efcbb0",
-      "children": [
-        "bfb6da0a-dbdf-4d8e-a2f4-c58397687f63"
-      ]
+      "children": ["bfb6da0a-dbdf-4d8e-a2f4-c58397687f63"]
     },
     "bfb6da0a-dbdf-4d8e-a2f4-c58397687f63": {
       "id": "bfb6da0a-dbdf-4d8e-a2f4-c58397687f63",
@@ -4907,9 +4711,7 @@
         "metadata": {
           "finish_details": {
             "type": "stop",
-            "stop_tokens": [
-              200012
-            ]
+            "stop_tokens": [200012]
           },
           "is_complete": true,
           "citations": [],
@@ -4956,9 +4758,7 @@
         "channel": null
       },
       "parent": "353a67db-c986-46a9-9545-de8b2ec264fa",
-      "children": [
-        "cb3b32c3-71f6-47fb-b01e-df69f51be625"
-      ]
+      "children": ["cb3b32c3-71f6-47fb-b01e-df69f51be625"]
     },
     "cb3b32c3-71f6-47fb-b01e-df69f51be625": {
       "id": "cb3b32c3-71f6-47fb-b01e-df69f51be625",
@@ -5015,9 +4815,7 @@
         "channel": null
       },
       "parent": "bfb6da0a-dbdf-4d8e-a2f4-c58397687f63",
-      "children": [
-        "83fa68e3-c552-42f1-be35-1ee179203c7a"
-      ]
+      "children": ["83fa68e3-c552-42f1-be35-1ee179203c7a"]
     },
     "83fa68e3-c552-42f1-be35-1ee179203c7a": {
       "id": "83fa68e3-c552-42f1-be35-1ee179203c7a",
@@ -5034,9 +4832,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -5069,9 +4865,7 @@
         "channel": null
       },
       "parent": "cb3b32c3-71f6-47fb-b01e-df69f51be625",
-      "children": [
-        "e0750ce8-2c04-4307-b6c5-8cbe350b75f4"
-      ]
+      "children": ["e0750ce8-2c04-4307-b6c5-8cbe350b75f4"]
     },
     "e0750ce8-2c04-4307-b6c5-8cbe350b75f4": {
       "id": "e0750ce8-2c04-4307-b6c5-8cbe350b75f4",
@@ -5110,9 +4904,7 @@
         "channel": null
       },
       "parent": "83fa68e3-c552-42f1-be35-1ee179203c7a",
-      "children": [
-        "aba1f960-029e-45e7-b680-faeacfc101f8"
-      ]
+      "children": ["aba1f960-029e-45e7-b680-faeacfc101f8"]
     },
     "aba1f960-029e-45e7-b680-faeacfc101f8": {
       "id": "aba1f960-029e-45e7-b680-faeacfc101f8",
@@ -5129,9 +4921,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -5160,9 +4950,7 @@
         "channel": null
       },
       "parent": "e0750ce8-2c04-4307-b6c5-8cbe350b75f4",
-      "children": [
-        "fd4df15c-5204-4832-9bd5-17566e9156e2"
-      ]
+      "children": ["fd4df15c-5204-4832-9bd5-17566e9156e2"]
     },
     "fd4df15c-5204-4832-9bd5-17566e9156e2": {
       "id": "fd4df15c-5204-4832-9bd5-17566e9156e2",
@@ -5179,9 +4967,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -5364,9 +5150,7 @@
         "channel": null
       },
       "parent": "aba1f960-029e-45e7-b680-faeacfc101f8",
-      "children": [
-        "1d38e7c5-baef-4846-9424-161528d1d7d2"
-      ]
+      "children": ["1d38e7c5-baef-4846-9424-161528d1d7d2"]
     },
     "1d38e7c5-baef-4846-9424-161528d1d7d2": {
       "id": "1d38e7c5-baef-4846-9424-161528d1d7d2",
@@ -5433,9 +5217,7 @@
         "channel": null
       },
       "parent": "fd4df15c-5204-4832-9bd5-17566e9156e2",
-      "children": [
-        "416ac997-411b-4a9b-89e6-93177ccbdade"
-      ]
+      "children": ["416ac997-411b-4a9b-89e6-93177ccbdade"]
     },
     "416ac997-411b-4a9b-89e6-93177ccbdade": {
       "id": "416ac997-411b-4a9b-89e6-93177ccbdade",
@@ -5493,9 +5275,7 @@
         "channel": null
       },
       "parent": "1d38e7c5-baef-4846-9424-161528d1d7d2",
-      "children": [
-        "eb1e6546-5a4e-4001-8c4b-4397ea05aa46"
-      ]
+      "children": ["eb1e6546-5a4e-4001-8c4b-4397ea05aa46"]
     },
     "eb1e6546-5a4e-4001-8c4b-4397ea05aa46": {
       "id": "eb1e6546-5a4e-4001-8c4b-4397ea05aa46",
@@ -5512,9 +5292,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -5547,9 +5325,7 @@
         "channel": null
       },
       "parent": "416ac997-411b-4a9b-89e6-93177ccbdade",
-      "children": [
-        "d69ef1ee-8b4a-46e4-a928-74e81f1fc086"
-      ]
+      "children": ["d69ef1ee-8b4a-46e4-a928-74e81f1fc086"]
     },
     "d69ef1ee-8b4a-46e4-a928-74e81f1fc086": {
       "id": "d69ef1ee-8b4a-46e4-a928-74e81f1fc086",
@@ -5588,9 +5364,7 @@
         "channel": null
       },
       "parent": "eb1e6546-5a4e-4001-8c4b-4397ea05aa46",
-      "children": [
-        "729b348c-295f-4ba7-995a-f9747ca8e4f7"
-      ]
+      "children": ["729b348c-295f-4ba7-995a-f9747ca8e4f7"]
     },
     "729b348c-295f-4ba7-995a-f9747ca8e4f7": {
       "id": "729b348c-295f-4ba7-995a-f9747ca8e4f7",
@@ -5607,9 +5381,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -5638,9 +5410,7 @@
         "channel": null
       },
       "parent": "d69ef1ee-8b4a-46e4-a928-74e81f1fc086",
-      "children": [
-        "ee70b350-c508-49f4-9d12-73b418119a52"
-      ]
+      "children": ["ee70b350-c508-49f4-9d12-73b418119a52"]
     },
     "ee70b350-c508-49f4-9d12-73b418119a52": {
       "id": "ee70b350-c508-49f4-9d12-73b418119a52",
@@ -5657,9 +5427,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -5829,9 +5597,7 @@
         "channel": null
       },
       "parent": "729b348c-295f-4ba7-995a-f9747ca8e4f7",
-      "children": [
-        "99d08b64-fd22-4c93-9b17-5002fadf89cf"
-      ]
+      "children": ["99d08b64-fd22-4c93-9b17-5002fadf89cf"]
     },
     "99d08b64-fd22-4c93-9b17-5002fadf89cf": {
       "id": "99d08b64-fd22-4c93-9b17-5002fadf89cf",
@@ -5856,9 +5622,7 @@
         "metadata": {
           "finish_details": {
             "type": "stop",
-            "stop_tokens": [
-              200012
-            ]
+            "stop_tokens": [200012]
           },
           "is_complete": true,
           "citations": [],
@@ -5905,9 +5669,7 @@
         "channel": null
       },
       "parent": "ee70b350-c508-49f4-9d12-73b418119a52",
-      "children": [
-        "115c4320-0b2e-4fca-8c98-7294c2f9737b"
-      ]
+      "children": ["115c4320-0b2e-4fca-8c98-7294c2f9737b"]
     },
     "115c4320-0b2e-4fca-8c98-7294c2f9737b": {
       "id": "115c4320-0b2e-4fca-8c98-7294c2f9737b",
@@ -5964,9 +5726,7 @@
         "channel": null
       },
       "parent": "99d08b64-fd22-4c93-9b17-5002fadf89cf",
-      "children": [
-        "572fc949-ab3c-4261-bd51-6f582e900fb6"
-      ]
+      "children": ["572fc949-ab3c-4261-bd51-6f582e900fb6"]
     },
     "572fc949-ab3c-4261-bd51-6f582e900fb6": {
       "id": "572fc949-ab3c-4261-bd51-6f582e900fb6",
@@ -5991,9 +5751,7 @@
         "metadata": {
           "finish_details": {
             "type": "stop",
-            "stop_tokens": [
-              200012
-            ]
+            "stop_tokens": [200012]
           },
           "is_complete": true,
           "citations": [],
@@ -6021,9 +5779,7 @@
         "channel": null
       },
       "parent": "115c4320-0b2e-4fca-8c98-7294c2f9737b",
-      "children": [
-        "e6662f9d-c4f8-4581-8a86-412cbf923cf3"
-      ]
+      "children": ["e6662f9d-c4f8-4581-8a86-412cbf923cf3"]
     },
     "e6662f9d-c4f8-4581-8a86-412cbf923cf3": {
       "id": "e6662f9d-c4f8-4581-8a86-412cbf923cf3",
@@ -6040,9 +5796,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -6129,9 +5883,7 @@
         "channel": null
       },
       "parent": "572fc949-ab3c-4261-bd51-6f582e900fb6",
-      "children": [
-        "08ee3350-ef34-4472-b7ea-00ff12711a5a"
-      ]
+      "children": ["08ee3350-ef34-4472-b7ea-00ff12711a5a"]
     },
     "08ee3350-ef34-4472-b7ea-00ff12711a5a": {
       "id": "08ee3350-ef34-4472-b7ea-00ff12711a5a",
@@ -6187,9 +5939,7 @@
         "channel": null
       },
       "parent": "e6662f9d-c4f8-4581-8a86-412cbf923cf3",
-      "children": [
-        "3079aad4-1efe-41e5-874d-39b8bd579edc"
-      ]
+      "children": ["3079aad4-1efe-41e5-874d-39b8bd579edc"]
     },
     "3079aad4-1efe-41e5-874d-39b8bd579edc": {
       "id": "3079aad4-1efe-41e5-874d-39b8bd579edc",
@@ -6214,9 +5964,7 @@
         "metadata": {
           "finish_details": {
             "type": "stop",
-            "stop_tokens": [
-              200012
-            ]
+            "stop_tokens": [200012]
           },
           "is_complete": true,
           "citations": [],
@@ -6244,9 +5992,7 @@
         "channel": null
       },
       "parent": "08ee3350-ef34-4472-b7ea-00ff12711a5a",
-      "children": [
-        "7b169a4d-e486-43a4-9d6e-f78dd5020032"
-      ]
+      "children": ["7b169a4d-e486-43a4-9d6e-f78dd5020032"]
     },
     "7b169a4d-e486-43a4-9d6e-f78dd5020032": {
       "id": "7b169a4d-e486-43a4-9d6e-f78dd5020032",
@@ -6263,9 +6009,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -6365,9 +6109,7 @@
         "channel": null
       },
       "parent": "3079aad4-1efe-41e5-874d-39b8bd579edc",
-      "children": [
-        "ddead2d0-a57b-41ae-97f3-57a6b04b02b0"
-      ]
+      "children": ["ddead2d0-a57b-41ae-97f3-57a6b04b02b0"]
     },
     "ddead2d0-a57b-41ae-97f3-57a6b04b02b0": {
       "id": "ddead2d0-a57b-41ae-97f3-57a6b04b02b0",
@@ -6425,9 +6167,7 @@
         "channel": null
       },
       "parent": "7b169a4d-e486-43a4-9d6e-f78dd5020032",
-      "children": [
-        "a3ef2f5d-4ed2-4bfd-9bf4-f393cccced81"
-      ]
+      "children": ["a3ef2f5d-4ed2-4bfd-9bf4-f393cccced81"]
     },
     "a3ef2f5d-4ed2-4bfd-9bf4-f393cccced81": {
       "id": "a3ef2f5d-4ed2-4bfd-9bf4-f393cccced81",
@@ -6444,9 +6184,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -6479,9 +6217,7 @@
         "channel": null
       },
       "parent": "ddead2d0-a57b-41ae-97f3-57a6b04b02b0",
-      "children": [
-        "34f1087c-7b5d-4f8d-ae6a-98c638d9e184"
-      ]
+      "children": ["34f1087c-7b5d-4f8d-ae6a-98c638d9e184"]
     },
     "34f1087c-7b5d-4f8d-ae6a-98c638d9e184": {
       "id": "34f1087c-7b5d-4f8d-ae6a-98c638d9e184",
@@ -6520,9 +6256,7 @@
         "channel": null
       },
       "parent": "a3ef2f5d-4ed2-4bfd-9bf4-f393cccced81",
-      "children": [
-        "07402fbb-f810-4282-8757-05db1d113ddb"
-      ]
+      "children": ["07402fbb-f810-4282-8757-05db1d113ddb"]
     },
     "07402fbb-f810-4282-8757-05db1d113ddb": {
       "id": "07402fbb-f810-4282-8757-05db1d113ddb",
@@ -6539,9 +6273,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -6570,9 +6302,7 @@
         "channel": null
       },
       "parent": "34f1087c-7b5d-4f8d-ae6a-98c638d9e184",
-      "children": [
-        "3ab55811-af90-4992-923a-a1bf47b22c50"
-      ]
+      "children": ["3ab55811-af90-4992-923a-a1bf47b22c50"]
     },
     "3ab55811-af90-4992-923a-a1bf47b22c50": {
       "id": "3ab55811-af90-4992-923a-a1bf47b22c50",
@@ -6589,9 +6319,7 @@
         "update_time": null,
         "content": {
           "content_type": "text",
-          "parts": [
-            ""
-          ]
+          "parts": [""]
         },
         "status": "finished_successfully",
         "end_turn": null,
@@ -6689,9 +6417,7 @@
         "channel": null
       },
       "parent": "07402fbb-f810-4282-8757-05db1d113ddb",
-      "children": [
-        "ca15f9cc-21c9-40e8-bd8d-c3fb794b52a4"
-      ]
+      "children": ["ca15f9cc-21c9-40e8-bd8d-c3fb794b52a4"]
     },
     "ca15f9cc-21c9-40e8-bd8d-c3fb794b52a4": {
       "id": "ca15f9cc-21c9-40e8-bd8d-c3fb794b52a4",
@@ -6716,9 +6442,7 @@
         "metadata": {
           "finish_details": {
             "type": "stop",
-            "stop_tokens": [
-              200012
-            ]
+            "stop_tokens": [200012]
           },
           "is_complete": true,
           "citations": [],
@@ -6765,9 +6489,7 @@
         "channel": null
       },
       "parent": "3ab55811-af90-4992-923a-a1bf47b22c50",
-      "children": [
-        "cb1855f3-1bee-44fe-aaaa-53cd3903267a"
-      ]
+      "children": ["cb1855f3-1bee-44fe-aaaa-53cd3903267a"]
     },
     "cb1855f3-1bee-44fe-aaaa-53cd3903267a": {
       "id": "cb1855f3-1bee-44fe-aaaa-53cd3903267a",
@@ -6806,9 +6528,7 @@
         "channel": null
       },
       "parent": "ca15f9cc-21c9-40e8-bd8d-c3fb794b52a4",
-      "children": [
-        "b29e47d2-f543-4ac0-9e16-8dbf37f69738"
-      ]
+      "children": ["b29e47d2-f543-4ac0-9e16-8dbf37f69738"]
     },
     "b29e47d2-f543-4ac0-9e16-8dbf37f69738": {
       "id": "b29e47d2-f543-4ac0-9e16-8dbf37f69738",
@@ -6835,9 +6555,7 @@
         "metadata": {
           "finish_details": {
             "type": "stop",
-            "stop_tokens": [
-              200002
-            ]
+            "stop_tokens": [200002]
           },
           "is_complete": true,
           "content_references": [
@@ -6952,9 +6670,7 @@
               "prefix": null,
               "start_idx": 904,
               "end_idx": 926,
-              "safe_urls": [
-                "https://github.com/linear"
-              ],
+              "safe_urls": ["https://github.com/linear"],
               "refs": [],
               "alt": "([GitHub](https://github.com/linear))",
               "prompt_text": null,
@@ -7147,9 +6863,7 @@
               "prefix": null,
               "start_idx": 1813,
               "end_idx": 1835,
-              "safe_urls": [
-                "https://github.com/paperclipai/paperclip"
-              ],
+              "safe_urls": ["https://github.com/paperclipai/paperclip"],
               "refs": [],
               "alt": "([GitHub](https://github.com/paperclipai/paperclip))",
               "prompt_text": null,
@@ -7354,9 +7068,7 @@
               "prefix": null,
               "start_idx": 2854,
               "end_idx": 2892,
-              "safe_urls": [
-                "https://github.com/multica-ai/multica"
-              ],
+              "safe_urls": ["https://github.com/multica-ai/multica"],
               "refs": [],
               "alt": "([GitHub](https://github.com/multica-ai/multica))",
               "prompt_text": null,
@@ -7404,10 +7116,7 @@
               "prefix": null,
               "start_idx": 3178,
               "end_idx": 3220,
-              "safe_urls": [
-                "https://multica.ai/",
-                "https://multica.ai/?utm_source=chatgpt.com"
-              ],
+              "safe_urls": ["https://multica.ai/", "https://multica.ai/?utm_source=chatgpt.com"],
               "refs": [],
               "alt": "([multica.ai](https://multica.ai/?utm_source=chatgpt.com))",
               "prompt_text": null,
@@ -7561,9 +7270,7 @@
               "prefix": null,
               "start_idx": 3824,
               "end_idx": 3862,
-              "safe_urls": [
-                "https://github.com/lukilabs/craft-agents-oss"
-              ],
+              "safe_urls": ["https://github.com/lukilabs/craft-agents-oss"],
               "refs": [],
               "alt": "([GitHub](https://github.com/lukilabs/craft-agents-oss))",
               "prompt_text": null,
@@ -7846,10 +7553,7 @@
               "prefix": null,
               "start_idx": 5062,
               "end_idx": 5086,
-              "safe_urls": [
-                "https://multica.ai/",
-                "https://multica.ai/?utm_source=chatgpt.com"
-              ],
+              "safe_urls": ["https://multica.ai/", "https://multica.ai/?utm_source=chatgpt.com"],
               "refs": [],
               "alt": "([multica.ai](https://multica.ai/?utm_source=chatgpt.com))",
               "prompt_text": null,
@@ -7936,9 +7640,7 @@
               "prefix": null,
               "start_idx": 5384,
               "end_idx": 5406,
-              "safe_urls": [
-                "https://github.com/paperclipai/paperclip"
-              ],
+              "safe_urls": ["https://github.com/paperclipai/paperclip"],
               "refs": [],
               "alt": "([GitHub](https://github.com/paperclipai/paperclip))",
               "prompt_text": null,
@@ -7973,9 +7675,7 @@
               "prefix": null,
               "start_idx": 5452,
               "end_idx": 5474,
-              "safe_urls": [
-                "https://github.com/lukilabs/craft-agents-oss"
-              ],
+              "safe_urls": ["https://github.com/lukilabs/craft-agents-oss"],
               "refs": [],
               "alt": "([GitHub](https://github.com/lukilabs/craft-agents-oss))",
               "prompt_text": null,
@@ -8010,9 +7710,7 @@
               "prefix": null,
               "start_idx": 5518,
               "end_idx": 5540,
-              "safe_urls": [
-                "https://github.com/multica-ai/multica"
-              ],
+              "safe_urls": ["https://github.com/multica-ai/multica"],
               "refs": [],
               "alt": "([GitHub](https://github.com/multica-ai/multica))",
               "prompt_text": null,
@@ -8047,9 +7745,7 @@
               "prefix": null,
               "start_idx": 5665,
               "end_idx": 5687,
-              "safe_urls": [
-                "https://github.com/linear"
-              ],
+              "safe_urls": ["https://github.com/linear"],
               "refs": [],
               "alt": "([GitHub](https://github.com/linear))",
               "prompt_text": null,
@@ -8122,10 +7818,7 @@
               "prefix": null,
               "start_idx": 5941,
               "end_idx": 5965,
-              "safe_urls": [
-                "https://multica.ai/",
-                "https://multica.ai/?utm_source=chatgpt.com"
-              ],
+              "safe_urls": ["https://multica.ai/", "https://multica.ai/?utm_source=chatgpt.com"],
               "refs": [],
               "alt": "([multica.ai](https://multica.ai/?utm_source=chatgpt.com))",
               "prompt_text": null,
