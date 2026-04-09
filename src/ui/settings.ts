@@ -4,7 +4,6 @@ import {
   DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE,
   formatAssetStorageMode,
   getStoredAccountDisplayName,
-  normalizeDefaultLatestConversationCount,
 } from "../main/helpers";
 import {
   checkRequestConfigHealth,
@@ -17,23 +16,25 @@ import type Chats2MdPlugin from "../main";
 import { SessionEditorModal } from "./session-editor-modal";
 import { DEFAULT_SYNC_TUNING_SETTINGS } from "../shared/types";
 import type { StoredSessionAccount } from "../shared/types";
-
-const CUSTOM_TEMPLATE_OPTION = "__custom__";
+import {
+  buildAccountDescriptionLines,
+  buildSyncReportCleanupNotice,
+  CONVERSATION_PATH_TEMPLATE_DESCRIPTION_LINES,
+  createAdvancedNumberSettingDefinitions,
+  CUSTOM_TEMPLATE_OPTION,
+  normalizeConversationPathTemplateInput,
+  normalizeDefaultLatestConversationCountInput,
+  normalizeSyncReportFolderInput,
+  parseSettingsNumberInput,
+  summarizeAccountHealthResults,
+} from "./settings-helpers";
 
 function isKnownTemplatePreset(template: string): boolean {
   return CONVERSATION_PATH_TEMPLATE_PRESETS.includes(template as (typeof CONVERSATION_PATH_TEMPLATE_PRESETS)[number]);
 }
 
-function describeConversationPathTemplate(): DocumentFragment {
+function buildMultilineDescription(lines: string[]): DocumentFragment {
   const fragment = document.createDocumentFragment();
-  const lines = [
-    "Relative note path template, without .md.",
-    "{date}: conversation created date (YYYY-MM-DD)",
-    "{slug}: sanitized conversation title",
-    "{email}: account email",
-    "{account_id}: ChatGPT account ID",
-    "{conversation_id}: ChatGPT conversation ID",
-  ];
 
   lines.forEach((line, index) => {
     if (index > 0) {
@@ -90,7 +91,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Conversation path template")
-      .setDesc(describeConversationPathTemplate())
+      .setDesc(buildMultilineDescription(CONVERSATION_PATH_TEMPLATE_DESCRIPTION_LINES))
       .addDropdown((dropdown) => {
         dropdown
           .addOption(CONVERSATION_PATH_TEMPLATE_PRESETS[0], CONVERSATION_PATH_TEMPLATE_PRESETS[0])
@@ -117,7 +118,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         component.setPlaceholder("{date}/{slug}");
         component.setValue(this.plugin.settings.conversationPathTemplate);
         component.onChange(async (value) => {
-          this.plugin.settings.conversationPathTemplate = value.trim() || "{date}/{slug}";
+          this.plugin.settings.conversationPathTemplate = normalizeConversationPathTemplateInput(value);
           await this.plugin.saveSettings();
         });
       });
@@ -153,7 +154,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           component.setPlaceholder(DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE);
           component.setValue(this.plugin.settings.syncReportFolder);
           component.onChange(async (value) => {
-            this.plugin.settings.syncReportFolder = value.trim() || DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE;
+            this.plugin.settings.syncReportFolder = normalizeSyncReportFolderInput(value);
             await this.plugin.saveSettings();
           });
         });
@@ -173,11 +174,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
               const result = await this.plugin.cleanupSyncReports(this.plugin.settings.defaultFolder, {
                 keepLatest: 10,
               });
-              new Notice(
-                result.removedPaths.length > 0
-                  ? `Removed ${result.removedPaths.length} sync report/log file(s). Kept ${result.keptPaths.length}.`
-                  : `No sync report/log files removed. ${result.keptPaths.length} file(s) kept.`,
-              );
+              new Notice(buildSyncReportCleanupNotice(result, 10));
             } finally {
               button.setDisabled(false);
             }
@@ -196,11 +193,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
               button.setDisabled(true);
               try {
                 const result = await this.plugin.cleanupSyncReports(this.plugin.settings.defaultFolder);
-                new Notice(
-                  result.removedPaths.length > 0
-                    ? `Removed ${result.removedPaths.length} sync report/log file(s).`
-                    : "No generated sync report/log files found to remove.",
-                );
+                new Notice(buildSyncReportCleanupNotice(result));
               } finally {
                 button.setDisabled(false);
               }
@@ -369,31 +362,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
   }
 
   private describeAccount(account: StoredSessionAccount, healthResult?: AccountHealthResult): DocumentFragment {
-    const fragment = document.createDocumentFragment();
-    const lines = [
-      `Status: ${account.disabled ? "Disabled" : "Enabled"}`,
-      `User ID: ${account.userId || "Unavailable"}`,
-      `Account ID: ${account.accountId}`,
-      `Expires: ${account.expiresAt || "Unavailable"}`,
-    ];
-
-    if (healthResult) {
-      lines.push(`Health check: ${healthResult.status === "healthy" ? "Healthy" : "Unhealthy"}`);
-      lines.push(`Last check: ${healthResult.checkedAt}`);
-      if (healthResult.status !== "healthy") {
-        lines.push(`Health issue: ${healthResult.message}`);
-      }
-    }
-
-    lines.forEach((line, index) => {
-      if (index > 0) {
-        fragment.appendChild(document.createElement("br"));
-      }
-
-      fragment.append(line);
-    });
-
-    return fragment;
+    return buildMultilineDescription(buildAccountDescriptionLines(account, healthResult));
   }
 
   private renderAdvancedSyncTuningSection(containerEl: HTMLElement): void {
@@ -416,76 +385,18 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       cls: "chats2md-settings__advanced-body",
     });
 
-    this.addNumberSetting(sectionEl, {
-      name: "Conversation-list parallel fetches",
-      desc: `Default: ${DEFAULT_SYNC_TUNING_SETTINGS.conversationListFetchParallelism}. Number of conversation-list pages fetched in parallel.`,
-      value: this.plugin.settings.syncTuning.conversationListFetchParallelism,
-      placeholder: String(DEFAULT_SYNC_TUNING_SETTINGS.conversationListFetchParallelism),
-      getValue: () => this.plugin.settings.syncTuning.conversationListFetchParallelism,
-      onSave: async (value) => {
-        this.plugin.settings.syncTuning.conversationListFetchParallelism = value;
-        await this.plugin.saveSettings();
-      },
-    });
-
-    this.addNumberSetting(sectionEl, {
-      name: "Conversation-list retry attempts",
-      desc: `Default: ${DEFAULT_SYNC_TUNING_SETTINGS.conversationListRetryAttempts}. Retries for failed conversation-list API calls.`,
-      value: this.plugin.settings.syncTuning.conversationListRetryAttempts,
-      placeholder: String(DEFAULT_SYNC_TUNING_SETTINGS.conversationListRetryAttempts),
-      getValue: () => this.plugin.settings.syncTuning.conversationListRetryAttempts,
-      onSave: async (value) => {
-        this.plugin.settings.syncTuning.conversationListRetryAttempts = value;
-        await this.plugin.saveSettings();
-      },
-    });
-
-    this.addNumberSetting(sectionEl, {
-      name: "Conversation-detail retry attempts",
-      desc: `Default: ${DEFAULT_SYNC_TUNING_SETTINGS.conversationDetailRetryAttempts}. Retries for failed conversation-detail API calls.`,
-      value: this.plugin.settings.syncTuning.conversationDetailRetryAttempts,
-      placeholder: String(DEFAULT_SYNC_TUNING_SETTINGS.conversationDetailRetryAttempts),
-      getValue: () => this.plugin.settings.syncTuning.conversationDetailRetryAttempts,
-      onSave: async (value) => {
-        this.plugin.settings.syncTuning.conversationDetailRetryAttempts = value;
-        await this.plugin.saveSettings();
-      },
-    });
-
-    this.addNumberSetting(sectionEl, {
-      name: "Detail browse delay minimum (ms)",
-      desc: `Default: ${DEFAULT_SYNC_TUNING_SETTINGS.conversationDetailBrowseDelayMinMs}. Lower bound for randomized wait before opening a conversation.`,
-      value: this.plugin.settings.syncTuning.conversationDetailBrowseDelayMinMs,
-      placeholder: String(DEFAULT_SYNC_TUNING_SETTINGS.conversationDetailBrowseDelayMinMs),
-      getValue: () => this.plugin.settings.syncTuning.conversationDetailBrowseDelayMinMs,
-      onSave: async (value) => {
-        this.plugin.settings.syncTuning.conversationDetailBrowseDelayMinMs = value;
-        await this.plugin.saveSettings();
-      },
-    });
-
-    this.addNumberSetting(sectionEl, {
-      name: "Detail browse delay maximum (ms)",
-      desc: `Default: ${DEFAULT_SYNC_TUNING_SETTINGS.conversationDetailBrowseDelayMaxMs}. Upper bound for randomized wait before opening a conversation.`,
-      value: this.plugin.settings.syncTuning.conversationDetailBrowseDelayMaxMs,
-      placeholder: String(DEFAULT_SYNC_TUNING_SETTINGS.conversationDetailBrowseDelayMaxMs),
-      getValue: () => this.plugin.settings.syncTuning.conversationDetailBrowseDelayMaxMs,
-      onSave: async (value) => {
-        this.plugin.settings.syncTuning.conversationDetailBrowseDelayMaxMs = value;
-        await this.plugin.saveSettings();
-      },
-    });
-
-    this.addNumberSetting(sectionEl, {
-      name: "Pause after consecutive 429s",
-      desc: `Default: ${DEFAULT_SYNC_TUNING_SETTINGS.maxConsecutiveRateLimitResponses}. Pause sync when ChatGPT keeps rate-limiting requests.`,
-      value: this.plugin.settings.syncTuning.maxConsecutiveRateLimitResponses,
-      placeholder: String(DEFAULT_SYNC_TUNING_SETTINGS.maxConsecutiveRateLimitResponses),
-      getValue: () => this.plugin.settings.syncTuning.maxConsecutiveRateLimitResponses,
-      onSave: async (value) => {
-        this.plugin.settings.syncTuning.maxConsecutiveRateLimitResponses = value;
-        await this.plugin.saveSettings();
-      },
+    createAdvancedNumberSettingDefinitions(DEFAULT_SYNC_TUNING_SETTINGS).forEach((definition) => {
+      this.addNumberSetting(sectionEl, {
+        name: definition.name,
+        desc: definition.desc,
+        value: this.plugin.settings.syncTuning[definition.key],
+        placeholder: definition.placeholder,
+        getValue: () => this.plugin.settings.syncTuning[definition.key],
+        onSave: async (value) => {
+          this.plugin.settings.syncTuning[definition.key] = value;
+          await this.plugin.saveSettings();
+        },
+      });
     });
 
     new Setting(sectionEl)
@@ -501,7 +412,8 @@ export class Chats2MdSettingTab extends PluginSettingTab {
             : String(this.plugin.settings.syncTuning.defaultLatestConversationCount),
         );
         component.onChange(async (value) => {
-          this.plugin.settings.syncTuning.defaultLatestConversationCount = normalizeDefaultLatestConversationCount(value);
+          this.plugin.settings.syncTuning.defaultLatestConversationCount =
+            normalizeDefaultLatestConversationCountInput(value);
           await this.plugin.saveSettings();
           component.setValue(
             this.plugin.settings.syncTuning.defaultLatestConversationCount === null
@@ -532,8 +444,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         component.setPlaceholder(options.placeholder);
         component.setValue(String(options.value));
         component.onChange(async (value) => {
-          const parsed = Number.parseInt(value.trim(), 10);
-          await options.onSave(Number.isFinite(parsed) ? parsed : options.value);
+          await options.onSave(parseSettingsNumberInput(value, options.value));
           component.setValue(String(options.getValue()));
         });
       });
@@ -568,21 +479,12 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       return;
     }
 
-    let healthyCount = 0;
-    let unhealthyCount = 0;
-
     for (const account of accounts) {
       const result = await this.plugin.checkAccountHealth(account);
       this.transientHealthResults.set(account.accountId, result);
-
-      if (result.status === "healthy") {
-        healthyCount += 1;
-      } else {
-        unhealthyCount += 1;
-      }
     }
 
-    new Notice(`Account health check complete. ${healthyCount} healthy, ${unhealthyCount} unhealthy.`);
+    new Notice(summarizeAccountHealthResults(this.transientHealthResults.values()).notice);
     this.display();
   }
 

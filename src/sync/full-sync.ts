@@ -13,6 +13,7 @@ import {
 import { cleanupMovedConversationFolders } from "../main/folder-cleanup";
 import { formatConversationBrowseDelay, prepareConversationDetailFetch } from "./browse-delay";
 import { isSyncCancelledError } from "./cancellation";
+import { createSyncRunState, filterHealthyAccountsForAllScope, recordSyncFailure } from "./full-sync-helpers";
 import { ConsecutiveRateLimitGuard, isConsecutiveRateLimitPauseError } from "./rate-limit-guard";
 import { runWithRateLimitPauseRetry } from "./rate-limit-retry";
 import { retryTransientOperation } from "./transient-retry";
@@ -28,7 +29,6 @@ import type {
   SyncRunStatus,
   SyncTuningSettings,
   ConversationSummary,
-  ImportFailure,
   ImportProgressCounts,
   StoredSessionAccount,
   SyncModalValues,
@@ -72,13 +72,9 @@ export async function runFullSync(
   progressModal: SyncProgressReporter,
   control: SyncExecutionControl,
 ): Promise<void> {
-  const counts = createEmptyCounts();
-  const failures: ImportFailure[] = [];
+  const syncState = createSyncRunState(createEmptyCounts());
+  const { counts, failures, createdEntries, updatedEntries, movedEntries, failedEntries } = syncState;
   const shouldCollectReportEntries = context.shouldGenerateSyncReport();
-  const createdEntries: SyncReportConversationEntry[] = [];
-  const updatedEntries: SyncReportConversationEntry[] = [];
-  const movedEntries: SyncReportConversationEntry[] = [];
-  const failedEntries: SyncReportConversationEntry[] = [];
   let discoveredConversations = 0;
   let processedConversations = 0;
   let totalConversations = 0;
@@ -151,29 +147,24 @@ export async function runFullSync(
 
     selectedAccounts = context.getSelectedAccounts(values);
     if (values.scope === "all") {
-      const allConfiguredAccounts = context.getAllConfiguredAccounts();
-      const disabledAccounts = allConfiguredAccounts.filter((account) => account.disabled);
-      const skippedLabels: string[] = [];
-      const healthyAccounts: StoredSessionAccount[] = [];
-
-      skippedLabels.push(...disabledAccounts.map((account) => context.getAccountLabel(account)));
-
-      for (const account of selectedAccounts) {
-        if (!(await ensureCanContinue())) {
-          return;
-        }
-
-        const result = await context.checkAccountHealth(account);
-        if (result.status === "healthy") {
-          healthyAccounts.push(account);
-          continue;
-        }
-
-        const label = context.getAccountLabel(account);
-        skippedLabels.push(label);
-        logWarn(`[${label}] Skipping unhealthy account: ${result.message}`);
+      const accountFilterResult = await filterHealthyAccountsForAllScope(
+        selectedAccounts,
+        context.getAllConfiguredAccounts(),
+        {
+          ensureCanContinue,
+          checkAccountHealth: (account) => context.checkAccountHealth(account),
+          getAccountLabel: (account) => context.getAccountLabel(account),
+          onUnhealthyAccount: (account, result) => {
+            const label = context.getAccountLabel(account);
+            logWarn(`[${label}] Skipping unhealthy account: ${result.message}`);
+          },
+        },
+      );
+      if (!accountFilterResult) {
+        return;
       }
 
+      const { healthyAccounts, skippedLabels } = accountFilterResult;
       if (skippedLabels.length > 0) {
         const warningMessage = `These account(s) will not be synced: ${skippedLabels.join(", ")}.`;
         progressModal.log(warningMessage);
@@ -231,24 +222,26 @@ export async function runFullSync(
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        counts.failed += 1;
-        failures.push({
-          id: account.accountId,
-          title: accountLabel,
-          message,
-          attempts: 1,
-        });
-        if (shouldCollectReportEntries) {
-          failedEntries.push({
-            accountId: account.accountId,
-            accountLabel,
-            conversationId: account.accountId,
+        recordSyncFailure(
+          syncState,
+          {
+            id: account.accountId,
             title: accountLabel,
-            conversationUrl: null,
-            notePath: null,
             message,
-          });
-        }
+            attempts: 1,
+          },
+          shouldCollectReportEntries
+            ? {
+                accountId: account.accountId,
+                accountLabel,
+                conversationId: account.accountId,
+                title: accountLabel,
+                conversationUrl: null,
+                notePath: null,
+                message,
+              }
+            : undefined,
+        );
         logError(`[${accountLabel}] Failed to load session: ${message}`);
         continue;
       }
@@ -309,24 +302,26 @@ export async function runFullSync(
         }
         const message = error instanceof Error ? error.message : String(error);
         const attempts = error instanceof ConversationListPageFetchError ? error.attempts : 1;
-        counts.failed += 1;
-        failures.push({
-          id: account.accountId,
-          title: accountLabel,
-          message,
-          attempts,
-        });
-        if (shouldCollectReportEntries) {
-          failedEntries.push({
-            accountId: requestConfig.accountId,
-            accountLabel,
-            conversationId: account.accountId,
-            title: `${accountLabel} conversation list`,
-            conversationUrl: null,
-            notePath: null,
+        recordSyncFailure(
+          syncState,
+          {
+            id: account.accountId,
+            title: accountLabel,
             message,
-          });
-        }
+            attempts,
+          },
+          shouldCollectReportEntries
+            ? {
+                accountId: requestConfig.accountId,
+                accountLabel,
+                conversationId: account.accountId,
+                title: `${accountLabel} conversation list`,
+                conversationUrl: null,
+                notePath: null,
+                message,
+              }
+            : undefined,
+        );
         logError(`[${accountLabel}] Failed to fetch conversation list: ${message}`);
         continue;
       }
@@ -381,24 +376,26 @@ export async function runFullSync(
             summaries = applyConversationSubsetSelection(summaries, selection);
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            counts.failed += 1;
-            failures.push({
-              id: account.accountId,
-              title: `${accountLabel} date range`,
-              message,
-              attempts: 1,
-            });
-            if (shouldCollectReportEntries) {
-              failedEntries.push({
-                accountId: requestConfig.accountId,
-                accountLabel,
-                conversationId: account.accountId,
+            recordSyncFailure(
+              syncState,
+              {
+                id: account.accountId,
                 title: `${accountLabel} date range`,
-                conversationUrl: null,
-                notePath: null,
                 message,
-              });
-            }
+                attempts: 1,
+              },
+              shouldCollectReportEntries
+                ? {
+                    accountId: requestConfig.accountId,
+                    accountLabel,
+                    conversationId: account.accountId,
+                    title: `${accountLabel} date range`,
+                    conversationUrl: null,
+                    notePath: null,
+                    message,
+                  }
+                : undefined,
+            );
             logError(`[${accountLabel}] Invalid date range selection: ${message}`);
             continue;
           }
@@ -412,24 +409,26 @@ export async function runFullSync(
             summaries = applyConversationSubsetSelection(summaries, selection);
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            counts.failed += 1;
-            failures.push({
-              id: account.accountId,
-              title: `${accountLabel} latest count`,
-              message,
-              attempts: 1,
-            });
-            if (shouldCollectReportEntries) {
-              failedEntries.push({
-                accountId: requestConfig.accountId,
-                accountLabel,
-                conversationId: account.accountId,
+            recordSyncFailure(
+              syncState,
+              {
+                id: account.accountId,
                 title: `${accountLabel} latest count`,
-                conversationUrl: null,
-                notePath: null,
                 message,
-              });
-            }
+                attempts: 1,
+              },
+              shouldCollectReportEntries
+                ? {
+                    accountId: requestConfig.accountId,
+                    accountLabel,
+                    conversationId: account.accountId,
+                    title: `${accountLabel} latest count`,
+                    conversationUrl: null,
+                    notePath: null,
+                    message,
+                  }
+                : undefined,
+            );
             logError(`[${accountLabel}] Invalid latest count selection: ${message}`);
             continue;
           }
@@ -691,24 +690,26 @@ export async function runFullSync(
             return;
           }
           const message = error instanceof Error ? error.message : String(error);
-          counts.failed += 1;
-          failures.push({
-            id: `${account.accountId}/${summary.id}`,
-            title: `${accountLabel}: ${summary.title}`,
-            message,
-            attempts: syncTuning.conversationDetailRetryAttempts,
-          });
-          if (shouldCollectReportEntries) {
-            failedEntries.push({
-              accountId: requestConfig.accountId,
-              accountLabel,
-              conversationId: summary.id,
-              title: summary.title,
-              conversationUrl: summary.url,
-              notePath: null,
+          recordSyncFailure(
+            syncState,
+            {
+              id: `${account.accountId}/${summary.id}`,
+              title: `${accountLabel}: ${summary.title}`,
               message,
-            });
-          }
+              attempts: syncTuning.conversationDetailRetryAttempts,
+            },
+            shouldCollectReportEntries
+              ? {
+                  accountId: requestConfig.accountId,
+                  accountLabel,
+                  conversationId: summary.id,
+                  title: summary.title,
+                  conversationUrl: summary.url,
+                  notePath: null,
+                  message,
+                }
+              : undefined,
+          );
           logError(
             `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed: "${summary.title}" - ${message}`,
           );
