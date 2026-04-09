@@ -7,6 +7,11 @@ main.js
 sample-vault/
 release/
 coverage
+.e2e/
+.obsidian-unpacked/
+e2e-vault/
+playwright-report/
+test-results/
 
 # Beads / Dolt files (added by bd init)
 .dolt/

@@ -128,6 +128,25 @@ npm run setup:sample-vault
 
 Then open `sample-vault` in Obsidian and enable the `Chats2MD` community plugin.
 
+## E2E
+
+There is a real Electron + Playwright smoke test under [`e2e/chats2md.spec.ts`](e2e/chats2md.spec.ts).
+
+Initial setup:
+
+```bash
+npm run build
+npm run e2e:bootstrap
+```
+
+`e2e:bootstrap` unpacks the local Obsidian app and opens the test vault once so you can disable restricted mode and enable community plugins if Obsidian prompts you.
+
+After that, run:
+
+```bash
+npm run e2e
+```
+
 ## Icon
 
 The plugin icon asset is available at [`assets/chats2md-icon.svg`](assets/chats2md-icon.svg).
