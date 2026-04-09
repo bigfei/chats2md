@@ -50,6 +50,24 @@ function escapeMarkdownLinkLabel(value) {
   return value.replace(/[\[\]]/g, "\\$&");
 }
 
+function readMarkdownLinkFromAlt(reference) {
+  const alt = readNonEmptyString(reference?.alt);
+  if (!alt) {
+    return null;
+  }
+
+  const markdownLinkMatch = alt.match(/\[([^\]]+)\]\(([^)]+)\)/);
+  if (!markdownLinkMatch) {
+    return null;
+  }
+
+  const [, label, url] = markdownLinkMatch;
+  return {
+    label: readNonEmptyString(label),
+    url: readNonEmptyString(url),
+  };
+}
+
 function collectContentReferenceUrls(reference) {
   const urls = [];
   const appendUrl = (value) => {
@@ -96,21 +114,48 @@ function readPrimaryContentReferenceUrl(reference) {
   return urls[0] ?? "";
 }
 
+function readContentReferenceMatchedItemTitle(reference) {
+  const markdownLink = readMarkdownLinkFromAlt(reference);
+  if (!markdownLink?.url) {
+    return "";
+  }
+
+  const items = Array.isArray(reference.items) ? reference.items : [];
+  for (const item of items) {
+    const record = isRecord(item) ? item : null;
+    if (readNonEmptyString(record?.url) !== markdownLink.url) {
+      continue;
+    }
+
+    const title = readNonEmptyString(record?.title);
+    if (title) {
+      return title;
+    }
+  }
+
+  return "";
+}
+
 function readContentReferenceLabelFromAlt(reference) {
   const alt = readNonEmptyString(reference.alt);
   if (!alt) {
     return "";
   }
 
-  const markdownLinkMatch = alt.match(/\[([^\]]+)\]\(([^)]+)\)/);
-  if (markdownLinkMatch?.[1]) {
-    return markdownLinkMatch[1].trim();
+  const markdownLink = readMarkdownLinkFromAlt(reference);
+  if (markdownLink?.label) {
+    return markdownLink.label;
   }
 
   return alt.replace(/^\(+|\)+$/g, "").trim();
 }
 
 function readContentReferenceLabel(reference, fallbackIndex) {
+  const matchedItemTitle = readContentReferenceMatchedItemTitle(reference);
+  if (matchedItemTitle) {
+    return matchedItemTitle;
+  }
+
   const altLabel = readContentReferenceLabelFromAlt(reference);
   if (altLabel) {
     return altLabel;

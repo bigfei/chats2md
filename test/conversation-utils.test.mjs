@@ -22,10 +22,12 @@ const detailFixturePath = path.join(__dirname, "fixtures", "conversation-detail-
 const listFixturePath = path.join(__dirname, "fixtures", "conversation-list.json");
 const fullwidthBracketFixturePath = path.join(__dirname, "fixtures", "conversation-detail-fullwidth-brackets.json");
 const fullMediaFixturePath = path.join(__dirname, "fixtures", "full-media.json");
+const enterpriseEditionFixturePath = path.join(__dirname, "fixtures", "enterprise-edition.json");
 const detailFixture = JSON.parse(fs.readFileSync(detailFixturePath, "utf8"));
 const listFixture = JSON.parse(fs.readFileSync(listFixturePath, "utf8"));
 const fullwidthBracketFixture = JSON.parse(fs.readFileSync(fullwidthBracketFixturePath, "utf8"));
 const fullMediaFixture = JSON.parse(fs.readFileSync(fullMediaFixturePath, "utf8"));
+const enterpriseEditionFixture = JSON.parse(fs.readFileSync(enterpriseEditionFixturePath, "utf8"));
 
 function collectStringValues(value, output) {
   if (typeof value === "string") {
@@ -198,6 +200,19 @@ test("applyChatGptContentReferencesAsFootnotes reuses id for repeated label+URL 
   assert.equal(footnotes[0], "[^1]: [Gist](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)");
 });
 
+test("applyChatGptContentReferencesAsFootnotes prefers the matched item title over alt text", () => {
+  const message = findMessageWithContentReferences(fullwidthBracketFixture);
+
+  assert.ok(message, "Fixture must include message content references.");
+
+  const { footnotes } = applyChatGptContentReferencesAsFootnotes(message.text, message.contentReferences);
+
+  assert.equal(
+    footnotes[0],
+    "[^1]: [ChatGPT Conversation Exporter — export all your conversations as JSON + Markdown + ZIP. No dependencies beyond bash, curl, python3. · GitHub](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)",
+  );
+});
+
 test("applyChatGptContentReferencesAsFootnotes does not emit dangling definition when marker is missing", () => {
   const { text, footnotes } = applyChatGptContentReferencesAsFootnotes("plain text", [
     {
@@ -227,12 +242,23 @@ test("applyChatGptContentReferencesAsFootnotes renders ChatGPT entity refs as un
   assert.equal(footnotes.length, 2);
   assert.equal(
     footnotes[0],
-    "[^1]: [Katherine Eaton](https://ktmeaton.github.io/obsidian-site/obsidian-site/notes/Obsidian-Citations?utm_source=chatgpt.com)",
+    "[^1]: [Obsidian Vault](https://ktmeaton.github.io/obsidian-site/obsidian-site/notes/Obsidian-Citations?utm_source=chatgpt.com)",
   );
   assert.equal(
     footnotes[1],
-    "[^2]: [SimilarPlugins](https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com)",
+    "[^2]: [Citations | SimilarPlugins](https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com)",
   );
+});
+
+test("applyChatGptContentReferencesAsFootnotes uses the matched item title for grouped webpage footnotes", () => {
+  const message = findMessageById(enterpriseEditionFixture, "749c40d8-61e4-4d99-bcef-ece15d41280b");
+
+  assert.ok(message, "Fixture must include the enterprise comparison assistant message.");
+
+  const { footnotes } = applyChatGptContentReferencesAsFootnotes(message.text, message.contentReferences);
+
+  assert.ok(footnotes.length > 0);
+  assert.equal(footnotes[0], "[^1]: [AI Agents – Linear Docs](https://linear.app/docs/agents-in-linear)");
 });
 
 test("applyChatGptContentReferencesAsFootnotes renders ChatGPT video refs as Obsidian embeds", () => {

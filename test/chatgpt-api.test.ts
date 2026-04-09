@@ -11,8 +11,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const fullwidthBracketFixturePath = path.join(__dirname, "fixtures", "conversation-detail-fullwidth-brackets.json");
 const fullMediaFixturePath = path.join(__dirname, "fixtures", "full-media.json");
+const enterpriseEditionFixturePath = path.join(__dirname, "fixtures", "enterprise-edition.json");
 const fullwidthBracketFixture = JSON.parse(fs.readFileSync(fullwidthBracketFixturePath, "utf8"));
 const fullMediaFixture = JSON.parse(fs.readFileSync(fullMediaFixturePath, "utf8"));
+const enterpriseEditionFixture = JSON.parse(fs.readFileSync(enterpriseEditionFixturePath, "utf8"));
 
 test("normalizeFileDownloadInfo returns download metadata when download_url is present", () => {
   const result = normalizeFileDownloadInfo(
@@ -76,7 +78,9 @@ test("parseConversationDetailPayload emits whole-note deduped footnotes", () => 
   assert.ok(Array.isArray(detail.footnotes));
   assert.ok(detail.footnotes.length > 0);
   assert.equal(detail.footnotes.length, 1);
-  assert.deepEqual(detail.footnotes, ["[^1]: [Gist](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)"]);
+  assert.deepEqual(detail.footnotes, [
+    "[^1]: [ChatGPT Conversation Exporter — export all your conversations as JSON + Markdown + ZIP. No dependencies beyond bash, curl, python3. · GitHub](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)",
+  ]);
 });
 
 test("parseConversationDetailPayload converts ChatGPT content references into Obsidian-friendly markdown", () => {
@@ -101,7 +105,18 @@ test("parseConversationDetailPayload converts ChatGPT content references into Ob
   assert.doesNotMatch(assistantMessage.markdown, /img\.youtube\.com/);
 
   assert.deepEqual(detail.footnotes, [
-    "[^1]: [Katherine Eaton](https://ktmeaton.github.io/obsidian-site/obsidian-site/notes/Obsidian-Citations?utm_source=chatgpt.com)",
-    "[^2]: [SimilarPlugins](https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com)",
+    "[^1]: [Obsidian Vault](https://ktmeaton.github.io/obsidian-site/obsidian-site/notes/Obsidian-Citations?utm_source=chatgpt.com)",
+    "[^2]: [Citations | SimilarPlugins](https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com)",
   ]);
+});
+
+test("parseConversationDetailPayload uses matched item titles for grouped webpage footnotes", () => {
+  const detail = parseConversationDetailPayload(enterpriseEditionFixture, "enterprise-edition", {
+    title: "Enterprise Edition",
+    createdAt: "2026-04-09T00:00:00.000Z",
+    updatedAt: "2026-04-09T00:00:00.000Z",
+  });
+
+  assert.ok(detail.footnotes.length > 0);
+  assert.equal(detail.footnotes[0], "[^1]: [AI Agents – Linear Docs](https://linear.app/docs/agents-in-linear)");
 });
