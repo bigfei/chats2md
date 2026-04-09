@@ -152,6 +152,55 @@ export class Chats2MdSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
         });
+
+      new Setting(containerEl)
+        .setName("Clean sync reports and logs")
+        .setDesc("Remove generated sync report markdown and sync log files from the configured report folder.")
+        .addButton((button) => {
+          button.setButtonText("Keep latest 10").onClick(async () => {
+            const confirmed = window.confirm("Delete older generated sync reports/logs and keep only the latest 10 files?");
+            if (!confirmed) {
+              return;
+            }
+
+            button.setDisabled(true);
+            try {
+              const result = await this.plugin.cleanupSyncReports(this.plugin.settings.defaultFolder, {
+                keepLatest: 10,
+              });
+              new Notice(
+                result.removedPaths.length > 0
+                  ? `Removed ${result.removedPaths.length} sync report/log file(s). Kept ${result.keptPaths.length}.`
+                  : `No sync report/log files removed. ${result.keptPaths.length} file(s) kept.`,
+              );
+            } finally {
+              button.setDisabled(false);
+            }
+          });
+        })
+        .addButton((button) => {
+          button
+            .setWarning()
+            .setButtonText("Clear all")
+            .onClick(async () => {
+              const confirmed = window.confirm("Delete all generated sync report and sync log files from the configured report folder?");
+              if (!confirmed) {
+                return;
+              }
+
+              button.setDisabled(true);
+              try {
+                const result = await this.plugin.cleanupSyncReports(this.plugin.settings.defaultFolder);
+                new Notice(
+                  result.removedPaths.length > 0
+                    ? `Removed ${result.removedPaths.length} sync report/log file(s).`
+                    : "No generated sync report/log files found to remove.",
+                );
+              } finally {
+                button.setDisabled(false);
+              }
+            });
+        });
     }
 
     new Setting(containerEl).setName("Cached detail JSON").setHeading();

@@ -43,6 +43,7 @@ import {
 } from "./sync-status";
 import { renderSyncRunReport } from "../sync/report";
 import { configureNormalizePath } from "../path/normalization";
+import { cleanupSyncReportFiles } from "./sync-report-cleanup";
 import {
   type AssetStorageMode,
   DEFAULT_SETTINGS,
@@ -362,6 +363,15 @@ export default class Chats2MdPlugin extends Plugin {
 
     await this.app.vault.create(reportPath, renderSyncRunReport(report));
     return reportPath;
+  }
+
+  async cleanupSyncReports(
+    syncFolder: string,
+    options: {
+      keepLatest?: number;
+    } = {},
+  ): Promise<{ removedPaths: string[]; keptPaths: string[]; reportFolder: string }> {
+    return cleanupSyncReportFiles(this.app, syncFolder, this.settings.syncReportFolder, options);
   }
 
   private getConversationJsonSidecarPath(notePath: string): string {

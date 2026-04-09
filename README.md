@@ -56,6 +56,7 @@ Synced notes are authoritative outputs from ChatGPT data. Local edits to synced 
 - Optional JSON sidecar caching stores raw `/backend-api/conversation/{id}` payloads as `<note>.json`.
 - Optional sync reports default to `<syncFolder>/sync-result/` and support the `<syncFolder>` placeholder.
 - Sync logs are also stored in the configured sync report folder.
+- The Sync report settings section includes cleanup actions to remove all generated sync reports/logs or prune the folder down to the latest 10 generated files.
 - Advanced Sync Tuning currently exposes:
   - conversation-list parallel fetch count
   - conversation-list retry attempts
