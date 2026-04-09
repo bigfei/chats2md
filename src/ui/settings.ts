@@ -275,9 +275,9 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     for (const account of accounts) {
       const healthResult = this.transientHealthResults.get(account.accountId);
-      const unhealthyMarker = healthResult && isAccountHealthResultUnhealthy(healthResult) ? " !" : "";
-      new Setting(containerEl)
-        .setName(`${getStoredAccountDisplayName(account)}${unhealthyMarker}`)
+      const isUnhealthy = healthResult ? isAccountHealthResultUnhealthy(healthResult) : false;
+      const setting = new Setting(containerEl)
+        .setName(getStoredAccountDisplayName(account))
         .setDesc(this.describeAccount(account, healthResult))
         .addToggle((toggle) => {
           toggle.setValue(!account.disabled).onChange(async (value) => {
@@ -330,6 +330,11 @@ export class Chats2MdSettingTab extends PluginSettingTab {
               this.display();
             });
         });
+
+      setting.settingEl.addClass("chats2md-settings__account");
+      if (isUnhealthy) {
+        this.decorateUnhealthyAccountSetting(setting);
+      }
     }
 
     new Setting(containerEl)
@@ -350,6 +355,17 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       });
 
     this.renderAdvancedSyncTuningSection(containerEl);
+  }
+
+  private decorateUnhealthyAccountSetting(setting: Setting): void {
+    const markerEl = document.createElement("span");
+    markerEl.className = "chats2md-settings__account-warning-marker";
+    markerEl.setAttribute("aria-label", "Unhealthy account");
+    markerEl.setAttribute("title", "Most recent health check reported this account as unhealthy.");
+    markerEl.textContent = "!";
+
+    setting.settingEl.addClass("chats2md-settings__account--unhealthy");
+    setting.settingEl.prepend(markerEl);
   }
 
   private describeAccount(account: StoredSessionAccount, healthResult?: AccountHealthResult): DocumentFragment {

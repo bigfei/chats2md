@@ -86,6 +86,32 @@
   color: var(--text-error);
 }
 
+.chats2md-settings__account {
+  gap: 0.75rem;
+}
+
+.chats2md-settings__account--unhealthy {
+  padding-inline-start: 0.75rem;
+  border-inline-start: 3px solid var(--text-error);
+  border-radius: 8px;
+}
+
+.chats2md-settings__account-warning-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  width: 1.5rem;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 0.35rem;
+  border-radius: 999px;
+  background: var(--text-error);
+  color: var(--text-on-accent);
+  font-weight: var(--font-semibold);
+  line-height: 1;
+}
+
 .chats2md-progress-modal__details {
   max-height: 220px;
   margin-top: 1rem;
