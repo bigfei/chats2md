@@ -119,6 +119,8 @@ export async function handleSync(
         manifestVersion: host.manifest.version,
         createSyncRunLogger: (reporter) => host.createSyncRunLogger(reporter, values.folder),
         getSelectedAccounts: (syncValues) => host.getSelectedAccounts(syncValues),
+        checkAccountHealth: (account) => host.checkAccountHealth(account),
+        updateAccountHealth: (accountId, result) => host.updateAccountHealth(accountId, result),
         getRequestConfig: (account) => host.getRequestConfig(account),
         getAccountLabel: (account) => host.getAccountLabel(account),
         shouldSaveConversationJson: () => host.settings.saveConversationJson,

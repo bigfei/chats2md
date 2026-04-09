@@ -27,6 +27,7 @@ import {
 } from "./helpers";
 import { syncConversationAssetsForConversation } from "./asset-sync";
 import { runRebuildNotesFromCachedJson } from "./rebuild";
+import { applyAccountHealthResult, checkStoredAccountHealth, type AccountHealthResult } from "./account-health";
 import {
   migrateLegacySessionIfNeeded as migrateLegacySessionIfNeededHelper,
   removeSessionAccount as removeSessionAccountHelper,
@@ -208,6 +209,32 @@ export default class Chats2MdPlugin extends Plugin {
 
   getSessionSecret(secretId: string): string | null {
     return this.app.secretStorage.getSecret(secretId);
+  }
+
+  async checkAccountHealth(account: StoredSessionAccount): Promise<AccountHealthResult> {
+    return checkStoredAccountHealth(
+      {
+        getSessionSecret: (secretId) => this.getSessionSecret(secretId),
+        manifestVersion: this.manifest.version,
+      },
+      account,
+    );
+  }
+
+  async updateAccountHealth(accountId: string, result: AccountHealthResult): Promise<StoredSessionAccount | null> {
+    const current = this.settings.accounts.find((account) => account.accountId === accountId);
+
+    if (!current) {
+      return null;
+    }
+
+    const updated = applyAccountHealthResult(current, result);
+    this.settings.accounts = sortAccounts([
+      ...this.settings.accounts.filter((account) => account.accountId !== accountId),
+      updated,
+    ]);
+    await this.saveSettings();
+    return updated;
   }
 
   private isDebugLoggingEnabled(): boolean {

@@ -2,6 +2,7 @@ import { App, Notice } from "obsidian";
 
 import { fetchConversationDetailWithPayload, fetchConversationSummaries } from "../chatgpt/api";
 import { ConversationListPageFetchError } from "../chatgpt/conversation-list-fetch";
+import type { AccountHealthResult } from "../main/account-health";
 import type { SyncExecutionControl, SyncProgressReporter } from "../ui/import-modal";
 import {
   createEmptyCounts,
@@ -11,6 +12,7 @@ import {
 } from "../main/helpers";
 import { cleanupMovedConversationFolders } from "../main/folder-cleanup";
 import { formatConversationBrowseDelay, prepareConversationDetailFetch } from "./browse-delay";
+import { runAllAccountsHealthPreflight } from "./account-health-preflight";
 import { isSyncCancelledError } from "./cancellation";
 import { ConsecutiveRateLimitGuard, isConsecutiveRateLimitPauseError } from "./rate-limit-guard";
 import { runWithRateLimitPauseRetry } from "./rate-limit-retry";
@@ -38,6 +40,8 @@ export interface FullSyncContext {
   manifestVersion: string;
   createSyncRunLogger(progressModal: SyncProgressReporter): Promise<SyncRunLogger>;
   getSelectedAccounts(values: SyncModalValues): StoredSessionAccount[];
+  checkAccountHealth(account: StoredSessionAccount): Promise<AccountHealthResult>;
+  updateAccountHealth(accountId: string, result: AccountHealthResult): Promise<StoredSessionAccount | null>;
   getRequestConfig(account: StoredSessionAccount): ChatGptRequestConfig;
   getAccountLabel(account: StoredSessionAccount): string;
   shouldSaveConversationJson(): boolean;
@@ -147,6 +151,47 @@ export async function runFullSync(
     }
 
     selectedAccounts = context.getSelectedAccounts(values);
+    if (values.scope === "all") {
+      const preflight = await runAllAccountsHealthPreflight({
+        accounts: selectedAccounts,
+        ensureCanContinue,
+        checkAccountHealth: (account) => context.checkAccountHealth(account),
+        updateAccountHealth: (accountId, result) => context.updateAccountHealth(accountId, result),
+        getAccountLabel: (account) => context.getAccountLabel(account),
+        logSkip: (message) => logWarn(message),
+      });
+
+      if (preflight.status === "stop") {
+        runStatus = "stopped";
+        progressModal.fail("Sync stopped by user.", counts);
+        return;
+      }
+
+      if (preflight.skippedLabels.length > 0) {
+        const warningMessage = `Disabled account(s) will not be synced: ${preflight.skippedLabels.join(", ")}.`;
+        progressModal.log(warningMessage);
+        syncLogger?.warn(warningMessage);
+        new Notice(warningMessage);
+      }
+
+      if (preflight.status === "no-healthy-accounts") {
+        const message = "No healthy accounts available for all-accounts sync.";
+        runStatus = "failed";
+        progressModal.fail(message, counts);
+        logError(message);
+        new Notice(message);
+        context.setSyncStatusBar(`ChatGPT sync failed: ${message}`, false);
+        context.clearSyncStatusBar(8000);
+        return;
+      }
+
+      selectedAccounts = preflight.accounts;
+
+      if (!(await ensureCanContinue())) {
+          return;
+      }
+    }
+
     const noteIndex = indexConversationNotes(context.app);
     let skipExistingLocalConversations = values.skipExistingLocalConversations;
     logInfo(`Starting sync for ${selectedAccounts.length} account(s).`);

@@ -4,6 +4,9 @@ export interface StoredSessionAccount {
   email: string;
   expiresAt?: string;
   secretId: string;
+  disabled: boolean;
+  lastHealthCheckAt?: string;
+  lastHealthCheckError?: string;
   addedAt: string;
   updatedAt: string;
 }

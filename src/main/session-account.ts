@@ -1,7 +1,7 @@
 import { Notice } from "obsidian";
 
 import { parseSessionJson } from "../chatgpt/api";
-import { SECRET_ID_PREFIX, removeStoredAccount, sortAccounts } from "./helpers";
+import { SECRET_ID_PREFIX, removeStoredAccount, upsertStoredAccountMetadata } from "./helpers";
 import { clearStoredSecretPayload } from "./secret-storage";
 import type { ChatGptRequestConfig, Chats2MdSettings, StoredSessionAccount } from "../shared/types";
 
@@ -15,32 +15,6 @@ export interface MainSessionAccountHost {
   settings: Chats2MdSettings;
   setLegacySessionMigrationWarning(value: string | null): void;
   saveSettings(): Promise<void>;
-}
-
-function upsertAccountMetadata(
-  settings: Chats2MdSettings,
-  requestConfig: ChatGptRequestConfig,
-  secretId: string,
-): StoredSessionAccount {
-  const now = new Date().toISOString();
-  const existing = settings.accounts.find((account) => account.accountId === requestConfig.accountId);
-
-  const account: StoredSessionAccount = {
-    accountId: requestConfig.accountId,
-    userId: requestConfig.userId,
-    email: requestConfig.userEmail,
-    expiresAt: requestConfig.expiresAt,
-    secretId,
-    addedAt: existing?.addedAt ?? now,
-    updatedAt: now,
-  };
-
-  settings.accounts = sortAccounts([
-    ...settings.accounts.filter((item) => item.accountId !== requestConfig.accountId),
-    account,
-  ]);
-
-  return account;
 }
 
 function buildSecretId(accountId: string): string {
@@ -68,7 +42,7 @@ export async function upsertSessionAccount(
   const secretId = buildSecretId(requestConfig.accountId);
 
   host.app.secretStorage.setSecret(secretId, normalizedRaw);
-  const account = upsertAccountMetadata(host.settings, requestConfig, secretId);
+  const account = upsertStoredAccountMetadata(host.settings, requestConfig, secretId);
   host.setLegacySessionMigrationWarning(null);
 
   if (host.settings.legacySessionJson.trim().length > 0) {
@@ -99,7 +73,7 @@ export async function migrateLegacySessionIfNeeded(host: MainSessionAccountHost)
     const parsed = parseSessionJson(raw, host.manifestVersion);
     const secretId = buildSecretId(parsed.accountId);
     host.app.secretStorage.setSecret(secretId, raw);
-    upsertAccountMetadata(host.settings, parsed, secretId);
+    upsertStoredAccountMetadata(host.settings, parsed, secretId);
     host.settings.legacySessionJson = "";
     host.setLegacySessionMigrationWarning(null);
     await host.saveSettings();

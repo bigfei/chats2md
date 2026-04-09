@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 
 import type {
   AssetStorageMode,
+  ChatGptRequestConfig,
   Chats2MdSettings,
   ImportProgressCounts,
   StoredSessionAccount,
@@ -251,9 +252,41 @@ export function normalizeStoredAccount(value: unknown): StoredSessionAccount | n
     email: readString(value.email).trim(),
     expiresAt: expiresAt.length > 0 ? expiresAt : undefined,
     secretId,
+    disabled: value.disabled === true,
+    lastHealthCheckAt: readString(value.lastHealthCheckAt).trim() || undefined,
+    lastHealthCheckError: readString(value.lastHealthCheckError).trim() || undefined,
     addedAt: readString(value.addedAt, timestamp),
     updatedAt: readString(value.updatedAt, timestamp),
   };
+}
+
+export function upsertStoredAccountMetadata(
+  settings: Chats2MdSettings,
+  requestConfig: ChatGptRequestConfig,
+  secretId: string,
+): StoredSessionAccount {
+  const now = new Date().toISOString();
+  const existing = settings.accounts.find((account) => account.accountId === requestConfig.accountId);
+
+  const account: StoredSessionAccount = {
+    accountId: requestConfig.accountId,
+    userId: requestConfig.userId,
+    email: requestConfig.userEmail,
+    expiresAt: requestConfig.expiresAt,
+    secretId,
+    disabled: false,
+    lastHealthCheckAt: undefined,
+    lastHealthCheckError: undefined,
+    addedAt: existing?.addedAt ?? now,
+    updatedAt: now,
+  };
+
+  settings.accounts = sortAccounts([
+    ...settings.accounts.filter((item) => item.accountId !== requestConfig.accountId),
+    account,
+  ]);
+
+  return account;
 }
 
 function clampInteger(value: unknown, fallback: number, min: number, max: number): number {

@@ -1,12 +1,12 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 
-import { parseSessionJson, validateConversationListAccess } from "../chatgpt/api";
 import {
   DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE,
   formatAssetStorageMode,
   getStoredAccountDisplayName,
   normalizeDefaultLatestConversationCount,
 } from "../main/helpers";
+import { checkRequestConfigHealth, type AccountHealthResult } from "../main/account-health";
 import { CONVERSATION_PATH_TEMPLATE_PRESETS } from "../path/template";
 import { FolderSuggest } from "./folder-suggest";
 import type Chats2MdPlugin from "../main";
@@ -257,6 +257,19 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           .onClick(() => {
             this.openSessionEditor();
           });
+      })
+      .addButton((button) => {
+        button
+          .setButtonText("Check all accounts")
+          .onClick(async () => {
+            button.setDisabled(true);
+
+            try {
+              await this.checkAllAccounts();
+            } finally {
+              button.setDisabled(false);
+            }
+          });
       });
 
     const accounts = this.plugin.getAccounts();
@@ -270,16 +283,16 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     for (const account of accounts) {
       new Setting(containerEl)
-        .setName(getStoredAccountDisplayName(account))
+        .setName(`${getStoredAccountDisplayName(account)}${account.disabled ? " (Disabled)" : ""}`)
         .setDesc(this.describeAccount(account))
         .addButton((button) => {
           button
-            .setButtonText("Validate")
+            .setButtonText("Check health")
             .onClick(async () => {
               button.setDisabled(true);
 
               try {
-                await this.validateAccount(account);
+                await this.checkAccount(account);
               } finally {
                 button.setDisabled(false);
               }
@@ -317,10 +330,19 @@ export class Chats2MdSettingTab extends PluginSettingTab {
   private describeAccount(account: StoredSessionAccount): DocumentFragment {
     const fragment = document.createDocumentFragment();
     const lines = [
+      `Status: ${account.disabled ? "Disabled" : "Enabled"}`,
       `User ID: ${account.userId || "Unavailable"}`,
       `Account ID: ${account.accountId}`,
       `Expires: ${account.expiresAt || "Unavailable"}`,
     ];
+
+    if (account.lastHealthCheckAt) {
+      lines.push(`Last health check: ${account.lastHealthCheckAt}`);
+    }
+
+    if (account.lastHealthCheckError) {
+      lines.push(`Last health error: ${account.lastHealthCheckError}`);
+    }
 
     lines.forEach((line, index) => {
       if (index > 0) {
@@ -482,7 +504,12 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       pluginVersion: this.plugin.manifest.version,
       hasExistingSecret: Boolean(account),
       onSave: async (raw, parsed) => {
-        await validateConversationListAccess(parsed);
+        const result = await checkRequestConfigHealth(parsed);
+
+        if (result.status !== "healthy") {
+          throw new Error(result.message);
+        }
+
         const saved = await this.plugin.upsertSessionAccount(raw, parsed);
         const label = getStoredAccountDisplayName(saved);
         new Notice(`Saved session for ${label}.`);
@@ -491,31 +518,61 @@ export class Chats2MdSettingTab extends PluginSettingTab {
     }).open();
   }
 
-  private async validateAccount(account: StoredSessionAccount): Promise<void> {
-    const label = getStoredAccountDisplayName(account);
-    const raw = this.plugin.getSessionSecret(account.secretId);
+  private async checkAllAccounts(): Promise<void> {
+    const accounts = this.plugin.getAccounts();
 
-    if (!raw || raw.trim().length === 0) {
-      new Notice(`Validation failed for ${label}: missing secret payload.`);
+    if (accounts.length === 0) {
+      new Notice("No account sessions configured.");
       return;
     }
 
-    try {
-      const parsed = parseSessionJson(raw, this.plugin.manifest.version);
+    let healthyCount = 0;
+    let disabledCount = 0;
+    let transientCount = 0;
 
-      if (parsed.accountId !== account.accountId) {
-        throw new Error(`secret account mismatch (${parsed.accountId})`);
+    for (const account of accounts) {
+      const result = await this.plugin.checkAccountHealth(account);
+      await this.plugin.updateAccountHealth(account.accountId, result);
+
+      if (result.status === "healthy") {
+        healthyCount += 1;
+      } else if (result.status === "disable-and-skip") {
+        disabledCount += 1;
+      } else {
+        transientCount += 1;
       }
-
-      await validateConversationListAccess(parsed);
-      new Notice(`Session is valid for ${label}.`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      new Notice(`Validation failed for ${label}: ${message}`);
-      this.plugin.logError("Session validation error", {
-        accountId: account.accountId,
-        message,
-      });
     }
+
+    new Notice(
+      `Account health check complete. ${healthyCount} healthy, ${disabledCount} disabled, ${transientCount} transient issue(s).`,
+    );
+    this.display();
+  }
+
+  private async checkAccount(account: StoredSessionAccount): Promise<void> {
+    const label = getStoredAccountDisplayName(account);
+    const result = await this.plugin.checkAccountHealth(account);
+    const updated = await this.plugin.updateAccountHealth(account.accountId, result);
+
+    this.reportAccountHealth(label, account.accountId, result);
+    if (updated) {
+      this.display();
+    }
+  }
+
+  private reportAccountHealth(label: string, accountId: string, result: AccountHealthResult): void {
+    if (result.status === "healthy") {
+      new Notice(`Account is healthy for ${label}.`);
+      return;
+    }
+
+    const prefix =
+      result.status === "disable-and-skip" ? `Account disabled for ${label}: ` : `Health check warning for ${label}: `;
+    new Notice(`${prefix}${result.message}`);
+    this.plugin.logError("Account health check issue", {
+      accountId,
+      status: result.status,
+      message: result.message,
+    });
   }
 }
