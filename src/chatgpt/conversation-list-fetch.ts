@@ -3,8 +3,6 @@ import { retryTransientOperation } from "../sync/transient-retry";
 
 import type { ConversationSummary } from "../shared/types";
 
-const CONVERSATION_LIST_PAGE_FETCH_MAX_ATTEMPTS = 3;
-
 export interface ConversationListPageInfo {
   limit: number;
   offset: number;
@@ -55,6 +53,7 @@ export interface FetchConversationSummariesPageRetryProgress {
 export interface FetchConversationSummariesWithPageFetcherOptions {
   pageLimit: number;
   parallelism: number;
+  retryAttempts?: number;
   onPageFetched?: (progress: FetchConversationSummariesPageProgress) => void;
   onPageRetry?: (progress: FetchConversationSummariesPageRetryProgress) => void;
   getRetryDelayMs?: (attemptNumber: number) => number;
@@ -258,8 +257,10 @@ async function fetchPageWithContext(
   fetchPage: (offset: number) => Promise<Omit<ConversationListPageFetchResult, "offset">>,
   options: FetchConversationSummariesWithPageFetcherOptions,
 ): Promise<Omit<ConversationListPageFetchResult, "offset">> {
+  const retryAttempts = Math.max(1, Math.trunc(options.retryAttempts ?? 3));
+
   return retryTransientOperation(() => fetchPage(offset), {
-    maxAttempts: CONVERSATION_LIST_PAGE_FETCH_MAX_ATTEMPTS,
+    maxAttempts: retryAttempts,
     signal: options.signal,
     getDelayMs: options.getRetryDelayMs,
     onRetry: (progress) => {

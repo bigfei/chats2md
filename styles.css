@@ -116,6 +116,29 @@
   font-family: var(--font-monospace);
 }
 
+.chats2md-settings__advanced {
+  margin-top: 1.5rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+}
+
+.chats2md-settings__advanced-summary {
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  font-weight: var(--font-semibold);
+}
+
+.chats2md-settings__advanced-desc {
+  margin: 0;
+  padding: 0 1rem 0.5rem;
+  color: var(--text-muted);
+}
+
+.chats2md-settings__advanced-body {
+  padding: 0 1rem 0.5rem;
+}
+
 .chats2md-sync-statusbar {
   cursor: pointer;
 }

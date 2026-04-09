@@ -67,3 +67,21 @@ test("ConsecutiveRateLimitGuard can be reset after a pause so sync may resume", 
     }
   });
 });
+
+test("ConsecutiveRateLimitGuard honors a custom consecutive-429 threshold", () => {
+  const guard = new ConsecutiveRateLimitGuard(2);
+  const monitor = guard.createMonitor();
+
+  monitor.onRateLimitedResponse();
+  monitor.onRateLimitedResponse();
+
+  assert.throws(
+    () => {
+      monitor.onRateLimitedResponse();
+    },
+    (error: unknown) =>
+      error instanceof ConsecutiveRateLimitPauseError &&
+      error.consecutiveCount === 3 &&
+      error.maxConsecutiveRateLimitResponses === 2,
+  );
+});

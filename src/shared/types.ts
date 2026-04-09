@@ -10,6 +10,16 @@ export interface StoredSessionAccount {
 
 export type AssetStorageMode = "global_by_conversation" | "with_conversation";
 
+export interface SyncTuningSettings {
+  conversationListFetchParallelism: number;
+  conversationListRetryAttempts: number;
+  conversationDetailRetryAttempts: number;
+  conversationDetailBrowseDelayMinMs: number;
+  conversationDetailBrowseDelayMaxMs: number;
+  maxConsecutiveRateLimitResponses: number;
+  defaultLatestConversationCount: number | null;
+}
+
 export interface Chats2MdSettings {
   defaultFolder: string;
   conversationPathTemplate: string;
@@ -19,9 +29,20 @@ export interface Chats2MdSettings {
   syncReportFolder: string;
   debugLogging: boolean;
   saveConversationJson: boolean;
+  syncTuning: SyncTuningSettings;
   accounts: StoredSessionAccount[];
   legacySessionJson: string;
 }
+
+export const DEFAULT_SYNC_TUNING_SETTINGS: SyncTuningSettings = {
+  conversationListFetchParallelism: 1,
+  conversationListRetryAttempts: 3,
+  conversationDetailRetryAttempts: 3,
+  conversationDetailBrowseDelayMinMs: 3000,
+  conversationDetailBrowseDelayMaxMs: 15000,
+  maxConsecutiveRateLimitResponses: 5,
+  defaultLatestConversationCount: null,
+};
 
 export const DEFAULT_SETTINGS: Chats2MdSettings = {
   defaultFolder: "Imports/ChatGPT",
@@ -32,6 +53,7 @@ export const DEFAULT_SETTINGS: Chats2MdSettings = {
   syncReportFolder: "<syncFolder>/sync-result",
   debugLogging: false,
   saveConversationJson: false,
+  syncTuning: DEFAULT_SYNC_TUNING_SETTINGS,
   accounts: [],
   legacySessionJson: "",
 };
@@ -109,6 +131,7 @@ export interface ConversationSyncDateRangePromptContext {
   minCreatedAt: string;
   maxCreatedAt: string;
   skipExistingLocalConversations: boolean;
+  defaultLatestConversationCount: number | null;
 }
 
 export type ConversationSyncDateRangeSelection =

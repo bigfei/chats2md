@@ -54,6 +54,14 @@ test("computeConversationBrowseDelayMs keeps mid-range values within bounds", ()
   assert.equal(delayMs <= MAX_CONVERSATION_BROWSE_DELAY_MS, true);
 });
 
+test("computeConversationBrowseDelayMs supports custom delay ranges", () => {
+  assert.equal(computeConversationBrowseDelayMs(0.5, { minDelayMs: 1000, maxDelayMs: 5000 }), 3000);
+});
+
+test("computeConversationBrowseDelayMs normalizes custom max delay below min delay", () => {
+  assert.equal(computeConversationBrowseDelayMs(1, { minDelayMs: 4000, maxDelayMs: 2000 }), 4000);
+});
+
 test("formatConversationBrowseDelay renders one decimal place in seconds", () => {
   assert.equal(formatConversationBrowseDelay(12345), "12.3s");
 });
@@ -77,6 +85,29 @@ test("prepareConversationDetailFetch applies one browse delay before fetching", 
     delayMs: 9000,
   });
   assert.deepEqual(events, ["delay:9000", "sleep:9000"]);
+});
+
+test("prepareConversationDetailFetch applies configured delay bounds", async () => {
+  const { control } = createControl();
+  const delays: number[] = [];
+
+  const result = await prepareConversationDetailFetch(false, true, control, {
+    randomValue: 1,
+    delayRange: {
+      minDelayMs: 250,
+      maxDelayMs: 750,
+    },
+    onDelay: (delayMs) => {
+      delays.push(delayMs);
+    },
+    sleep: async () => undefined,
+  });
+
+  assert.deepEqual(result, {
+    shouldFetch: true,
+    delayMs: 750,
+  });
+  assert.deepEqual(delays, [750]);
 });
 
 test("prepareConversationDetailFetch does not invoke delay when local conversation is skipped", async () => {

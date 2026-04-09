@@ -750,6 +750,9 @@ export function parseSessionJson(raw: string, pluginVersion = "0.1.0"): ChatGptR
 }
 
 export interface FetchConversationSummariesOptions {
+  pageLimit?: number;
+  parallelism?: number;
+  retryAttempts?: number;
   onPageFetched?: (progress: FetchConversationSummariesPageProgress) => void;
   onPageRetry?: (progress: FetchConversationSummariesPageRetryProgress) => void;
   signal?: AbortSignal;
@@ -759,10 +762,13 @@ export async function fetchConversationSummaries(
   config: ChatGptRequestConfig,
   options: FetchConversationSummariesOptions = {},
 ): Promise<FetchConversationSummariesResult> {
+  const pageLimit = clampPageLimit(options.pageLimit ?? CONVERSATION_LIST_PAGE_LIMIT);
+  const parallelism = Math.max(1, Math.trunc(options.parallelism ?? CONVERSATION_LIST_FETCH_PARALLELISM));
+
   return fetchConversationSummariesWithPageFetcher(
     async (offset) => {
       const payload = await requestJson(
-        buildListUrl(CONVERSATION_LIST_PAGE_LIMIT, offset),
+        buildListUrl(pageLimit, offset),
         config,
         {
           "X-OpenAI-Target-Path": "/backend-api/conversations",
@@ -772,13 +778,14 @@ export async function fetchConversationSummaries(
       );
 
       return {
-        pageInfo: readPageInfo(payload, CONVERSATION_LIST_PAGE_LIMIT),
+        pageInfo: readPageInfo(payload, pageLimit),
         pageSummaries: extractConversationItems(payload).map(normalizeSummary),
       };
     },
     {
-      pageLimit: CONVERSATION_LIST_PAGE_LIMIT,
-      parallelism: CONVERSATION_LIST_FETCH_PARALLELISM,
+      pageLimit,
+      parallelism,
+      retryAttempts: options.retryAttempts,
       onPageFetched: options.onPageFetched,
       onPageRetry: options.onPageRetry,
       signal: options.signal,

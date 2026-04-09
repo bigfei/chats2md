@@ -39,6 +39,7 @@ Synced notes are authoritative outputs from ChatGPT data. Local edits to synced 
 
 - Default sync folder: `Imports/ChatGPT`
 - Default note path template: `{date}/{slug}`
+- Advanced Sync Tuning settings are available in the plugin settings tab under a collapsed section at the end.
 - Supported path placeholders:
   - `{date}`: conversation created date (`YYYY-MM-DD`)
   - `{slug}`: sanitized conversation title
@@ -55,6 +56,13 @@ Synced notes are authoritative outputs from ChatGPT data. Local edits to synced 
 - Optional JSON sidecar caching stores raw `/backend-api/conversation/{id}` payloads as `<note>.json`.
 - Optional sync reports default to `<syncFolder>/sync-result/` and support the `<syncFolder>` placeholder.
 - Sync logs are also stored in the configured sync report folder.
+- Advanced Sync Tuning currently exposes:
+  - conversation-list parallel fetch count
+  - conversation-list retry attempts
+  - conversation-detail retry attempts
+  - conversation-detail browse-delay min/max
+  - pause threshold for consecutive ChatGPT `429` responses
+  - default prefilled value for `Newest conversations` in the sync subset modal
 
 ## Rebuild from JSON
 

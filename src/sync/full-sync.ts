@@ -4,7 +4,6 @@ import { fetchConversationDetailWithPayload, fetchConversationSummaries } from "
 import { ConversationListPageFetchError } from "../chatgpt/conversation-list-fetch";
 import type { SyncExecutionControl, SyncProgressReporter } from "../ui/import-modal";
 import {
-  DETAIL_FETCH_MAX_ATTEMPTS,
   createEmptyCounts,
   formatActionLabel,
   summarizeCounts,
@@ -26,6 +25,7 @@ import type {
   SyncReportConversationEntry,
   SyncRunReport,
   SyncRunStatus,
+  SyncTuningSettings,
   ConversationSummary,
   ImportFailure,
   ImportProgressCounts,
@@ -60,6 +60,7 @@ export interface FullSyncContext {
   buildSyncStatusText(processed: number, total: number, phase: string): string;
   setSyncStatusBar(text: string, active?: boolean): void;
   clearSyncStatusBar(delayMs?: number): void;
+  getSyncTuning(): SyncTuningSettings;
 }
 
 export async function runFullSync(
@@ -115,7 +116,8 @@ export async function runFullSync(
 
     return canContinue;
   };
-  const rateLimitGuard = new ConsecutiveRateLimitGuard();
+  const syncTuning = context.getSyncTuning();
+  const rateLimitGuard = new ConsecutiveRateLimitGuard(syncTuning.maxConsecutiveRateLimitResponses);
   const pauseForRateLimit = async (accountLabel: string, message: string): Promise<boolean> => {
     progressModal.pauseForRetry(message);
     logWarn(`[${accountLabel}] ${message}`);
@@ -216,6 +218,8 @@ export async function runFullSync(
         const listFetchResult = await runWithRateLimitPauseRetry(
           () =>
             fetchConversationSummaries(requestConfig, {
+              parallelism: syncTuning.conversationListFetchParallelism,
+              retryAttempts: syncTuning.conversationListRetryAttempts,
               signal: control.getStopSignal(),
               onPageFetched: (progress) => {
                 const totalLabel =
@@ -296,6 +300,7 @@ export async function runFullSync(
           totalAccounts: selectedAccounts.length,
           summaries,
           skipExistingLocalConversations,
+          defaultLatestConversationCount: syncTuning.defaultLatestConversationCount,
         },
         {
           ensureCanContinue,
@@ -427,6 +432,10 @@ export async function runFullSync(
                 skipExistingLocalConversations,
                 control,
                 {
+                  delayRange: {
+                    minDelayMs: syncTuning.conversationDetailBrowseDelayMinMs,
+                    maxDelayMs: syncTuning.conversationDetailBrowseDelayMaxMs,
+                  },
                   onDelay: (delayMs) => {
                     const delayLabel = formatConversationBrowseDelay(delayMs);
                     progressModal.setStatus(`Waiting ${delayLabel} before opening ${displayTitle}`);
@@ -487,6 +496,7 @@ export async function runFullSync(
                 displayTitle,
                 control,
                 syncLogger,
+                syncTuning.conversationDetailRetryAttempts,
               );
               if (!detailResult) {
                 return "stopped" as const;
@@ -638,7 +648,7 @@ export async function runFullSync(
             id: `${account.accountId}/${summary.id}`,
             title: `${accountLabel}: ${summary.title}`,
             message,
-            attempts: DETAIL_FETCH_MAX_ATTEMPTS,
+            attempts: syncTuning.conversationDetailRetryAttempts,
           });
           if (shouldCollectReportEntries) {
             failedEntries.push({
@@ -739,6 +749,7 @@ async function fetchConversationDetailWithRetries(
   displayTitle: string,
   control: SyncExecutionControl,
   logger: SyncRunLogger | null,
+  maxAttempts: number,
   fetchConversationDetail: typeof fetchConversationDetailWithPayload = fetchConversationDetailWithPayload,
   onRequest?: () => void,
 ): Promise<{ detail: ConversationDetail; rawPayload: unknown } | null> {
@@ -755,11 +766,11 @@ async function fetchConversationDetailWithRetries(
         return await fetchConversationDetail(requestConfig, summary.id, summary, control.getStopSignal());
       },
       {
-        maxAttempts: DETAIL_FETCH_MAX_ATTEMPTS,
+        maxAttempts,
         signal: control.getStopSignal(),
         onRetry: (progress) => {
           logger?.warn(`${displayTitle} detail fetch retry ${progress.nextAttemptNumber}/${progress.maxAttempts}: ${progress.message}`);
-          progressModal.setRetry(displayTitle, index, total, progress.nextAttemptNumber, progress.message);
+          progressModal.setRetry(displayTitle, index, total, progress.nextAttemptNumber, progress.maxAttempts, progress.message);
         },
       },
     );
@@ -773,7 +784,7 @@ async function fetchConversationDetailWithRetries(
     }
 
     const message = error instanceof Error ? error.message : String(error);
-    logger?.error(`${displayTitle} detail fetch failed after ${DETAIL_FETCH_MAX_ATTEMPTS} attempts: ${message}`);
+    logger?.error(`${displayTitle} detail fetch failed after ${maxAttempts} attempts: ${message}`);
     throw error instanceof Error ? error : new Error(String(error));
   }
 }

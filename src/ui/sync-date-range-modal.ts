@@ -39,6 +39,21 @@ function parsePositiveIntegerInput(value: string): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function resolveInitialLatestConversationCount(
+  discoveredCount: number,
+  configuredDefault: number | null,
+): string {
+  if (!Number.isFinite(discoveredCount) || discoveredCount < 1) {
+    return "1";
+  }
+
+  if (configuredDefault === null) {
+    return String(discoveredCount);
+  }
+
+  return String(Math.min(discoveredCount, configuredDefault));
+}
+
 class SyncDateRangeModal extends Modal {
   private readonly options: SyncDateRangeModalOptions;
   private readonly fullStartDate: string;
@@ -73,7 +88,10 @@ class SyncDateRangeModal extends Modal {
 
     this.startDate = this.fullStartDate;
     this.endDate = this.fullEndDate;
-    this.latestCount = String(options.context.discoveredCount);
+    this.latestCount = resolveInitialLatestConversationCount(
+      options.context.discoveredCount,
+      options.context.defaultLatestConversationCount,
+    );
     this.skipExistingLocalConversations = resolveSkipExistingLocalConversations(
       options.context.skipExistingLocalConversations,
     );

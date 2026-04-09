@@ -1,9 +1,14 @@
 import type { App } from "obsidian";
 
-import type { AssetStorageMode, Chats2MdSettings, ImportProgressCounts, StoredSessionAccount } from "../shared/types";
+import type {
+  AssetStorageMode,
+  Chats2MdSettings,
+  ImportProgressCounts,
+  StoredSessionAccount,
+  SyncTuningSettings,
+} from "../shared/types";
 import { normalizeObsidianPath } from "../path/normalization";
 
-export const DETAIL_FETCH_MAX_ATTEMPTS = 3;
 export const SECRET_ID_PREFIX = "chats2md-session";
 export const ASSET_FOLDER_NAME = "_assets";
 export const MAX_ASSET_FILENAME_LENGTH = 120;
@@ -33,6 +38,17 @@ const MIME_TO_EXTENSION: Record<string, string> = {
   "text/html": ".html",
   "text/plain": ".txt",
 };
+
+const MIN_TUNING_PARALLELISM = 1;
+const MAX_TUNING_PARALLELISM = 10;
+const MIN_TUNING_RETRY_ATTEMPTS = 1;
+const MAX_TUNING_RETRY_ATTEMPTS = 10;
+const MIN_TUNING_BROWSE_DELAY_MS = 0;
+const MAX_TUNING_BROWSE_DELAY_MS = 60000;
+const MIN_TUNING_RATE_LIMIT_THRESHOLD = 1;
+const MAX_TUNING_RATE_LIMIT_THRESHOLD = 20;
+const MIN_TUNING_LATEST_COUNT = 1;
+const MAX_TUNING_LATEST_COUNT = 10000;
 
 type SyncLogLevel = "info" | "warn" | "error";
 
@@ -233,6 +249,84 @@ export function normalizeStoredAccount(value: unknown): StoredSessionAccount | n
     secretId,
     addedAt: readString(value.addedAt, timestamp),
     updatedAt: readString(value.updatedAt, timestamp),
+  };
+}
+
+function clampInteger(value: unknown, fallback: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.min(max, Math.max(min, Math.trunc(value as number)));
+}
+
+export function normalizeDefaultLatestConversationCount(value: unknown): number | null {
+  if (value === null || typeof value === "undefined") {
+    return null;
+  }
+
+  if (typeof value === "string" && value.trim().length === 0) {
+    return null;
+  }
+
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+
+  const normalized = Math.trunc(value as number);
+  if (normalized < MIN_TUNING_LATEST_COUNT) {
+    return MIN_TUNING_LATEST_COUNT;
+  }
+
+  return Math.min(MAX_TUNING_LATEST_COUNT, normalized);
+}
+
+export function normalizeSyncTuningSettings(
+  value: unknown,
+  fallback: SyncTuningSettings,
+): SyncTuningSettings {
+  const record = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  const conversationDetailBrowseDelayMinMs = clampInteger(
+    record.conversationDetailBrowseDelayMinMs,
+    fallback.conversationDetailBrowseDelayMinMs,
+    MIN_TUNING_BROWSE_DELAY_MS,
+    MAX_TUNING_BROWSE_DELAY_MS,
+  );
+  const requestedMaxBrowseDelayMs = clampInteger(
+    record.conversationDetailBrowseDelayMaxMs,
+    fallback.conversationDetailBrowseDelayMaxMs,
+    MIN_TUNING_BROWSE_DELAY_MS,
+    MAX_TUNING_BROWSE_DELAY_MS,
+  );
+
+  return {
+    conversationListFetchParallelism: clampInteger(
+      record.conversationListFetchParallelism,
+      fallback.conversationListFetchParallelism,
+      MIN_TUNING_PARALLELISM,
+      MAX_TUNING_PARALLELISM,
+    ),
+    conversationListRetryAttempts: clampInteger(
+      record.conversationListRetryAttempts,
+      fallback.conversationListRetryAttempts,
+      MIN_TUNING_RETRY_ATTEMPTS,
+      MAX_TUNING_RETRY_ATTEMPTS,
+    ),
+    conversationDetailRetryAttempts: clampInteger(
+      record.conversationDetailRetryAttempts,
+      fallback.conversationDetailRetryAttempts,
+      MIN_TUNING_RETRY_ATTEMPTS,
+      MAX_TUNING_RETRY_ATTEMPTS,
+    ),
+    conversationDetailBrowseDelayMinMs,
+    conversationDetailBrowseDelayMaxMs: Math.max(conversationDetailBrowseDelayMinMs, requestedMaxBrowseDelayMs),
+    maxConsecutiveRateLimitResponses: clampInteger(
+      record.maxConsecutiveRateLimitResponses,
+      fallback.maxConsecutiveRateLimitResponses,
+      MIN_TUNING_RATE_LIMIT_THRESHOLD,
+      MAX_TUNING_RATE_LIMIT_THRESHOLD,
+    ),
+    defaultLatestConversationCount: normalizeDefaultLatestConversationCount(record.defaultLatestConversationCount),
   };
 }
 

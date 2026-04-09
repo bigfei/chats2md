@@ -15,6 +15,7 @@ import {
   CONVERSATION_USER_ID_KEY,
   getStoredAccountDisplayName,
   normalizeAssetStorageMode,
+  normalizeSyncTuningSettings,
   type ConversationFrontmatterInfo,
   type LegacySettingsPayload,
   normalizeStoredAccount,
@@ -45,6 +46,7 @@ import { configureNormalizePath } from "../path/normalization";
 import {
   type AssetStorageMode,
   DEFAULT_SETTINGS,
+  DEFAULT_SYNC_TUNING_SETTINGS,
   type ChatGptRequestConfig,
   type Chats2MdSettings,
   type ConversationAssetLinkMap,
@@ -181,6 +183,7 @@ export default class Chats2MdPlugin extends Plugin {
         DEFAULT_SETTINGS.syncReportFolder,
       debugLogging: saved?.debugLogging === true,
       saveConversationJson: saved?.saveConversationJson === true,
+      syncTuning: normalizeSyncTuningSettings(saved?.syncTuning, DEFAULT_SYNC_TUNING_SETTINGS),
       accounts: sortAccounts(savedAccounts),
       legacySessionJson,
     };
@@ -189,6 +192,7 @@ export default class Chats2MdPlugin extends Plugin {
   }
 
   async saveSettings(): Promise<void> {
+    this.settings.syncTuning = normalizeSyncTuningSettings(this.settings.syncTuning, DEFAULT_SYNC_TUNING_SETTINGS);
     await this.saveData(this.settings);
   }
 

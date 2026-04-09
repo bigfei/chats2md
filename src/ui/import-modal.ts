@@ -15,7 +15,7 @@ import type {
 export interface SyncProgressReporter {
   setPreparing(message: string): void;
   setStatus(message: string): void;
-  setRetry(title: string, index: number, total: number, attempt: number, message: string): void;
+  setRetry(title: string, index: number, total: number, attempt: number, maxAttempts: number, message: string): void;
   setProgress(title: string, index: number, total: number, processed: number, counts: ImportProgressCounts): void;
   pauseForRetry(message: string): void;
   selectDateRange(context: ConversationSyncDateRangePromptContext): Promise<ConversationSyncDateRangeSelection>;
@@ -172,8 +172,8 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     this.applyStatusText();
   }
 
-  setRetry(title: string, index: number, total: number, attempt: number, message: string): void {
-    this.activeStatusText = `Retry ${title} (${index}/${total}) attempt ${attempt}/3`;
+  setRetry(title: string, index: number, total: number, attempt: number, maxAttempts: number, message: string): void {
+    this.activeStatusText = `Retry ${title} (${index}/${total}) attempt ${attempt}/${maxAttempts}`;
     this.applyStatusText();
     this.appendDetail(`${title}: ${message}`);
   }

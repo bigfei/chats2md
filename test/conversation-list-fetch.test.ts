@@ -351,6 +351,7 @@ test("fetchConversationSummariesWithPageFetcher wraps retry exhaustion with offs
       {
         pageLimit: 100,
         parallelism: 1,
+        retryAttempts: 3,
         getRetryDelayMs: () => 0,
       },
     ),
@@ -367,6 +368,34 @@ test("fetchConversationSummariesWithPageFetcher wraps retry exhaustion with offs
   );
 
   assert.deepEqual(requestedOffsets, [0, 100, 100, 100]);
+});
+
+test("fetchConversationSummariesWithPageFetcher respects configured retry attempts", async () => {
+  let attempts = 0;
+
+  await assert.rejects(
+    fetchConversationSummariesWithPageFetcher(
+      async () => {
+        attempts += 1;
+        throw new Error("still failing");
+      },
+      {
+        pageLimit: 100,
+        parallelism: 1,
+        retryAttempts: 2,
+        getRetryDelayMs: () => 0,
+      },
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof ConversationListPageFetchError);
+      assert.equal(error.attempts, 2);
+      assert.equal(error.maxAttempts, 2);
+      assert.match(error.message, /after 2\/2 attempts/);
+      return true;
+    },
+  );
+
+  assert.equal(attempts, 2);
 });
 
 test("fetchConversationSummariesWithPageFetcher stops retrying when canceled during backoff", async () => {

@@ -154,6 +154,7 @@ export async function handleSync(
         buildSyncStatusText: (processed, total, phase) => host.buildSyncStatusText(processed, total, phase),
         setSyncStatusBar: (text, active) => host.setSyncStatusBar(text, active),
         clearSyncStatusBar: (delayMs) => host.clearSyncStatusBar(delayMs),
+        getSyncTuning: () => host.settings.syncTuning,
       },
       values,
       progressModal,

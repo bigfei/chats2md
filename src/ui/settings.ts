@@ -5,11 +5,13 @@ import {
   DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE,
   formatAssetStorageMode,
   getStoredAccountDisplayName,
+  normalizeDefaultLatestConversationCount,
 } from "../main/helpers";
 import { CONVERSATION_PATH_TEMPLATE_PRESETS } from "../path/template";
 import { FolderSuggest } from "./folder-suggest";
 import type Chats2MdPlugin from "../main";
 import { SessionEditorModal } from "./session-editor-modal";
+import { DEFAULT_SYNC_TUNING_SETTINGS } from "../shared/types";
 import type { StoredSessionAccount } from "../shared/types";
 
 const CUSTOM_TEMPLATE_OPTION = "__custom__";
@@ -259,6 +261,8 @@ export class Chats2MdSettingTab extends PluginSettingTab {
             });
         });
     }
+
+    this.renderAdvancedSyncTuningSection(containerEl);
   }
 
   private describeAccount(account: StoredSessionAccount): DocumentFragment {
@@ -279,6 +283,150 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     return fragment;
   }
+
+  private renderAdvancedSyncTuningSection(containerEl: HTMLElement): void {
+    const detailsEl = containerEl.createEl("details", {
+      cls: "chats2md-settings__advanced",
+    });
+    detailsEl.open = false;
+
+    detailsEl.createEl("summary", {
+      cls: "chats2md-settings__advanced-summary",
+      text: "Advanced Sync Tuning",
+    });
+
+    detailsEl.createEl("p", {
+      cls: "chats2md-settings__advanced-desc",
+      text: "Power-user sync controls. Changes apply to future sync runs immediately.",
+    });
+
+    const sectionEl = detailsEl.createDiv({
+      cls: "chats2md-settings__advanced-body",
+    });
+
+    this.addNumberSetting(sectionEl, {
+      name: "Conversation-list parallel fetches",
+      desc: `Default: ${DEFAULT_SYNC_TUNING_SETTINGS.conversationListFetchParallelism}. Number of conversation-list pages fetched in parallel.`,
+      value: this.plugin.settings.syncTuning.conversationListFetchParallelism,
+      placeholder: String(DEFAULT_SYNC_TUNING_SETTINGS.conversationListFetchParallelism),
+      getValue: () => this.plugin.settings.syncTuning.conversationListFetchParallelism,
+      onSave: async (value) => {
+        this.plugin.settings.syncTuning.conversationListFetchParallelism = value;
+        await this.plugin.saveSettings();
+      },
+    });
+
+    this.addNumberSetting(sectionEl, {
+      name: "Conversation-list retry attempts",
+      desc: `Default: ${DEFAULT_SYNC_TUNING_SETTINGS.conversationListRetryAttempts}. Retries for failed conversation-list API calls.`,
+      value: this.plugin.settings.syncTuning.conversationListRetryAttempts,
+      placeholder: String(DEFAULT_SYNC_TUNING_SETTINGS.conversationListRetryAttempts),
+      getValue: () => this.plugin.settings.syncTuning.conversationListRetryAttempts,
+      onSave: async (value) => {
+        this.plugin.settings.syncTuning.conversationListRetryAttempts = value;
+        await this.plugin.saveSettings();
+      },
+    });
+
+    this.addNumberSetting(sectionEl, {
+      name: "Conversation-detail retry attempts",
+      desc: `Default: ${DEFAULT_SYNC_TUNING_SETTINGS.conversationDetailRetryAttempts}. Retries for failed conversation-detail API calls.`,
+      value: this.plugin.settings.syncTuning.conversationDetailRetryAttempts,
+      placeholder: String(DEFAULT_SYNC_TUNING_SETTINGS.conversationDetailRetryAttempts),
+      getValue: () => this.plugin.settings.syncTuning.conversationDetailRetryAttempts,
+      onSave: async (value) => {
+        this.plugin.settings.syncTuning.conversationDetailRetryAttempts = value;
+        await this.plugin.saveSettings();
+      },
+    });
+
+    this.addNumberSetting(sectionEl, {
+      name: "Detail browse delay minimum (ms)",
+      desc: `Default: ${DEFAULT_SYNC_TUNING_SETTINGS.conversationDetailBrowseDelayMinMs}. Lower bound for randomized wait before opening a conversation.`,
+      value: this.plugin.settings.syncTuning.conversationDetailBrowseDelayMinMs,
+      placeholder: String(DEFAULT_SYNC_TUNING_SETTINGS.conversationDetailBrowseDelayMinMs),
+      getValue: () => this.plugin.settings.syncTuning.conversationDetailBrowseDelayMinMs,
+      onSave: async (value) => {
+        this.plugin.settings.syncTuning.conversationDetailBrowseDelayMinMs = value;
+        await this.plugin.saveSettings();
+      },
+    });
+
+    this.addNumberSetting(sectionEl, {
+      name: "Detail browse delay maximum (ms)",
+      desc: `Default: ${DEFAULT_SYNC_TUNING_SETTINGS.conversationDetailBrowseDelayMaxMs}. Upper bound for randomized wait before opening a conversation.`,
+      value: this.plugin.settings.syncTuning.conversationDetailBrowseDelayMaxMs,
+      placeholder: String(DEFAULT_SYNC_TUNING_SETTINGS.conversationDetailBrowseDelayMaxMs),
+      getValue: () => this.plugin.settings.syncTuning.conversationDetailBrowseDelayMaxMs,
+      onSave: async (value) => {
+        this.plugin.settings.syncTuning.conversationDetailBrowseDelayMaxMs = value;
+        await this.plugin.saveSettings();
+      },
+    });
+
+    this.addNumberSetting(sectionEl, {
+      name: "Pause after consecutive 429s",
+      desc: `Default: ${DEFAULT_SYNC_TUNING_SETTINGS.maxConsecutiveRateLimitResponses}. Pause sync when ChatGPT keeps rate-limiting requests.`,
+      value: this.plugin.settings.syncTuning.maxConsecutiveRateLimitResponses,
+      placeholder: String(DEFAULT_SYNC_TUNING_SETTINGS.maxConsecutiveRateLimitResponses),
+      getValue: () => this.plugin.settings.syncTuning.maxConsecutiveRateLimitResponses,
+      onSave: async (value) => {
+        this.plugin.settings.syncTuning.maxConsecutiveRateLimitResponses = value;
+        await this.plugin.saveSettings();
+      },
+    });
+
+    new Setting(sectionEl)
+      .setName("Default newest conversations count")
+      .setDesc("Default: blank = all discovered conversations. Prefills the Newest conversations field in the sync subset modal.")
+      .addText((component) => {
+        component.inputEl.type = "number";
+        component.inputEl.min = "1";
+        component.setPlaceholder("All discovered");
+        component.setValue(
+          this.plugin.settings.syncTuning.defaultLatestConversationCount === null
+            ? ""
+            : String(this.plugin.settings.syncTuning.defaultLatestConversationCount),
+        );
+        component.onChange(async (value) => {
+          this.plugin.settings.syncTuning.defaultLatestConversationCount = normalizeDefaultLatestConversationCount(value);
+          await this.plugin.saveSettings();
+          component.setValue(
+            this.plugin.settings.syncTuning.defaultLatestConversationCount === null
+              ? ""
+              : String(this.plugin.settings.syncTuning.defaultLatestConversationCount),
+          );
+        });
+      });
+  }
+
+  private addNumberSetting(
+    containerEl: HTMLElement,
+    options: {
+      name: string;
+      desc: string;
+      value: number;
+      placeholder: string;
+      getValue: () => number;
+      onSave: (value: number) => Promise<void>;
+    },
+  ): void {
+    new Setting(containerEl)
+      .setName(options.name)
+      .setDesc(options.desc)
+      .addText((component) => {
+        component.inputEl.type = "number";
+        component.inputEl.min = "0";
+        component.setPlaceholder(options.placeholder);
+        component.setValue(String(options.value));
+        component.onChange(async (value) => {
+          const parsed = Number.parseInt(value.trim(), 10);
+          await options.onSave(Number.isFinite(parsed) ? parsed : options.value);
+          component.setValue(String(options.getValue()));
+        });
+      });
+  }
+
   private openSessionEditor(account?: StoredSessionAccount): void {
     new SessionEditorModal(this.app, {
       title: account ? "Edit account session JSON" : "Add account session JSON",

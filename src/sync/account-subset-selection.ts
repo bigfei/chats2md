@@ -22,6 +22,7 @@ export interface OpenAccountSubsetSelectionPromptParams {
   totalAccounts: number;
   summaries: ConversationSummary[];
   skipExistingLocalConversations: boolean;
+  defaultLatestConversationCount: number | null;
 }
 
 export interface OpenAccountSubsetSelectionPromptOptions {
@@ -106,6 +107,7 @@ export async function openAccountSubsetSelectionPrompt(
     minCreatedAt: createdAtSpan.minCreatedAt,
     maxCreatedAt: createdAtSpan.maxCreatedAt,
     skipExistingLocalConversations: params.skipExistingLocalConversations,
+    defaultLatestConversationCount: params.defaultLatestConversationCount,
   });
 
   if (!(await options.ensureCanContinue())) {

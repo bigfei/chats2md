@@ -8,7 +8,9 @@ import {
   formatAssetStorageMode,
   formatActionLabel,
   normalizeAssetStorageMode,
+  normalizeDefaultLatestConversationCount,
   normalizeStoredAccount,
+  normalizeSyncTuningSettings,
   normalizeTargetFolder,
   readString,
   resolveSyncReportFolder,
@@ -16,6 +18,7 @@ import {
   sortAccounts,
   summarizeCounts,
 } from "../src/main/helpers.ts";
+import { DEFAULT_SYNC_TUNING_SETTINGS } from "../src/shared/types.ts";
 
 test("createEmptyCounts initializes all counters to zero", () => {
   assert.deepEqual(createEmptyCounts(), {
@@ -76,6 +79,47 @@ test("resolveSyncReportFolder supports <syncFolder> placeholder in custom folder
 
 test("resolveSyncReportFolder uses a static folder when no placeholder is configured", () => {
   assert.equal(resolveSyncReportFolder("Imports/ChatGPT", "Shared/SyncReports"), "Shared/SyncReports");
+});
+
+test("normalizeDefaultLatestConversationCount keeps blank and null as all discovered", () => {
+  assert.equal(normalizeDefaultLatestConversationCount(""), null);
+  assert.equal(normalizeDefaultLatestConversationCount(null), null);
+});
+
+test("normalizeDefaultLatestConversationCount clamps numeric values into supported range", () => {
+  assert.equal(normalizeDefaultLatestConversationCount(0), 1);
+  assert.equal(normalizeDefaultLatestConversationCount(10001), 10000);
+  assert.equal(normalizeDefaultLatestConversationCount(25), 25);
+});
+
+test("normalizeSyncTuningSettings applies defaults when missing", () => {
+  assert.deepEqual(normalizeSyncTuningSettings(undefined, DEFAULT_SYNC_TUNING_SETTINGS), DEFAULT_SYNC_TUNING_SETTINGS);
+});
+
+test("normalizeSyncTuningSettings clamps values and normalizes browse delay max >= min", () => {
+  assert.deepEqual(
+    normalizeSyncTuningSettings(
+      {
+        conversationListFetchParallelism: 99,
+        conversationListRetryAttempts: 0,
+        conversationDetailRetryAttempts: 22,
+        conversationDetailBrowseDelayMinMs: 70000,
+        conversationDetailBrowseDelayMaxMs: 1000,
+        maxConsecutiveRateLimitResponses: -10,
+        defaultLatestConversationCount: "",
+      },
+      DEFAULT_SYNC_TUNING_SETTINGS,
+    ),
+    {
+      conversationListFetchParallelism: 10,
+      conversationListRetryAttempts: 1,
+      conversationDetailRetryAttempts: 10,
+      conversationDetailBrowseDelayMinMs: 60000,
+      conversationDetailBrowseDelayMaxMs: 60000,
+      maxConsecutiveRateLimitResponses: 1,
+      defaultLatestConversationCount: null,
+    },
+  );
 });
 
 test("sanitizePathPart strips invalid path characters and preserves length limit", () => {
