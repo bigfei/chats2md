@@ -1,6 +1,6 @@
 # Chats2MD
 
-`Chats2MD` is an Obsidian plugin that syncs ChatGPT conversations into Markdown notes.
+`Chats2MD` is a desktop-only Obsidian plugin that syncs ChatGPT conversations into Markdown notes.
 
 ## Requirements and disclosures
 
@@ -11,6 +11,7 @@
 - Optional JSON sidecars store raw ChatGPT conversation detail payloads as local vault files next to notes.
 - Optional sync logs and sync reports are written into your vault.
 - The plugin does not include telemetry, ads, remote configuration, or self-update behavior.
+- The plugin is desktop-only. Long-running ChatGPT sync is out of scope on Android and iOS.
 
 ## What the plugin does
 

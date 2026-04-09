@@ -1,9 +1,9 @@
 {
   "id": "chats2md",
   "name": "Chats2MD",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minAppVersion": "1.11.4",
   "description": "Sync full ChatGPT conversation logs into Markdown notes.",
   "author": "bigfei",
-  "isDesktopOnly": false
+  "isDesktopOnly": true
 }

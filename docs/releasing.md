@@ -2,6 +2,8 @@
 
 This document covers the repeatable steps for publishing `Chats2MD` GitHub releases and submitting or updating the Obsidian community-plugin review.
 
+`Chats2MD` should be released and reviewed as a desktop-only plugin. Android and iOS are out of scope because long-running ChatGPT sync is not supported there.
+
 ## Before you start
 
 - Keep `sample-vault/` unchanged.
@@ -24,21 +26,22 @@ npm run build
 ```
 
 3. Confirm `manifest.json.version` is the version you want to publish.
-4. If `minAppVersion` changed, confirm `versions.json` includes the new mapping.
-5. Create a Git tag that exactly matches `manifest.json.version`.
-6. Push the tag:
+4. Confirm `manifest.json` still reflects desktop-only support with `isDesktopOnly: true`.
+5. If `minAppVersion` changed, confirm `versions.json` includes the new mapping.
+6. Create a Git tag that exactly matches `manifest.json.version`.
+7. Push the tag:
 
 ```bash
 git push origin <version>
 ```
 
-7. Wait for the `Release` workflow to finish.
-8. Verify the GitHub release contains:
+8. Wait for the `Release` workflow to finish.
+9. Verify the GitHub release contains:
    - `main.js`
    - `manifest.json`
    - `styles.css`
    - `release/chats2md-<version>.zip`
-9. If this is the first release, confirm the repository description, topics, and homepage are set on GitHub.
+10. If this is the first release, confirm the repository description, topics, and homepage are set on GitHub.
 
 ## How the automation works
 
@@ -61,6 +64,7 @@ When the repository is public and the release assets are live:
    - `repo`: `bigfei/chats2md`
 3. Open the submission PR.
 4. If review feedback requires plugin changes, update the GitHub release assets for the same version only when appropriate; otherwise cut a new version and update the submission accordingly.
+5. If the plugin is desktop-only, make that explicit in the PR body and leave Android/iOS unchecked as not applicable.
 
 ## Follow-up after first submission
 
