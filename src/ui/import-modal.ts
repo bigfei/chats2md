@@ -51,6 +51,10 @@ function formatCounts(counts: ImportProgressCounts): string {
   ].join(" | ");
 }
 
+function getEnabledAccounts(accounts: StoredSessionAccount[]): StoredSessionAccount[] {
+  return accounts.filter((account) => !account.disabled);
+}
+
 function createEmptyCounts(): ImportProgressCounts {
   return {
     created: 0,
@@ -91,7 +95,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     super(app);
     this.options = options;
     this.skipExistingLocalConversations = options.initialSkipExistingLocalConversations;
-    this.selectedAccountId = options.accounts[0]?.accountId ?? "";
+    this.selectedAccountId = getEnabledAccounts(options.accounts)[0]?.accountId ?? "";
     this.accountSelectorContainer = this.contentEl.createDiv();
   }
 
@@ -265,13 +269,28 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
       text: `Asset storage: ${formatAssetStorageMode(this.options.assetStorageMode)}`,
     });
     summaryList.createEl("li", {
-      text: `Configured accounts: ${this.options.accounts.length}`,
+      text: `Configured accounts: ${this.options.accounts.length} (${getEnabledAccounts(this.options.accounts).length} enabled)`,
     });
 
     if (this.options.accounts.length === 0) {
       contentEl.createEl("p", {
         cls: "chats2md-modal__hint",
         text: "No accounts configured. Add at least one session in plugin settings.",
+      });
+
+      new Setting(contentEl).addButton((button) => {
+        button
+          .setButtonText("Close")
+          .setCta()
+          .onClick(() => this.close());
+      });
+      return;
+    }
+
+    if (getEnabledAccounts(this.options.accounts).length === 0) {
+      contentEl.createEl("p", {
+        cls: "chats2md-modal__hint",
+        text: "No enabled accounts configured. Enable at least one account in plugin settings.",
       });
 
       new Setting(contentEl).addButton((button) => {
@@ -347,11 +366,12 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
 
   private renderAccountSelector(): void {
     this.accountSelectorContainer.empty();
+    const enabledAccounts = getEnabledAccounts(this.options.accounts);
 
     if (this.syncScope !== "single") {
       this.accountSelectorContainer.createEl("p", {
         cls: "chats2md-modal__hint",
-        text: "All configured accounts will be synced sequentially.",
+        text: "All enabled accounts will be synced sequentially.",
       });
       return;
     }
@@ -360,15 +380,15 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
       .setName("Account")
       .setDesc("Choose one account to sync.")
       .addDropdown((dropdown) => {
-        for (const account of this.options.accounts) {
+        for (const account of enabledAccounts) {
           const label = formatStoredAccountLabel(account);
           dropdown.addOption(account.accountId, label);
         }
 
-        const fallbackAccountId = this.options.accounts[0]?.accountId ?? "";
+        const fallbackAccountId = enabledAccounts[0]?.accountId ?? "";
         if (
           !this.selectedAccountId ||
-          !this.options.accounts.some((account) => account.accountId === this.selectedAccountId)
+          !enabledAccounts.some((account) => account.accountId === this.selectedAccountId)
         ) {
           this.selectedAccountId = fallbackAccountId;
         }

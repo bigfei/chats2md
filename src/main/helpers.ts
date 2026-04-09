@@ -253,8 +253,6 @@ export function normalizeStoredAccount(value: unknown): StoredSessionAccount | n
     expiresAt: expiresAt.length > 0 ? expiresAt : undefined,
     secretId,
     disabled: value.disabled === true,
-    lastHealthCheckAt: readString(value.lastHealthCheckAt).trim() || undefined,
-    lastHealthCheckError: readString(value.lastHealthCheckError).trim() || undefined,
     addedAt: readString(value.addedAt, timestamp),
     updatedAt: readString(value.updatedAt, timestamp),
   };
@@ -274,9 +272,7 @@ export function upsertStoredAccountMetadata(
     email: requestConfig.userEmail,
     expiresAt: requestConfig.expiresAt,
     secretId,
-    disabled: false,
-    lastHealthCheckAt: undefined,
-    lastHealthCheckError: undefined,
+    disabled: existing?.disabled ?? false,
     addedAt: existing?.addedAt ?? now,
     updatedAt: now,
   };

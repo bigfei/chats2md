@@ -18,7 +18,6 @@ import {
   sanitizePathPart,
   sortAccounts,
   summarizeCounts,
-  upsertStoredAccountMetadata,
 } from "../src/main/helpers.ts";
 import { DEFAULT_SYNC_TUNING_SETTINGS } from "../src/shared/types.ts";
 
@@ -157,59 +156,9 @@ test("normalizeStoredAccount validates and normalizes account metadata", () => {
     expiresAt: "2026-12-31",
     secretId: "secret-1",
     disabled: false,
-    lastHealthCheckAt: undefined,
-    lastHealthCheckError: undefined,
     addedAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-02T00:00:00.000Z",
   });
-});
-
-test("upsertStoredAccountMetadata clears stale health state on save", () => {
-  const settings = {
-    defaultFolder: "Imports/ChatGPT",
-    conversationPathTemplate: "{date}/{slug}",
-    assetStorageMode: "global_by_conversation" as const,
-    skipExistingLocalConversations: true,
-    generateSyncReport: true,
-    syncReportFolder: "<syncFolder>/sync-result",
-    debugLogging: false,
-    saveConversationJson: false,
-    syncTuning: DEFAULT_SYNC_TUNING_SETTINGS,
-    accounts: [
-      {
-        accountId: "acc-1",
-        userId: "user-1",
-        email: "old@example.com",
-        secretId: "secret-1",
-        disabled: true,
-        lastHealthCheckAt: "2026-04-01T00:00:00.000Z",
-        lastHealthCheckError: "expired",
-        addedAt: "2026-03-01T00:00:00.000Z",
-        updatedAt: "2026-04-01T00:00:00.000Z",
-      },
-    ],
-    legacySessionJson: "",
-  };
-
-  const updated = upsertStoredAccountMetadata(
-    settings,
-    {
-      accessToken: "token",
-      accountId: "acc-1",
-      userId: "user-1",
-      userEmail: "new@example.com",
-      headers: {},
-      userAgent: "ua",
-      expiresAt: "2026-12-31T00:00:00.000Z",
-    },
-    "secret-1",
-  );
-
-  assert.equal(updated.disabled, false);
-  assert.equal(updated.lastHealthCheckError, undefined);
-  assert.equal(updated.lastHealthCheckAt, undefined);
-  assert.equal(updated.addedAt, "2026-03-01T00:00:00.000Z");
-  assert.equal(updated.email, "new@example.com");
 });
 
 test("isImportedChatGptConversationFrontmatter requires a ChatGPT conversation id", () => {

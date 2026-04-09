@@ -3,9 +3,9 @@ import test from "node:test";
 
 import { ChatGptRequestError } from "../src/chatgpt/request-core.ts";
 import {
-  applyAccountHealthResult,
   checkRequestConfigHealth,
   checkStoredAccountHealth,
+  isAccountHealthResultUnhealthy,
 } from "../src/main/account-health.ts";
 import { ConsecutiveRateLimitPauseError } from "../src/sync/rate-limit-guard.ts";
 import type { ChatGptRequestConfig, StoredSessionAccount } from "../src/shared/types.ts";
@@ -37,50 +37,32 @@ function createRequestConfig(overrides: Partial<ChatGptRequestConfig> = {}): Cha
   };
 }
 
-test("applyAccountHealthResult disables definite failures", () => {
-  const updated = applyAccountHealthResult(createAccount(), {
-    status: "disable-and-skip",
-    checkedAt: "2026-04-09T00:00:00.000Z",
-    message: "expired",
-  });
-
-  assert.equal(updated.disabled, true);
-  assert.equal(updated.lastHealthCheckError, "expired");
-});
-
-test("applyAccountHealthResult re-enables healthy accounts", () => {
-  const updated = applyAccountHealthResult(
-    createAccount({
-      disabled: true,
-      lastHealthCheckError: "expired",
-    }),
-    {
+test("isAccountHealthResultUnhealthy matches non-healthy results", () => {
+  assert.equal(
+    isAccountHealthResultUnhealthy({
       status: "healthy",
       checkedAt: "2026-04-09T00:00:00.000Z",
       message: "ok",
       requestConfig: createRequestConfig(),
-    },
-  );
-
-  assert.equal(updated.disabled, false);
-  assert.equal(updated.lastHealthCheckError, undefined);
-});
-
-test("applyAccountHealthResult preserves disabled state for transient failures", () => {
-  const updated = applyAccountHealthResult(
-    createAccount({
-      disabled: true,
-      lastHealthCheckError: "expired",
     }),
-    {
+    false,
+  );
+  assert.equal(
+    isAccountHealthResultUnhealthy({
+      status: "disable-and-skip",
+      checkedAt: "2026-04-09T00:00:00.000Z",
+      message: "expired",
+    }),
+    true,
+  );
+  assert.equal(
+    isAccountHealthResultUnhealthy({
       status: "transient-keep-enabled",
       checkedAt: "2026-04-09T00:00:00.000Z",
       message: "network",
-    },
+    }),
+    true,
   );
-
-  assert.equal(updated.disabled, true);
-  assert.equal(updated.lastHealthCheckError, "network");
 });
 
 test("checkStoredAccountHealth disables missing secrets", async () => {

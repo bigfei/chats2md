@@ -182,18 +182,6 @@ export async function checkStoredAccountHealth(
   return checkRequestConfigAccessHealth(requestConfig, checkedAt, dependencies);
 }
 
-export function applyAccountHealthResult(account: StoredSessionAccount, result: AccountHealthResult): StoredSessionAccount {
-  const disabled =
-    result.status === "disable-and-skip"
-      ? true
-      : result.status === "healthy"
-        ? false
-        : account.disabled;
-
-  return {
-    ...account,
-    disabled,
-    lastHealthCheckAt: result.checkedAt,
-    lastHealthCheckError: result.status === "healthy" ? undefined : result.message,
-  };
+export function isAccountHealthResultUnhealthy(result: AccountHealthResult): boolean {
+  return result.status !== "healthy";
 }

@@ -27,7 +27,7 @@ import {
 } from "./helpers";
 import { syncConversationAssetsForConversation } from "./asset-sync";
 import { runRebuildNotesFromCachedJson } from "./rebuild";
-import { applyAccountHealthResult, checkStoredAccountHealth, type AccountHealthResult } from "./account-health";
+import { checkStoredAccountHealth, type AccountHealthResult } from "./account-health";
 import {
   migrateLegacySessionIfNeeded as migrateLegacySessionIfNeededHelper,
   removeSessionAccount as removeSessionAccountHelper,
@@ -221,20 +221,28 @@ export default class Chats2MdPlugin extends Plugin {
     );
   }
 
-  async updateAccountHealth(accountId: string, result: AccountHealthResult): Promise<StoredSessionAccount | null> {
+  async setAccountDisabled(accountId: string, disabled: boolean): Promise<StoredSessionAccount | null> {
     const current = this.settings.accounts.find((account) => account.accountId === accountId);
 
     if (!current) {
       return null;
     }
 
-    const updated = applyAccountHealthResult(current, result);
+    const updated = {
+      ...current,
+      disabled,
+      updatedAt: new Date().toISOString(),
+    };
     this.settings.accounts = sortAccounts([
       ...this.settings.accounts.filter((account) => account.accountId !== accountId),
       updated,
     ]);
     await this.saveSettings();
     return updated;
+  }
+
+  getAllConfiguredAccounts(): StoredSessionAccount[] {
+    return sortAccounts(this.settings.accounts);
   }
 
   private isDebugLoggingEnabled(): boolean {
@@ -568,9 +576,10 @@ export default class Chats2MdPlugin extends Plugin {
 
   private getSelectedAccounts(values: SyncModalValues): StoredSessionAccount[] {
     const accounts = this.getAccounts();
+    const enabledAccounts = accounts.filter((account) => !account.disabled);
 
     if (values.scope === "all") {
-      return accounts;
+      return enabledAccounts;
     }
 
     const accountId = (values.accountId ?? "").trim();
@@ -579,10 +588,10 @@ export default class Chats2MdPlugin extends Plugin {
       throw new Error("No account selected for sync.");
     }
 
-    const selected = accounts.find((account) => account.accountId === accountId);
+    const selected = enabledAccounts.find((account) => account.accountId === accountId);
 
     if (!selected) {
-      throw new Error(`Selected account is no longer available: ${accountId}`);
+      throw new Error(`Selected enabled account is no longer available: ${accountId}`);
     }
 
     return [selected];

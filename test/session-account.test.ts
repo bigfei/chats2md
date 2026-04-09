@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { removeStoredAccount, upsertStoredAccountMetadata } from "../src/main/helpers.ts";
+import { removeStoredAccount } from "../src/main/helpers.ts";
 import { clearStoredSecretPayload } from "../src/main/secret-storage.ts";
 import type { Chats2MdSettings } from "../src/shared/types.ts";
 
@@ -22,8 +22,6 @@ function createSettings(): Chats2MdSettings {
         email: "a@example.com",
         secretId: "secret-1",
         disabled: true,
-        lastHealthCheckAt: "2026-04-02T00:00:00.000Z",
-        lastHealthCheckError: "expired",
         addedAt: "2026-04-01T00:00:00.000Z",
         updatedAt: "2026-04-01T00:00:00.000Z",
       },
@@ -51,27 +49,6 @@ test("removeStoredAccount removes only the requested account", () => {
   );
 });
 
-test("upsertStoredAccountMetadata clears disabled health state on save", () => {
-  const settings = createSettings();
-  const result = upsertStoredAccountMetadata(
-    settings,
-    {
-      accessToken: "token",
-      accountId: "account-1",
-      userId: "user-1",
-      userEmail: "a@example.com",
-      headers: {},
-      userAgent: "ua",
-      expiresAt: "2026-12-31T00:00:00.000Z",
-    },
-    "secret-1",
-  );
-
-  assert.equal(result.disabled, false);
-  assert.equal(result.lastHealthCheckError, undefined);
-  assert.equal(settings.accounts.find((account) => account.accountId === "account-1")?.disabled, false);
-});
-
 test("session removal fallback clears stored secret payload before metadata removal", () => {
   const settings = createSettings();
   const secretWrites: Array<{ key: string; value: string }> = [];
@@ -87,4 +64,10 @@ test("session removal fallback clears stored secret payload before metadata remo
     settings.accounts.map((account) => account.accountId),
     ["account-2"],
   );
+});
+
+test("disabled account metadata remains persisted in stored settings", () => {
+  const settings = createSettings();
+  assert.equal(settings.accounts[0]?.disabled, true);
+  assert.equal(settings.accounts[1]?.disabled, false);
 });

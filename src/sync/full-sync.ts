@@ -12,7 +12,6 @@ import {
 } from "../main/helpers";
 import { cleanupMovedConversationFolders } from "../main/folder-cleanup";
 import { formatConversationBrowseDelay, prepareConversationDetailFetch } from "./browse-delay";
-import { runAllAccountsHealthPreflight } from "./account-health-preflight";
 import { isSyncCancelledError } from "./cancellation";
 import { ConsecutiveRateLimitGuard, isConsecutiveRateLimitPauseError } from "./rate-limit-guard";
 import { runWithRateLimitPauseRetry } from "./rate-limit-retry";
@@ -39,9 +38,9 @@ export interface FullSyncContext {
   app: App;
   manifestVersion: string;
   createSyncRunLogger(progressModal: SyncProgressReporter): Promise<SyncRunLogger>;
+  getAllConfiguredAccounts(): StoredSessionAccount[];
   getSelectedAccounts(values: SyncModalValues): StoredSessionAccount[];
   checkAccountHealth(account: StoredSessionAccount): Promise<AccountHealthResult>;
-  updateAccountHealth(accountId: string, result: AccountHealthResult): Promise<StoredSessionAccount | null>;
   getRequestConfig(account: StoredSessionAccount): ChatGptRequestConfig;
   getAccountLabel(account: StoredSessionAccount): string;
   shouldSaveConversationJson(): boolean;
@@ -152,30 +151,38 @@ export async function runFullSync(
 
     selectedAccounts = context.getSelectedAccounts(values);
     if (values.scope === "all") {
-      const preflight = await runAllAccountsHealthPreflight({
-        accounts: selectedAccounts,
-        ensureCanContinue,
-        checkAccountHealth: (account) => context.checkAccountHealth(account),
-        updateAccountHealth: (accountId, result) => context.updateAccountHealth(accountId, result),
-        getAccountLabel: (account) => context.getAccountLabel(account),
-        logSkip: (message) => logWarn(message),
-      });
+      const allConfiguredAccounts = context.getAllConfiguredAccounts();
+      const disabledAccounts = allConfiguredAccounts.filter((account) => account.disabled);
+      const skippedLabels: string[] = [];
+      const healthyAccounts: StoredSessionAccount[] = [];
 
-      if (preflight.status === "stop") {
-        runStatus = "stopped";
-        progressModal.fail("Sync stopped by user.", counts);
-        return;
+      skippedLabels.push(...disabledAccounts.map((account) => context.getAccountLabel(account)));
+
+      for (const account of selectedAccounts) {
+        if (!(await ensureCanContinue())) {
+          return;
+        }
+
+        const result = await context.checkAccountHealth(account);
+        if (result.status === "healthy") {
+          healthyAccounts.push(account);
+          continue;
+        }
+
+        const label = context.getAccountLabel(account);
+        skippedLabels.push(label);
+        logWarn(`[${label}] Skipping unhealthy account: ${result.message}`);
       }
 
-      if (preflight.skippedLabels.length > 0) {
-        const warningMessage = `Disabled account(s) will not be synced: ${preflight.skippedLabels.join(", ")}.`;
+      if (skippedLabels.length > 0) {
+        const warningMessage = `These account(s) will not be synced: ${skippedLabels.join(", ")}.`;
         progressModal.log(warningMessage);
         syncLogger?.warn(warningMessage);
         new Notice(warningMessage);
       }
 
-      if (preflight.status === "no-healthy-accounts") {
-        const message = "No healthy accounts available for all-accounts sync.";
+      if (healthyAccounts.length === 0) {
+        const message = "No enabled healthy accounts available for all-accounts sync.";
         runStatus = "failed";
         progressModal.fail(message, counts);
         logError(message);
@@ -185,11 +192,7 @@ export async function runFullSync(
         return;
       }
 
-      selectedAccounts = preflight.accounts;
-
-      if (!(await ensureCanContinue())) {
-          return;
-      }
+      selectedAccounts = healthyAccounts;
     }
 
     const noteIndex = indexConversationNotes(context.app);

@@ -6,7 +6,11 @@ import {
   getStoredAccountDisplayName,
   normalizeDefaultLatestConversationCount,
 } from "../main/helpers";
-import { checkRequestConfigHealth, type AccountHealthResult } from "../main/account-health";
+import {
+  checkRequestConfigHealth,
+  isAccountHealthResultUnhealthy,
+  type AccountHealthResult,
+} from "../main/account-health";
 import { CONVERSATION_PATH_TEMPLATE_PRESETS } from "../path/template";
 import { FolderSuggest } from "./folder-suggest";
 import type Chats2MdPlugin from "../main";
@@ -44,6 +48,7 @@ function describeConversationPathTemplate(): DocumentFragment {
 
 export class Chats2MdSettingTab extends PluginSettingTab {
   private readonly plugin: Chats2MdPlugin;
+  private readonly transientHealthResults = new Map<string, AccountHealthResult>();
 
   constructor(app: App, plugin: Chats2MdPlugin) {
     super(app, plugin);
@@ -257,19 +262,6 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           .onClick(() => {
             this.openSessionEditor();
           });
-      })
-      .addButton((button) => {
-        button
-          .setButtonText("Check all accounts")
-          .onClick(async () => {
-            button.setDisabled(true);
-
-            try {
-              await this.checkAllAccounts();
-            } finally {
-              button.setDisabled(false);
-            }
-          });
       });
 
     const accounts = this.plugin.getAccounts();
@@ -282,9 +274,24 @@ export class Chats2MdSettingTab extends PluginSettingTab {
     }
 
     for (const account of accounts) {
+      const healthResult = this.transientHealthResults.get(account.accountId);
+      const unhealthyMarker = healthResult && isAccountHealthResultUnhealthy(healthResult) ? " !" : "";
       new Setting(containerEl)
-        .setName(`${getStoredAccountDisplayName(account)}${account.disabled ? " (Disabled)" : ""}`)
-        .setDesc(this.describeAccount(account))
+        .setName(`${getStoredAccountDisplayName(account)}${unhealthyMarker}`)
+        .setDesc(this.describeAccount(account, healthResult))
+        .addToggle((toggle) => {
+          toggle.setValue(!account.disabled).onChange(async (value) => {
+            toggle.setDisabled(true);
+
+            try {
+              await this.plugin.setAccountDisabled(account.accountId, !value);
+              this.transientHealthResults.delete(account.accountId);
+              this.display();
+            } finally {
+              toggle.setDisabled(false);
+            }
+          });
+        })
         .addButton((button) => {
           button
             .setButtonText("Check health")
@@ -318,16 +325,34 @@ export class Chats2MdSettingTab extends PluginSettingTab {
               }
 
               await this.plugin.removeSessionAccount(account.accountId);
+              this.transientHealthResults.delete(account.accountId);
               new Notice(`Deleted account session for ${label}.`);
               this.display();
             });
         });
     }
 
+    new Setting(containerEl)
+      .setName("Health checks")
+      .setDesc("Run transient health checks for all accounts. Results are shown only in this settings pane.")
+      .addButton((button) => {
+        button
+          .setButtonText("Check all accounts")
+          .onClick(async () => {
+            button.setDisabled(true);
+
+            try {
+              await this.checkAllAccounts();
+            } finally {
+              button.setDisabled(false);
+            }
+          });
+      });
+
     this.renderAdvancedSyncTuningSection(containerEl);
   }
 
-  private describeAccount(account: StoredSessionAccount): DocumentFragment {
+  private describeAccount(account: StoredSessionAccount, healthResult?: AccountHealthResult): DocumentFragment {
     const fragment = document.createDocumentFragment();
     const lines = [
       `Status: ${account.disabled ? "Disabled" : "Enabled"}`,
@@ -336,12 +361,12 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       `Expires: ${account.expiresAt || "Unavailable"}`,
     ];
 
-    if (account.lastHealthCheckAt) {
-      lines.push(`Last health check: ${account.lastHealthCheckAt}`);
-    }
-
-    if (account.lastHealthCheckError) {
-      lines.push(`Last health error: ${account.lastHealthCheckError}`);
+    if (healthResult) {
+      lines.push(`Health check: ${healthResult.status === "healthy" ? "Healthy" : "Unhealthy"}`);
+      lines.push(`Last check: ${healthResult.checkedAt}`);
+      if (healthResult.status !== "healthy") {
+        lines.push(`Health issue: ${healthResult.message}`);
+      }
     }
 
     lines.forEach((line, index) => {
@@ -511,6 +536,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         }
 
         const saved = await this.plugin.upsertSessionAccount(raw, parsed);
+        this.transientHealthResults.delete(saved.accountId);
         const label = getStoredAccountDisplayName(saved);
         new Notice(`Saved session for ${label}.`);
         this.display();
@@ -527,37 +553,29 @@ export class Chats2MdSettingTab extends PluginSettingTab {
     }
 
     let healthyCount = 0;
-    let disabledCount = 0;
-    let transientCount = 0;
+    let unhealthyCount = 0;
 
     for (const account of accounts) {
       const result = await this.plugin.checkAccountHealth(account);
-      await this.plugin.updateAccountHealth(account.accountId, result);
+      this.transientHealthResults.set(account.accountId, result);
 
       if (result.status === "healthy") {
         healthyCount += 1;
-      } else if (result.status === "disable-and-skip") {
-        disabledCount += 1;
       } else {
-        transientCount += 1;
+        unhealthyCount += 1;
       }
     }
 
-    new Notice(
-      `Account health check complete. ${healthyCount} healthy, ${disabledCount} disabled, ${transientCount} transient issue(s).`,
-    );
+    new Notice(`Account health check complete. ${healthyCount} healthy, ${unhealthyCount} unhealthy.`);
     this.display();
   }
 
   private async checkAccount(account: StoredSessionAccount): Promise<void> {
     const label = getStoredAccountDisplayName(account);
     const result = await this.plugin.checkAccountHealth(account);
-    const updated = await this.plugin.updateAccountHealth(account.accountId, result);
-
+    this.transientHealthResults.set(account.accountId, result);
     this.reportAccountHealth(label, account.accountId, result);
-    if (updated) {
-      this.display();
-    }
+    this.display();
   }
 
   private reportAccountHealth(label: string, accountId: string, result: AccountHealthResult): void {
@@ -566,9 +584,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       return;
     }
 
-    const prefix =
-      result.status === "disable-and-skip" ? `Account disabled for ${label}: ` : `Health check warning for ${label}: `;
-    new Notice(`${prefix}${result.message}`);
+    new Notice(`Health check warning for ${label}: ${result.message}`);
     this.plugin.logError("Account health check issue", {
       accountId,
       status: result.status,
