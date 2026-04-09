@@ -1,6 +1,7 @@
 import { test, expect, type ElectronApplication, type Page } from "@playwright/test";
 import { _electron as electron } from "playwright";
 import path from "node:path";
+import { ensureElectronVaultRegistered } from "../scripts/e2e-vault-registry.mjs";
 
 const pluginRoot = path.resolve(import.meta.dirname, "..");
 const appPath = path.join(pluginRoot, ".obsidian-unpacked", "main.js");
@@ -10,8 +11,9 @@ let app: ElectronApplication | null = null;
 let page: Page | null = null;
 
 async function launchObsidian(vaultToOpen: string) {
+  const vaultId = await ensureElectronVaultRegistered(vaultToOpen);
   const launchedApp = await electron.launch({
-    args: [appPath, "open", `obsidian://open?path=${encodeURIComponent(vaultToOpen)}`],
+    args: [appPath, "open", `obsidian://open?vault=${vaultId}`],
   });
   let launchedPage: Page | null = null;
   for (let attempt = 0; attempt < 60; attempt += 1) {
@@ -50,10 +52,8 @@ test.afterEach(async () => {
   page = null;
 });
 
-test("plugin sync command can open the sync modal from the command palette", async () => {
-  await page!.getByLabel("Open command palette", { exact: true }).click();
-  await page!.locator("input.prompt-input").fill("sync all accounts");
-  await page!.locator(".suggestion-item").filter({ hasText: "Sync all accounts" }).first().click();
+test("plugin ribbon opens the sync modal in a real Obsidian app", async () => {
+  await page!.getByLabel("Sync ChatGPT conversations", { exact: true }).click();
   await expect(page!.getByText("Configured accounts: 5 (5 enabled)")).toBeVisible();
   await expect(page!.getByRole("button", { name: "Continue", exact: true })).toBeVisible();
   await expect(

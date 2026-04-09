@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { ensureElectronVaultRegistered } from "./e2e-vault-registry.mjs";
 
 const execFileAsync = promisify(execFile);
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -73,14 +74,17 @@ async function prepareSampleVault() {
     await rm(targetPath, { force: true });
     await symlink(path.join(pluginRoot, fileName), targetPath);
   }
+
+  const vaultId = await ensureElectronVaultRegistered(sampleVaultRoot);
+  return { vaultId };
 }
 
 async function main() {
   await ensureBuildArtifacts();
   await ensureObsidianApp();
   await unpackObsidianApp();
-  await prepareSampleVault();
-  console.log(`Prepared Obsidian E2E harness at ${unpackedAppRoot} with vault ${e2eVaultRoot}`);
+  const { vaultId } = await prepareSampleVault();
+  console.log(`Prepared Obsidian E2E harness at ${unpackedAppRoot} with vault ${e2eVaultRoot} (id: ${vaultId})`);
 }
 
 main().catch((error) => {
