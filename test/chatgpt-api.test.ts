@@ -71,15 +71,19 @@ test("parseConversationDetailPayload emits whole-note deduped footnotes", () => 
   assert.ok(assistantMessages.length > 0);
 
   const joinedAssistantMarkdown = assistantMessages.map((message) => message.markdown).join("\n\n");
-  assert.match(joinedAssistantMarkdown, /\[\^1\]/);
+  assert.match(joinedAssistantMarkdown, /\[\^1-1\]/);
+  assert.match(joinedAssistantMarkdown, /\[\^1-4\]/);
   assert.doesNotMatch(joinedAssistantMarkdown, /\[ref-/);
   assert.doesNotMatch(joinedAssistantMarkdown, /(?:cite|filecite)/);
 
   assert.ok(Array.isArray(detail.footnotes));
   assert.ok(detail.footnotes.length > 0);
-  assert.equal(detail.footnotes.length, 1);
+  assert.equal(detail.footnotes.length, 4);
   assert.deepEqual(detail.footnotes, [
-    "[^1]: [ChatGPT Conversation Exporter — export all your conversations as JSON + Markdown + ZIP. No dependencies beyond bash, curl, python3. · GitHub](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)",
+    "[^1-1]: [ChatGPT Conversation Exporter — export all your conversations as JSON + Markdown + ZIP. No dependencies beyond bash, curl, python3. · GitHub](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)",
+    "[^1-2]: [ChatGPT Conversation Exporter — export all your conversations as JSON + Markdown + ZIP. No dependencies beyond bash, curl, python3. · GitHub](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)",
+    "[^1-3]: [ChatGPT Conversation Exporter — export all your conversations as JSON + Markdown + ZIP. No dependencies beyond bash, curl, python3. · GitHub](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)",
+    "[^1-4]: [ChatGPT Conversation Exporter — export all your conversations as JSON + Markdown + ZIP. No dependencies beyond bash, curl, python3. · GitHub](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)",
   ]);
 });
 
@@ -103,10 +107,13 @@ test("parseConversationDetailPayload converts ChatGPT content references into Ob
   assert.doesNotMatch(assistantMessage.markdown, /(?:cite|entity|video)/);
   assert.doesNotMatch(assistantMessage.markdown, /\*\*\*\*/);
   assert.doesNotMatch(assistantMessage.markdown, /img\.youtube\.com/);
+  assert.match(assistantMessage.markdown, /\[\^2-1\]/);
+  assert.match(assistantMessage.markdown, /\[\^2-2\]/);
 
   assert.deepEqual(detail.footnotes, [
     "[^1]: [Obsidian Vault](https://ktmeaton.github.io/obsidian-site/obsidian-site/notes/Obsidian-Citations?utm_source=chatgpt.com)",
-    "[^2]: [Citations | SimilarPlugins](https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com)",
+    "[^2-1]: [Citations | SimilarPlugins](https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com)",
+    "[^2-2]: [Citations | SimilarPlugins](https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com)",
   ]);
 });
 
@@ -118,5 +125,5 @@ test("parseConversationDetailPayload uses matched item titles for grouped webpag
   });
 
   assert.ok(detail.footnotes.length > 0);
-  assert.equal(detail.footnotes[0], "[^1]: [AI Agents – Linear Docs](https://linear.app/docs/agents-in-linear)");
+  assert.equal(detail.footnotes[0], "[^1-1]: [AI Agents – Linear Docs](https://linear.app/docs/agents-in-linear)");
 });

@@ -1,6 +1,7 @@
 import {
   applyChatGptContentReferencesAsFootnotes,
   createConversationFootnoteRegistry,
+  finalizeConversationFootnoteText,
   extractConversationListPageInfo,
   getConversationFootnoteDefinitions,
   normalizeConversationTimestamp,
@@ -589,7 +590,9 @@ function renderMessageMarkdown(
   let body = renderMessageBody(message, refs);
   const metadataPlaceholders = extractMetadataPlaceholders(message, refs);
   const metadata = toRecord(message.metadata);
-  const citationRender = applyChatGptContentReferencesAsFootnotes(body, metadata?.content_references, footnoteRegistry);
+  const citationRender = applyChatGptContentReferencesAsFootnotes(body, metadata?.content_references, footnoteRegistry, {
+    finalizeText: false,
+  });
   body = citationRender.text;
 
   if (metadataPlaceholders.length > 0) {
@@ -663,6 +666,10 @@ function extractMessagesFromMapping(payload: UnknownRecord): MappingExtractionRe
       role,
       markdown,
     });
+  }
+
+  for (const message of messages) {
+    message.markdown = finalizeConversationFootnoteText(message.markdown, footnoteRegistry);
   }
 
   return {

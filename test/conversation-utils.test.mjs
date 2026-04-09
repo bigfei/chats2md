@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   applyChatGptContentReferencesAsFootnotes,
   createConversationFootnoteRegistry,
+  finalizeConversationFootnoteText,
   extractConversationListPageInfo,
   getConversationFootnoteDefinitions,
   getNextConversationListOffset,
@@ -159,9 +160,9 @@ test("applyChatGptContentReferencesAsFootnotes uses matched_text replacements", 
   assert.match(text, /【文字】/);
   assert.doesNotMatch(text, /(?:cite|filecite)/);
   assert.doesNotMatch(text, /【1†source】/);
-  assert.match(text, /\[\^\d+\]/);
+  assert.match(text, /\[\^\d+(?:-\d+)?\]/);
   assert.ok(footnotes.length > 0, "Expected generated footnote definitions.");
-  assert.match(footnotes[0], /^\[\^\d+\]: \[[^\]]+\]\(https?:\/\//);
+  assert.match(footnotes[0], /^\[\^\d+(?:-\d+)?\]: \[[^\]]+\]\(https?:\/\//);
 });
 
 test("applyChatGptContentReferencesAsFootnotes skips whitespace-only matched_text", () => {
@@ -179,7 +180,7 @@ test("applyChatGptContentReferencesAsFootnotes skips whitespace-only matched_tex
   assert.equal(footnotes.length, 0);
 });
 
-test("applyChatGptContentReferencesAsFootnotes reuses id for repeated label+URL across calls", () => {
+test("applyChatGptContentReferencesAsFootnotes suffixes duplicate URLs across calls", () => {
   const registry = createConversationFootnoteRegistry();
   const repeatedReferences = [
     {
@@ -189,15 +190,20 @@ test("applyChatGptContentReferencesAsFootnotes reuses id for repeated label+URL 
     },
   ];
 
-  const first = applyChatGptContentReferencesAsFootnotes("first citeturnAsearch0", repeatedReferences, registry);
-  const second = applyChatGptContentReferencesAsFootnotes("second citeturnAsearch0", repeatedReferences, registry);
+  const first = applyChatGptContentReferencesAsFootnotes("first citeturnAsearch0", repeatedReferences, registry, {
+    finalizeText: false,
+  });
+  const second = applyChatGptContentReferencesAsFootnotes("second citeturnAsearch0", repeatedReferences, registry, {
+    finalizeText: false,
+  });
 
-  assert.match(first.text, /\[\^1\]/);
-  assert.match(second.text, /\[\^1\]/);
+  assert.equal(finalizeConversationFootnoteText(first.text, registry), "first [^1-1]");
+  assert.equal(finalizeConversationFootnoteText(second.text, registry), "second [^1-2]");
 
   const footnotes = getConversationFootnoteDefinitions(registry);
-  assert.equal(footnotes.length, 1);
-  assert.equal(footnotes[0], "[^1]: [Gist](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)");
+  assert.equal(footnotes.length, 2);
+  assert.equal(footnotes[0], "[^1-1]: [Gist](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)");
+  assert.equal(footnotes[1], "[^1-2]: [Gist](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)");
 });
 
 test("applyChatGptContentReferencesAsFootnotes prefers the matched item title over alt text", () => {
@@ -209,8 +215,38 @@ test("applyChatGptContentReferencesAsFootnotes prefers the matched item title ov
 
   assert.equal(
     footnotes[0],
-    "[^1]: [ChatGPT Conversation Exporter — export all your conversations as JSON + Markdown + ZIP. No dependencies beyond bash, curl, python3. · GitHub](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)",
+    "[^1-1]: [ChatGPT Conversation Exporter — export all your conversations as JSON + Markdown + ZIP. No dependencies beyond bash, curl, python3. · GitHub](https://gist.github.com/ocombe/1d7604bd29a91ceb716304ef8b5aa4b5)",
   );
+});
+
+test("applyChatGptContentReferencesAsFootnotes retroactively renames the first duplicate URL within one message", () => {
+  const repeatedReferences = [
+    {
+      matched_text: "citeturnAsearch0",
+      alt: "([Gist](https://example.com))",
+      safe_urls: ["https://example.com"],
+      items: [{ title: "Example", url: "https://example.com" }],
+      start_idx: 0,
+    },
+    {
+      matched_text: "citeturnAsearch1",
+      alt: "([Gist](https://example.com))",
+      safe_urls: ["https://example.com"],
+      items: [{ title: "Example", url: "https://example.com" }],
+      start_idx: 10,
+    },
+  ];
+
+  const result = applyChatGptContentReferencesAsFootnotes(
+    "first citeturnAsearch0 second citeturnAsearch1",
+    repeatedReferences,
+  );
+
+  assert.equal(result.text, "first [^1-1] second [^1-2]");
+  assert.deepEqual(result.footnotes, [
+    "[^1-1]: [Example](https://example.com)",
+    "[^1-2]: [Example](https://example.com)",
+  ]);
 });
 
 test("applyChatGptContentReferencesAsFootnotes does not emit dangling definition when marker is missing", () => {
@@ -238,15 +274,19 @@ test("applyChatGptContentReferencesAsFootnotes renders ChatGPT entity refs as un
   assert.match(text, /using \*\*<u>Pandoc<\/u>\*\*/);
   assert.doesNotMatch(text, /(?:cite|entity|video)/);
   assert.match(text, /The plugin inserts it directly into your note \[\^1\]/);
-  assert.match(text, /Works with `\.bib` or JSON exports \[\^2\]/);
-  assert.equal(footnotes.length, 2);
+  assert.match(text, /Works with `\.bib` or JSON exports \[\^2-2\]/);
+  assert.equal(footnotes.length, 3);
   assert.equal(
     footnotes[0],
     "[^1]: [Obsidian Vault](https://ktmeaton.github.io/obsidian-site/obsidian-site/notes/Obsidian-Citations?utm_source=chatgpt.com)",
   );
   assert.equal(
     footnotes[1],
-    "[^2]: [Citations | SimilarPlugins](https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com)",
+    "[^2-1]: [Citations | SimilarPlugins](https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com)",
+  );
+  assert.equal(
+    footnotes[2],
+    "[^2-2]: [Citations | SimilarPlugins](https://plugins.semiautonomous.org/plugin/obsidian-citation-plugin?utm_source=chatgpt.com)",
   );
 });
 
@@ -258,7 +298,7 @@ test("applyChatGptContentReferencesAsFootnotes uses the matched item title for g
   const { footnotes } = applyChatGptContentReferencesAsFootnotes(message.text, message.contentReferences);
 
   assert.ok(footnotes.length > 0);
-  assert.equal(footnotes[0], "[^1]: [AI Agents – Linear Docs](https://linear.app/docs/agents-in-linear)");
+  assert.equal(footnotes[0], "[^1-1]: [AI Agents – Linear Docs](https://linear.app/docs/agents-in-linear)");
 });
 
 test("applyChatGptContentReferencesAsFootnotes renders ChatGPT video refs as Obsidian embeds", () => {

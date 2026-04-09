@@ -219,36 +219,68 @@ function formatObsidianFootnoteDefinition(id, label, url) {
   return `[^${id}]: [${escapeMarkdownLinkLabel(label)}](${url})`;
 }
 
+function formatConversationFootnotePlaceholder(id) {
+  return `[^__chats2md-footnote-${id}__]`;
+}
+
+const CONVERSATION_FOOTNOTE_PLACEHOLDER_PATTERN = /\[\^__chats2md-footnote-(\d+)__\]/g;
+
 export function createConversationFootnoteRegistry() {
   return {
-    nextId: 1,
-    keyToId: new Map(),
-    definitionsById: new Map(),
+    nextBaseId: 1,
+    nextOccurrenceId: 1,
+    baseIdByUrl: new Map(),
+    occurrenceIdsByUrl: new Map(),
+    occurrencesById: new Map(),
   };
 }
 
-function ensureFootnoteIdAndDefinition(registry, label, url) {
-  const dedupKey = `${label}\u0000${url}`;
-  const existingId = registry.keyToId.get(dedupKey);
-
-  if (typeof existingId === "number") {
-    return existingId;
+function registerFootnoteOccurrence(registry, label, url) {
+  let baseId = registry.baseIdByUrl.get(url);
+  if (typeof baseId !== "number") {
+    baseId = registry.nextBaseId;
+    registry.nextBaseId += 1;
+    registry.baseIdByUrl.set(url, baseId);
   }
 
-  const id = registry.nextId;
-  registry.nextId += 1;
-  registry.keyToId.set(dedupKey, id);
-  registry.definitionsById.set(id, formatObsidianFootnoteDefinition(id, label, url));
+  const occurrenceIds = registry.occurrenceIdsByUrl.get(url) ?? [];
+  const id = registry.nextOccurrenceId;
+  registry.nextOccurrenceId += 1;
+  occurrenceIds.push(id);
+  registry.occurrenceIdsByUrl.set(url, occurrenceIds);
+  registry.occurrencesById.set(id, {
+    id,
+    baseId,
+    occurrenceIndex: occurrenceIds.length,
+    label,
+    url,
+  });
 
   return id;
+}
+
+function readConversationFootnoteDisplayId(registry, id) {
+  const occurrence = registry.occurrencesById.get(id);
+  if (!occurrence) {
+    return "";
+  }
+
+  const occurrenceIds = registry.occurrenceIdsByUrl.get(occurrence.url) ?? [];
+  if (occurrenceIds.length <= 1) {
+    return String(occurrence.baseId);
+  }
+
+  return `${occurrence.baseId}-${occurrence.occurrenceIndex}`;
 }
 
 function isValidFootnoteRegistry(value) {
   return (
     isRecord(value) &&
-    typeof value.nextId === "number" &&
-    value.keyToId instanceof Map &&
-    value.definitionsById instanceof Map
+    typeof value.nextBaseId === "number" &&
+    typeof value.nextOccurrenceId === "number" &&
+    value.baseIdByUrl instanceof Map &&
+    value.occurrenceIdsByUrl instanceof Map &&
+    value.occurrencesById instanceof Map
   );
 }
 
@@ -257,12 +289,31 @@ export function getConversationFootnoteDefinitions(registry) {
     return [];
   }
 
-  return Array.from(registry.definitionsById.entries())
-    .sort((left, right) => left[0] - right[0])
-    .map((entry) => entry[1]);
+  return Array.from(registry.occurrencesById.values())
+    .sort((left, right) => left.baseId - right.baseId || left.occurrenceIndex - right.occurrenceIndex)
+    .map((occurrence) =>
+      formatObsidianFootnoteDefinition(
+        readConversationFootnoteDisplayId(registry, occurrence.id),
+        occurrence.label,
+        occurrence.url,
+      ),
+    );
 }
 
-export function applyChatGptContentReferencesAsFootnotes(text, contentReferences, registry) {
+export function finalizeConversationFootnoteText(text, registry) {
+  const sourceText = String(text ?? "");
+
+  if (!isValidFootnoteRegistry(registry)) {
+    return sourceText;
+  }
+
+  return sourceText.replace(CONVERSATION_FOOTNOTE_PLACEHOLDER_PATTERN, (match, idValue) => {
+    const displayId = readConversationFootnoteDisplayId(registry, Number(idValue));
+    return displayId ? `[^${displayId}]` : match;
+  });
+}
+
+export function applyChatGptContentReferencesAsFootnotes(text, contentReferences, registry, options = {}) {
   const sourceText = String(text ?? "");
   const sortedReferences = sortContentReferencesByStartIndex(Array.isArray(contentReferences) ? contentReferences : []);
 
@@ -275,6 +326,7 @@ export function applyChatGptContentReferencesAsFootnotes(text, contentReferences
 
   let transformedText = sourceText;
   const ensuredRegistry = isValidFootnoteRegistry(registry) ? registry : createConversationFootnoteRegistry();
+  const shouldFinalizeText = options.finalizeText !== false;
 
   for (const [referenceIndex, reference] of sortedReferences.entries()) {
     const matchedText = readNonEmptyString(reference.matched_text);
@@ -300,8 +352,8 @@ export function applyChatGptContentReferencesAsFootnotes(text, contentReferences
       transformedText = replaceFirstOccurrence(transformedText, matchedText, replacement).text;
       continue;
     }
-    const footnoteId = ensureFootnoteIdAndDefinition(ensuredRegistry, label, url);
-    const replacement = `[^${footnoteId}]`;
+    const footnoteId = registerFootnoteOccurrence(ensuredRegistry, label, url);
+    const replacement = formatConversationFootnotePlaceholder(footnoteId);
     const replaced = replaceFirstOccurrence(transformedText, matchedText, replacement);
 
     transformedText = replaced.text;
@@ -311,7 +363,7 @@ export function applyChatGptContentReferencesAsFootnotes(text, contentReferences
   }
 
   return {
-    text: transformedText,
+    text: shouldFinalizeText ? finalizeConversationFootnoteText(transformedText, ensuredRegistry) : transformedText,
     footnotes: getConversationFootnoteDefinitions(ensuredRegistry),
   };
 }
