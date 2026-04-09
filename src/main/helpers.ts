@@ -132,6 +132,10 @@ export interface ConversationFrontmatterInfo {
   userId: string;
 }
 
+export function isImportedChatGptConversationFrontmatter(frontmatter: ConversationFrontmatterInfo): boolean {
+  return frontmatter.conversationId.length > 0;
+}
+
 export function createEmptyCounts(): ImportProgressCounts {
   return {
     created: 0,

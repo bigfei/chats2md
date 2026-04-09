@@ -7,6 +7,7 @@ import {
   createEmptyCounts,
   formatAssetStorageMode,
   formatActionLabel,
+  isImportedChatGptConversationFrontmatter,
   normalizeAssetStorageMode,
   normalizeDefaultLatestConversationCount,
   normalizeStoredAccount,
@@ -157,6 +158,34 @@ test("normalizeStoredAccount validates and normalizes account metadata", () => {
     addedAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-02T00:00:00.000Z",
   });
+});
+
+test("isImportedChatGptConversationFrontmatter requires a ChatGPT conversation id", () => {
+  assert.equal(
+    isImportedChatGptConversationFrontmatter({
+      conversationId: "conv-123",
+      title: "Title",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      listUpdatedAt: "2026-01-01T00:00:00.000Z",
+      accountId: "",
+      userId: "",
+    }),
+    true,
+  );
+
+  assert.equal(
+    isImportedChatGptConversationFrontmatter({
+      conversationId: "",
+      title: "Title",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      listUpdatedAt: "",
+      accountId: "acc-1",
+      userId: "user-1",
+    }),
+    false,
+  );
 });
 
 test("sortAccounts orders by email then account id", () => {

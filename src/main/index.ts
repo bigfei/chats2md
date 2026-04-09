@@ -14,6 +14,7 @@ import {
   CONVERSATION_UPDATED_AT_KEY,
   CONVERSATION_USER_ID_KEY,
   getStoredAccountDisplayName,
+  isImportedChatGptConversationFrontmatter,
   normalizeAssetStorageMode,
   normalizeSyncTuningSettings,
   type ConversationFrontmatterInfo,
@@ -597,7 +598,7 @@ export default class Chats2MdPlugin extends Plugin {
     }
 
     const frontmatter = this.getConversationFrontmatter(file);
-    return frontmatter.accountId.length > 0 || frontmatter.userId.length > 0;
+    return isImportedChatGptConversationFrontmatter(frontmatter);
   }
 
   private resolveAccountForConversation(frontmatter: ConversationFrontmatterInfo): StoredSessionAccount {
