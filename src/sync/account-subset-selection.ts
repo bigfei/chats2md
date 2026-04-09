@@ -52,6 +52,41 @@ export type OpenAccountSubsetSelectionPromptResult =
       status: "stop";
     });
 
+type NonSelectedSubsetSelectionStatus = Exclude<OpenAccountSubsetSelectionPromptResult["status"], "selected">;
+
+function buildSubsetSelectionResult(
+  status: NonSelectedSubsetSelectionStatus,
+  discoveredCount: number,
+  discoveredRangeLabel: string,
+): OpenAccountSubsetSelectionPromptResult;
+function buildSubsetSelectionResult(
+  status: "selected",
+  discoveredCount: number,
+  discoveredRangeLabel: string,
+  selection: SelectableConversationSubset,
+): OpenAccountSubsetSelectionPromptResult;
+function buildSubsetSelectionResult(
+  status: OpenAccountSubsetSelectionPromptResult["status"],
+  discoveredCount: number,
+  discoveredRangeLabel: string,
+  selection?: SelectableConversationSubset,
+): OpenAccountSubsetSelectionPromptResult {
+  if (status === "selected" && selection) {
+    return {
+      status,
+      discoveredCount,
+      discoveredRangeLabel,
+      selection,
+    };
+  }
+
+  return {
+    status: status as NonSelectedSubsetSelectionStatus,
+    discoveredCount,
+    discoveredRangeLabel,
+  };
+}
+
 export function applyConversationSubsetSelection(
   summaries: ConversationSummary[],
   selection: SelectableConversationSubset,
@@ -79,19 +114,11 @@ export async function openAccountSubsetSelectionPrompt(
     discoveredStartDate && discoveredEndDate ? `${discoveredStartDate} to ${discoveredEndDate}` : "unknown";
 
   if (discoveredCount === 0 || !createdAtSpan) {
-    return {
-      status: "no-selection",
-      discoveredCount,
-      discoveredRangeLabel,
-    };
+    return buildSubsetSelectionResult("no-selection", discoveredCount, discoveredRangeLabel);
   }
 
   if (!(await options.ensureCanContinue())) {
-    return {
-      status: "stop",
-      discoveredCount,
-      discoveredRangeLabel,
-    };
+    return buildSubsetSelectionResult("stop", discoveredCount, discoveredRangeLabel);
   }
 
   options.setPreparing(
@@ -111,25 +138,12 @@ export async function openAccountSubsetSelectionPrompt(
   });
 
   if (!(await options.ensureCanContinue())) {
-    return {
-      status: "stop",
-      discoveredCount,
-      discoveredRangeLabel,
-    };
+    return buildSubsetSelectionResult("stop", discoveredCount, discoveredRangeLabel);
   }
 
   if (selection.mode === "skip-account") {
-    return {
-      status: "skip-account",
-      discoveredCount,
-      discoveredRangeLabel,
-    };
+    return buildSubsetSelectionResult("skip-account", discoveredCount, discoveredRangeLabel);
   }
 
-  return {
-    status: "selected",
-    discoveredCount,
-    discoveredRangeLabel,
-    selection,
-  };
+  return buildSubsetSelectionResult("selected", discoveredCount, discoveredRangeLabel, selection);
 }

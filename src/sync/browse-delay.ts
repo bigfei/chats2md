@@ -1,5 +1,4 @@
 import { SyncCancelledError, sleepWithAbort } from "./cancellation";
-import { shouldFetchConversationDetail } from "./skip-existing";
 
 export const MIN_CONVERSATION_BROWSE_DELAY_MS = 3000;
 export const MAX_CONVERSATION_BROWSE_DELAY_MS = 15000;
@@ -64,7 +63,7 @@ export async function prepareConversationDetailFetch(
     delayRange?: Partial<ConversationBrowseDelayRange>;
   } = {},
 ): Promise<ConversationDetailFetchPreparationResult> {
-  if (!shouldFetchConversationDetail(hasLocalConversation, skipExistingLocalConversations)) {
+  if (skipExistingLocalConversations && hasLocalConversation) {
     return {
       shouldFetch: false,
       delayMs: null,

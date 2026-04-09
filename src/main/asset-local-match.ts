@@ -75,26 +75,17 @@ export function buildStableAssetFileName(
 export function findReusableLocalAssetFileName(fileNames: Iterable<string>, ref: LocalAssetReference): string | null {
   const normalizedFileId = sanitizePathPart(ref.fileId);
   const logicalExtension = extractKnownExtension(ref.logicalName);
-  const exactCandidates = [logicalExtension ? `${normalizedFileId}${logicalExtension}` : "", normalizedFileId].filter(
-    (candidate, index, all): candidate is string => candidate.length > 0 && all.indexOf(candidate) === index,
-  );
+  const preferredExactMatch = logicalExtension ? `${normalizedFileId}${logicalExtension}` : normalizedFileId;
 
-  for (const candidate of exactCandidates) {
-    if (hasFileName(fileNames, candidate)) {
-      return candidate;
-    }
+  if (hasFileName(fileNames, preferredExactMatch)) {
+    return preferredExactMatch;
   }
 
-  const stemCandidates = normalizedFileId.length > 0 ? [normalizedFileId] : [];
-
-  for (const candidate of stemCandidates) {
-    const match = findUniqueStemMatch(fileNames, candidate);
-    if (match) {
-      return match;
-    }
+  if (preferredExactMatch !== normalizedFileId && hasFileName(fileNames, normalizedFileId)) {
+    return normalizedFileId;
   }
 
-  return null;
+  return findUniqueStemMatch(fileNames, normalizedFileId);
 }
 
 export function findMigratableLegacyAssetFileName(fileNames: string[], ref: LocalAssetReference): string | null {

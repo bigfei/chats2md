@@ -16,6 +16,15 @@ test("findReusableLocalAssetFileName prefers a fileId-based local asset", () => 
   assert.equal(fileName, "file_00000000725461fa9cc192120f070b8b.png");
 });
 
+test("findReusableLocalAssetFileName supports set-backed file name collections", () => {
+  const fileName = findReusableLocalAssetFileName(new Set(["file_123.png"]), {
+    fileId: "file_123",
+    logicalName: "image.jpg",
+  });
+
+  assert.equal(fileName, "file_123.png");
+});
+
 test("buildStableAssetFileName uses the fileId and preserves an inferred extension", () => {
   const fileName = buildStableAssetFileName("file_123", "image.png", "image.png");
 

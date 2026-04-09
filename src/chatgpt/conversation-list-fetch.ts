@@ -128,6 +128,21 @@ async function runParallelOffsets(
   );
 }
 
+function buildFetchConversationSummariesResult(
+  mergedSummaries: Map<string, ConversationSummary>,
+  pagesFetched: number,
+  rawItemCount: number,
+): FetchConversationSummariesResult {
+  const summaries = sortConversationSummariesByCreatedAtDesc(Array.from(mergedSummaries.values()));
+
+  return {
+    summaries,
+    pagesFetched,
+    rawItemCount,
+    uniqueConversationCount: summaries.length,
+  };
+}
+
 export async function fetchConversationSummariesWithPageFetcher(
   fetchPage: (offset: number) => Promise<Omit<ConversationListPageFetchResult, "offset">>,
   options: FetchConversationSummariesWithPageFetcherOptions,
@@ -174,23 +189,11 @@ export async function fetchConversationSummariesWithPageFetcher(
   recordPage(0, firstPage.pageInfo, firstPage.pageSummaries);
 
   if (firstPage.pageSummaries.length === 0) {
-    const summaries = sortConversationSummariesByCreatedAtDesc(Array.from(mergedSummaries.values()));
-    return {
-      summaries,
-      pagesFetched,
-      rawItemCount,
-      uniqueConversationCount: summaries.length,
-    };
+    return buildFetchConversationSummariesResult(mergedSummaries, pagesFetched, rawItemCount);
   }
 
   if (!shouldFetchNextConversationListPage(firstPage.pageSummaries.length, firstPage.pageInfo, options.pageLimit)) {
-    const summaries = sortConversationSummariesByCreatedAtDesc(Array.from(mergedSummaries.values()));
-    return {
-      summaries,
-      pagesFetched,
-      rawItemCount,
-      uniqueConversationCount: summaries.length,
-    };
+    return buildFetchConversationSummariesResult(mergedSummaries, pagesFetched, rawItemCount);
   }
 
   let nextOffset = getNextConversationListOffset(0, firstPage.pageInfo, options.pageLimit);
@@ -242,14 +245,7 @@ export async function fetchConversationSummariesWithPageFetcher(
     nextOffset = nextBatchOffset;
   }
 
-  const summaries = sortConversationSummariesByCreatedAtDesc(Array.from(mergedSummaries.values()));
-
-  return {
-    summaries,
-    pagesFetched,
-    rawItemCount,
-    uniqueConversationCount: summaries.length,
-  };
+  return buildFetchConversationSummariesResult(mergedSummaries, pagesFetched, rawItemCount);
 }
 
 async function fetchPageWithContext(

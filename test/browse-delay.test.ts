@@ -110,6 +110,24 @@ test("prepareConversationDetailFetch applies configured delay bounds", async () 
   assert.deepEqual(delays, [750]);
 });
 
+test("prepareConversationDetailFetch still fetches existing local conversations when skip-existing is disabled", async () => {
+  const { control } = createControl();
+  let slept = false;
+
+  const result = await prepareConversationDetailFetch(true, false, control, {
+    randomValue: 0,
+    sleep: async () => {
+      slept = true;
+    },
+  });
+
+  assert.deepEqual(result, {
+    shouldFetch: true,
+    delayMs: MIN_CONVERSATION_BROWSE_DELAY_MS,
+  });
+  assert.equal(slept, true);
+});
+
 test("prepareConversationDetailFetch does not invoke delay when local conversation is skipped", async () => {
   const { control } = createControl();
   let slept = false;

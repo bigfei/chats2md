@@ -82,6 +82,13 @@ test("listFolderCleanupPaths walks upward until the stop folder", () => {
   ]);
 });
 
+test("listFolderCleanupPaths normalizes whitespace and outer slashes", () => {
+  assert.deepEqual(listFolderCleanupPaths(" /Imports/ChatGPT/2026-04-01/_assets/ ", "/Imports/ChatGPT/"), [
+    "Imports/ChatGPT/2026-04-01/_assets",
+    "Imports/ChatGPT/2026-04-01",
+  ]);
+});
+
 test("buildMovedConversationFolderCleanupPlans includes old note and local asset folders", () => {
   assert.deepEqual(
     buildMovedConversationFolderCleanupPlans(

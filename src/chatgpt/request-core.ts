@@ -43,6 +43,15 @@ export function isRateLimitedChatGptRequestError(error: unknown): error is ChatG
   return isChatGptRequestError(error) && error.status === 429;
 }
 
+function notifyRateLimitMonitor(status: number, rateLimitMonitor?: ChatGptRateLimitMonitor): void {
+  if (status === 429) {
+    rateLimitMonitor?.onRateLimitedResponse();
+    return;
+  }
+
+  rateLimitMonitor?.onNonRateLimitedResponse();
+}
+
 function readHeader(headers: unknown, targetName: string): string | null {
   if (!headers || typeof headers !== "object" || Array.isArray(headers)) {
     return null;
@@ -109,24 +118,19 @@ export async function requestJsonWithRetries(
     const response = await raceWithAbort(requestFn(request), signal);
 
     if (response.status < 400) {
-      rateLimitMonitor?.onNonRateLimitedResponse();
+      notifyRateLimitMonitor(response.status, rateLimitMonitor);
       return response.json;
     }
 
     if (response.status === 429 && attempt < MAX_RATE_LIMIT_RETRIES) {
-      rateLimitMonitor?.onRateLimitedResponse();
+      notifyRateLimitMonitor(response.status, rateLimitMonitor);
       const retryAfterMs = parseRetryAfterMs(readHeader(response.headers, "retry-after"));
       const backoffMs = computeRateLimitDelayMs(attempt, retryAfterMs);
       await sleepFn(backoffMs, signal);
       continue;
     }
 
-    if (response.status === 429) {
-      rateLimitMonitor?.onRateLimitedResponse();
-    } else {
-      rateLimitMonitor?.onNonRateLimitedResponse();
-    }
-
+    notifyRateLimitMonitor(response.status, rateLimitMonitor);
     throw new ChatGptRequestError("ChatGPT request failed", response.status, readResponseBodyText(response));
   }
 
@@ -142,16 +146,11 @@ export async function requestBinary(
   const response = await raceWithAbort(requestFn(request), signal);
 
   if (response.status >= 400) {
-    if (response.status === 429) {
-      rateLimitMonitor?.onRateLimitedResponse();
-    } else {
-      rateLimitMonitor?.onNonRateLimitedResponse();
-    }
-
+    notifyRateLimitMonitor(response.status, rateLimitMonitor);
     throw new ChatGptRequestError("ChatGPT binary request failed", response.status, readResponseBodyText(response));
   }
 
-  rateLimitMonitor?.onNonRateLimitedResponse();
+  notifyRateLimitMonitor(response.status, rateLimitMonitor);
 
   return {
     data: response.arrayBuffer,

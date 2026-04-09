@@ -1,5 +1,4 @@
-import { ASSET_FOLDER_NAME } from "./helpers";
-import { normalizeObsidianPath } from "../path/normalization";
+import { ASSET_FOLDER_NAME, normalizeTargetFolder } from "./helpers";
 import type { AssetStorageMode } from "../shared/types";
 
 interface FolderCleanupHost {
@@ -21,22 +20,15 @@ interface FolderLike {
   children: unknown[];
 }
 
-function normalizeFolderPath(path: string): string {
-  const trimmed = String(path ?? "")
-    .trim()
-    .replace(/^\/+|\/+$/g, "");
-  return trimmed.length > 0 ? normalizeObsidianPath(trimmed) : "";
-}
-
 export function getParentFolderPath(path: string): string {
-  const normalized = normalizeFolderPath(path);
+  const normalized = normalizeTargetFolder(path);
   const index = normalized.lastIndexOf("/");
   return index === -1 ? "" : normalized.slice(0, index);
 }
 
 export function findSharedFolderPath(leftPath: string, rightPath: string): string {
-  const leftParts = normalizeFolderPath(leftPath).split("/").filter(Boolean);
-  const rightParts = normalizeFolderPath(rightPath).split("/").filter(Boolean);
+  const leftParts = normalizeTargetFolder(leftPath).split("/").filter(Boolean);
+  const rightParts = normalizeTargetFolder(rightPath).split("/").filter(Boolean);
   const shared: string[] = [];
   const total = Math.min(leftParts.length, rightParts.length);
 
@@ -55,9 +47,9 @@ export function findSharedFolderPath(leftPath: string, rightPath: string): strin
 }
 
 export function listFolderCleanupPaths(startFolderPath: string, stopBeforePath = ""): string[] {
-  const normalizedStopBefore = normalizeFolderPath(stopBeforePath);
+  const normalizedStopBefore = normalizeTargetFolder(stopBeforePath);
   const paths: string[] = [];
-  let current = normalizeFolderPath(startFolderPath);
+  let current = normalizeTargetFolder(startFolderPath);
 
   while (current && current !== normalizedStopBefore) {
     paths.push(current);
@@ -109,7 +101,7 @@ export function buildMovedConversationFolderCleanupPlans(
   const previousNoteFolder = getParentFolderPath(previousNotePath);
   const nextNoteFolder = getParentFolderPath(nextNotePath);
   const plans: FolderCleanupPlan[] = [];
-  const previousAssetFolder = normalizeFolderPath(`${previousNoteFolder}/${ASSET_FOLDER_NAME}`);
+  const previousAssetFolder = normalizeTargetFolder(`${previousNoteFolder}/${ASSET_FOLDER_NAME}`);
 
   if (assetStorageMode === "with_conversation") {
     if (previousAssetFolder) {

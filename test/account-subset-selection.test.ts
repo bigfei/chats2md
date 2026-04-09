@@ -84,6 +84,33 @@ test("openAccountSubsetSelectionPrompt does not open selector when no conversati
   assert.equal(selectCalls, 0);
 });
 
+test("openAccountSubsetSelectionPrompt stops before opening the selector when continuation is no longer allowed", async () => {
+  let selectCalls = 0;
+
+  const result = await openAccountSubsetSelectionPrompt(
+    {
+      accountLabel: "user@example.com",
+      accountIndex: 0,
+      totalAccounts: 1,
+      summaries: [createSummary("conv-1", "2026-03-01T00:00:00.000Z")],
+      skipExistingLocalConversations: true,
+      defaultLatestConversationCount: null,
+    },
+    {
+      ensureCanContinue: async () => false,
+      setPreparing: () => undefined,
+      logInfo: () => undefined,
+      selectDateRange: async () => {
+        selectCalls += 1;
+        return { mode: "all", skipExistingLocalConversations: true };
+      },
+    },
+  );
+
+  assert.equal(result.status, "stop");
+  assert.equal(selectCalls, 0);
+});
+
 test("applyConversationSubsetSelection keeps all rows for all mode", () => {
   const summaries = [createSummary("conv-1", "2026-03-01T00:00:00.000Z"), createSummary("conv-2", "2026-03-02T00:00:00.000Z")];
 
@@ -123,4 +150,27 @@ test("openAccountSubsetSelectionPrompt passes through the configured latest-coun
   );
 
   assert.equal(receivedDefault, 1);
+});
+
+test("openAccountSubsetSelectionPrompt returns skip-account when the selector chooses it", async () => {
+  const summaries = [createSummary("conv-1", "2026-03-01T00:00:00.000Z")];
+
+  const result = await openAccountSubsetSelectionPrompt(
+    {
+      accountLabel: "user@example.com",
+      accountIndex: 0,
+      totalAccounts: 1,
+      summaries,
+      skipExistingLocalConversations: true,
+      defaultLatestConversationCount: null,
+    },
+    {
+      ensureCanContinue: async () => true,
+      setPreparing: () => undefined,
+      logInfo: () => undefined,
+      selectDateRange: async () => ({ mode: "skip-account" }),
+    },
+  );
+
+  assert.equal(result.status, "skip-account");
 });

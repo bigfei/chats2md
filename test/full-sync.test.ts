@@ -1,25 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { shouldFetchConversationDetail } from "../src/sync/skip-existing.ts";
 import { ConsecutiveRateLimitPauseError } from "../src/sync/rate-limit-guard.ts";
 import { runWithRateLimitPauseRetry } from "../src/sync/rate-limit-retry.ts";
-
-test("shouldFetchConversationDetail skips existing local conversations when enabled", () => {
-  assert.equal(shouldFetchConversationDetail(true, true), false);
-});
-
-test("shouldFetchConversationDetail still fetches missing conversations when skipping is enabled", () => {
-  assert.equal(shouldFetchConversationDetail(false, true), true);
-});
-
-test("shouldFetchConversationDetail fetches existing local conversations when skipping is disabled", () => {
-  assert.equal(shouldFetchConversationDetail(true, false), true);
-});
-
-test("shouldFetchConversationDetail still fetches missing conversations when skipping is disabled", () => {
-  assert.equal(shouldFetchConversationDetail(false, false), true);
-});
 
 test("runWithRateLimitPauseRetry retries the interrupted account-level operation after resume", async () => {
   const attempts: string[] = [];
