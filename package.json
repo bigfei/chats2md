@@ -1,6 +1,6 @@
 {
   "name": "obsidian-chats2md",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "description": "Obsidian plugin for importing full ChatGPT conversation logs into markdown notes.",
   "main": "main.js",
   "type": "module",
