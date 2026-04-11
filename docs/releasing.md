@@ -25,23 +25,24 @@ npm test
 npm run build
 ```
 
-3. Confirm `manifest.json.version` is the version you want to publish.
-4. Confirm `manifest.json` still reflects desktop-only support with `isDesktopOnly: true`.
-5. If `minAppVersion` changed, confirm `versions.json` includes the new mapping.
-6. Create a Git tag that exactly matches `manifest.json.version`.
-7. Push the tag:
+3. Confirm the README still matches the current settings UI labels, session-validation behavior, and security/storage disclosures.
+4. Confirm `manifest.json.version` is the version you want to publish.
+5. Confirm `manifest.json` still reflects desktop-only support with `isDesktopOnly: true`.
+6. If `minAppVersion` changed, confirm `versions.json` includes the new mapping.
+7. Create a Git tag that exactly matches `manifest.json.version`.
+8. Push the tag:
 
 ```bash
 git push origin <version>
 ```
 
-8. Wait for the `Release` workflow to finish.
-9. Verify the GitHub release contains:
-   - `main.js`
-   - `manifest.json`
-   - `styles.css`
-   - `release/chats2md-<version>.zip`
-10. If this is the first release, confirm the repository description, topics, and homepage are set on GitHub.
+9. Wait for the `Release` workflow to finish.
+10. Verify the GitHub release contains:
+- `main.js`
+- `manifest.json`
+- `styles.css`
+- `release/chats2md-<version>.zip`
+11. If this is the first release, confirm the repository description, topics, and homepage are set on GitHub.
 
 ## How the automation works
 

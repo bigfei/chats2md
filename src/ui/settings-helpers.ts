@@ -36,6 +36,19 @@ export function parseSettingsNumberInput(value: string, fallback: number): numbe
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+export async function saveSettingIfChanged<T>(
+  currentValue: T,
+  nextValue: T,
+  save: (value: T) => Promise<void>,
+): Promise<boolean> {
+  if (Object.is(currentValue, nextValue)) {
+    return false;
+  }
+
+  await save(nextValue);
+  return true;
+}
+
 export function normalizeDefaultLatestConversationCountInput(value: string): number | null {
   const trimmed = value.trim();
 
@@ -65,20 +78,19 @@ export function buildAccountDescriptionLines(
   account: StoredSessionAccount,
   healthResult?: AccountHealthResult,
 ): string[] {
-  const lines = [
-    `Status: ${account.disabled ? "Disabled" : "Enabled"}`,
-    `User ID: ${account.userId || "Unavailable"}`,
-    `Account ID: ${account.accountId}`,
-    `Expires: ${account.expiresAt || "Unavailable"}`,
-  ];
+  const lines = [`Session: ${account.disabled ? "Disabled" : "Enabled"}`];
 
   if (healthResult) {
-    lines.push(`Health check: ${healthResult.status === "healthy" ? "Healthy" : "Unhealthy"}`);
-    lines.push(`Last check: ${healthResult.checkedAt}`);
-    if (healthResult.status !== "healthy") {
-      lines.push(`Health issue: ${healthResult.message}`);
-    }
+    lines.push(
+      healthResult.status === "healthy"
+        ? `Health: Healthy (checked ${healthResult.checkedAt})`
+        : `Health: Warning - ${healthResult.message} (checked ${healthResult.checkedAt})`,
+    );
   }
+
+  lines.push(`Expires: ${account.expiresAt || "Unavailable"}`);
+  lines.push(`Account ID: ${account.accountId}`);
+  lines.push(`User ID: ${account.userId || "Unavailable"}`);
 
   return lines;
 }
@@ -102,7 +114,7 @@ export function summarizeAccountHealthResults(results: Iterable<AccountHealthRes
   return {
     healthyCount,
     unhealthyCount,
-    notice: `Account health check complete. ${healthyCount} healthy, ${unhealthyCount} unhealthy.`,
+    notice: `Account session health check complete. ${healthyCount} healthy, ${unhealthyCount} unhealthy.`,
   };
 }
 

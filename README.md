@@ -4,10 +4,11 @@
 
 ## Requirements and disclosures
 
-- A ChatGPT account and a valid session JSON payload are required.
+- A ChatGPT account and a current session JSON payload are required.
 - The plugin makes network requests to `https://chatgpt.com` for conversation-list fetches, conversation-detail fetches, account validation, and asset downloads.
 - Session payloads are stored in Obsidian secret storage, not in plugin `data.json`.
 - The session payload is expected to come from `https://chatgpt.com/api/auth/session`. The plugin reads it locally to extract the ChatGPT auth material it needs for requests to `chatgpt.com`, including `accessToken`, `account.id`, `user.id`, `user.email`, and optional cookie/header data.
+- Session payloads are validated before save. Expired or otherwise unhealthy sessions are rejected instead of being stored.
 - The plugin does not send that session payload to any service other than ChatGPT itself. It is used only for local validation, account identification inside the vault, and authenticated requests back to `chatgpt.com`.
 - Deleting an account removes its metadata from plugin settings and clears the stored secret payload by overwriting it with an empty value. Obsidian 1.11.4 does not expose a secret-delete API.
 - Optional JSON sidecars store raw ChatGPT conversation detail payloads as local vault files next to notes.
@@ -24,7 +25,7 @@
 
 ## Sync behavior
 
-1. Configure one or more ChatGPT session JSON payloads in plugin settings.
+1. Configure one or more ChatGPT account sessions in plugin settings.
    The plugin expects the payload from `https://chatgpt.com/api/auth/session`, stores it in Obsidian secret storage, and derives the fields needed to authenticate ChatGPT API requests.
 2. Start sync from the ribbon icon or command palette.
 3. Choose whether to sync all configured accounts or a single account.
@@ -44,6 +45,7 @@ Synced notes are authoritative outputs from ChatGPT data. Local edits to synced 
 - Default sync folder: `Imports/ChatGPT`
 - Default note path template: `{date}/{slug}`
 - Advanced sync tuning settings are available in the plugin settings tab under a collapsed section at the end.
+- The settings tab labels session management consistently as `account sessions`, and transient health-check results stay visible only while that settings pane remains open.
 - Supported path placeholders:
   - `{date}`: conversation created date (`YYYY-MM-DD`)
   - `{slug}`: sanitized conversation title
@@ -98,6 +100,7 @@ Run code quality checks:
 
 ```bash
 npm run lint
+npm run build
 npm run format:check
 npm test
 ```

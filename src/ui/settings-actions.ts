@@ -120,9 +120,9 @@ export async function runCheckAccountAction(
   dependencies.setTransientHealthResult(account.accountId, result);
 
   if (result.status === "healthy") {
-    dependencies.notice(`Account is healthy for ${label}.`);
+    dependencies.notice(`Account session is healthy for ${label}.`);
   } else {
-    dependencies.notice(`Health check warning for ${label}: ${result.message}`);
+    dependencies.notice(`Account session warning for ${label}: ${result.message}`);
     dependencies.logError("Account health check issue", {
       accountId: account.accountId,
       status: result.status,
@@ -153,6 +153,6 @@ export async function runSaveSessionAction(
 
   const saved = await dependencies.upsertSessionAccount(raw, parsed);
   dependencies.clearTransientHealthResult(saved.accountId);
-  dependencies.notice(`Saved session for ${getStoredAccountDisplayName(saved)}.`);
+  dependencies.notice(`Saved account session for ${getStoredAccountDisplayName(saved)}.`);
   dependencies.rerender();
 }

@@ -15,6 +15,7 @@ import { FolderSuggest } from "./folder-suggest";
 import type Chats2MdPlugin from "../main";
 import { SessionEditorModal } from "./session-editor-modal";
 import { DEFAULT_SYNC_TUNING_SETTINGS } from "../shared/types";
+import type { AssetStorageMode } from "../shared/types";
 import type { StoredSessionAccount } from "../shared/types";
 import {
   buildAccountDescriptionLines,
@@ -25,6 +26,7 @@ import {
   normalizeDefaultLatestConversationCountInput,
   normalizeSyncReportFolderInput,
   parseSettingsNumberInput,
+  saveSettingIfChanged,
 } from "./settings-helpers";
 import {
   applyConversationTemplatePresetSelection,
@@ -100,6 +102,18 @@ class ConfirmActionModal extends Modal {
   }
 }
 
+function buildAccountSessionStatusLabel(account: StoredSessionAccount, healthResult?: AccountHealthResult): string {
+  if (account.disabled) {
+    return "Disabled";
+  }
+
+  if (!healthResult) {
+    return "Enabled";
+  }
+
+  return healthResult.status === "healthy" ? "Healthy" : "Needs attention";
+}
+
 export class Chats2MdSettingTab extends PluginSettingTab {
   private readonly plugin: Chats2MdPlugin;
   private readonly transientHealthResults = new Map<string, AccountHealthResult>();
@@ -122,8 +136,11 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         component.setValue(this.plugin.settings.defaultFolder);
         new FolderSuggest(this.app, component.inputEl);
         component.onChange(async (value) => {
-          this.plugin.settings.defaultFolder = value.trim();
-          await this.plugin.saveSettings();
+          const nextValue = value.trim();
+          await saveSettingIfChanged(this.plugin.settings.defaultFolder, nextValue, async (normalizedValue) => {
+            this.plugin.settings.defaultFolder = normalizedValue;
+            await this.plugin.saveSettings();
+          });
         });
       });
 
@@ -136,10 +153,20 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           .addOption("with_conversation", "With conversation")
           .setValue(this.plugin.settings.assetStorageMode)
           .onChange(async (value) => {
-            this.plugin.settings.assetStorageMode =
+            const nextValue: AssetStorageMode =
               value === "with_conversation" ? "with_conversation" : "global_by_conversation";
-            await this.plugin.saveSettings();
-            new Notice(`Asset storage preset: ${formatAssetStorageMode(this.plugin.settings.assetStorageMode)}`);
+            const changed = await saveSettingIfChanged(
+              this.plugin.settings.assetStorageMode,
+              nextValue,
+              async (mode) => {
+                this.plugin.settings.assetStorageMode = mode;
+                await this.plugin.saveSettings();
+              },
+            );
+
+            if (changed) {
+              new Notice(`Asset storage preset: ${formatAssetStorageMode(this.plugin.settings.assetStorageMode)}`);
+            }
           });
       });
 
@@ -172,8 +199,15 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         component.setPlaceholder("{date}/{slug}");
         component.setValue(this.plugin.settings.conversationPathTemplate);
         component.onChange(async (value) => {
-          this.plugin.settings.conversationPathTemplate = normalizeConversationPathTemplateInput(value);
-          await this.plugin.saveSettings();
+          const nextValue = normalizeConversationPathTemplateInput(value);
+          await saveSettingIfChanged(
+            this.plugin.settings.conversationPathTemplate,
+            nextValue,
+            async (normalizedValue) => {
+              this.plugin.settings.conversationPathTemplate = normalizedValue;
+              await this.plugin.saveSettings();
+            },
+          );
         });
       });
 
@@ -182,8 +216,10 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       .setDesc("Log additional sync diagnostics in the developer console.")
       .addToggle((toggle) => {
         toggle.setValue(this.plugin.settings.debugLogging).onChange(async (value) => {
-          this.plugin.settings.debugLogging = value;
-          await this.plugin.saveSettings();
+          await saveSettingIfChanged(this.plugin.settings.debugLogging, value, async (nextValue) => {
+            this.plugin.settings.debugLogging = nextValue;
+            await this.plugin.saveSettings();
+          });
         });
       });
 
@@ -194,9 +230,17 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       .setDesc("Write a Markdown report after each full sync run and cached-JSON rebuild.")
       .addToggle((toggle) => {
         toggle.setValue(this.plugin.settings.generateSyncReport).onChange(async (value) => {
-          this.plugin.settings.generateSyncReport = value;
-          await this.plugin.saveSettings();
-          this.display();
+          const changed = await saveSettingIfChanged(
+            this.plugin.settings.generateSyncReport,
+            value,
+            async (nextValue) => {
+              this.plugin.settings.generateSyncReport = nextValue;
+              await this.plugin.saveSettings();
+            },
+          );
+          if (changed) {
+            this.display();
+          }
         });
       });
 
@@ -208,8 +252,11 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           component.setPlaceholder(DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE);
           component.setValue(this.plugin.settings.syncReportFolder);
           component.onChange(async (value) => {
-            this.plugin.settings.syncReportFolder = normalizeSyncReportFolderInput(value);
-            await this.plugin.saveSettings();
+            const nextValue = normalizeSyncReportFolderInput(value);
+            await saveSettingIfChanged(this.plugin.settings.syncReportFolder, nextValue, async (normalizedValue) => {
+              this.plugin.settings.syncReportFolder = normalizedValue;
+              await this.plugin.saveSettings();
+            });
           });
         });
 
@@ -256,8 +303,10 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       )
       .addToggle((toggle) => {
         toggle.setValue(this.plugin.settings.saveConversationJson).onChange(async (value) => {
-          this.plugin.settings.saveConversationJson = value;
-          await this.plugin.saveSettings();
+          await saveSettingIfChanged(this.plugin.settings.saveConversationJson, value, async (nextValue) => {
+            this.plugin.settings.saveConversationJson = nextValue;
+            await this.plugin.saveSettings();
+          });
         });
       });
 
@@ -292,8 +341,11 @@ export class Chats2MdSettingTab extends PluginSettingTab {
     }
 
     new Setting(containerEl)
-      .setName("Manage sessions")
-      .setDesc("Add a session JSON payload per account. Payloads are stored in Obsidian secret storage.")
+      .setName("Manage account sessions")
+      .setDesc(
+        // eslint-disable-next-line obsidianmd/ui/sentence-case -- Preserve ChatGPT brand casing.
+        "Add one ChatGPT session payload per account. Payloads are validated before save and stored in Obsidian secret storage.",
+      )
       .addButton((button) => {
         button
           .setButtonText("Add account")
@@ -318,6 +370,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       const setting = new Setting(containerEl)
         .setName(getStoredAccountDisplayName(account))
         .setDesc(this.describeAccount(account, healthResult))
+        .setClass("chats2md-settings__account-setting")
         .addToggle((toggle) => {
           toggle.setValue(!account.disabled).onChange(async (value) => {
             toggle.setDisabled(true);
@@ -363,6 +416,13 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         });
 
       setting.settingEl.addClass("chats2md-settings__account");
+      const headingEl = setting.nameEl.parentElement;
+      if (headingEl) {
+        headingEl.createSpan({
+          cls: `chats2md-settings__account-badge ${isUnhealthy ? "is-warning" : account.disabled ? "is-disabled" : "is-ok"}`,
+          text: buildAccountSessionStatusLabel(account, healthResult),
+        });
+      }
       if (isUnhealthy) {
         this.decorateUnhealthyAccountSetting(setting);
       }
@@ -370,7 +430,9 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Health checks")
-      .setDesc("Run transient health checks for all accounts. Results are shown only in this settings pane.")
+      .setDesc(
+        "Run transient health checks for all account sessions. Results stay in this settings pane until it closes.",
+      )
       .addButton((button) => {
         button.setButtonText("Check all accounts").onClick(async () => {
           button.setDisabled(true);
@@ -450,14 +512,22 @@ export class Chats2MdSettingTab extends PluginSettingTab {
             : String(this.plugin.settings.syncTuning.defaultLatestConversationCount),
         );
         component.onChange(async (value) => {
-          this.plugin.settings.syncTuning.defaultLatestConversationCount =
-            normalizeDefaultLatestConversationCountInput(value);
-          await this.plugin.saveSettings();
-          component.setValue(
-            this.plugin.settings.syncTuning.defaultLatestConversationCount === null
-              ? ""
-              : String(this.plugin.settings.syncTuning.defaultLatestConversationCount),
+          const nextValue = normalizeDefaultLatestConversationCountInput(value);
+          const changed = await saveSettingIfChanged(
+            this.plugin.settings.syncTuning.defaultLatestConversationCount,
+            nextValue,
+            async (normalizedValue) => {
+              this.plugin.settings.syncTuning.defaultLatestConversationCount = normalizedValue;
+              await this.plugin.saveSettings();
+            },
           );
+          if (changed) {
+            component.setValue(
+              this.plugin.settings.syncTuning.defaultLatestConversationCount === null
+                ? ""
+                : String(this.plugin.settings.syncTuning.defaultLatestConversationCount),
+            );
+          }
         });
       });
   }
@@ -482,15 +552,18 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         component.setPlaceholder(options.placeholder);
         component.setValue(String(options.value));
         component.onChange(async (value) => {
-          await options.onSave(parseSettingsNumberInput(value, options.value));
-          component.setValue(String(options.getValue()));
+          const nextValue = parseSettingsNumberInput(value, options.value);
+          const changed = await saveSettingIfChanged(options.getValue(), nextValue, options.onSave);
+          if (changed) {
+            component.setValue(String(options.getValue()));
+          }
         });
       });
   }
 
   private openSessionEditor(account?: StoredSessionAccount): void {
     new SessionEditorModal(this.app, {
-      title: account ? "Edit account session JSON" : "Add account session JSON",
+      title: account ? "Edit account session" : "Add account session",
       pluginVersion: this.plugin.manifest.version,
       hasExistingSecret: Boolean(account),
       onSave: async (raw, parsed) => {

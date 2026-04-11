@@ -31,7 +31,8 @@ export class SessionEditorModal extends Modal {
 
     contentEl.createEl("p", {
       cls: "chats2md-modal__status",
-      text: "Paste a complete session JSON payload. It should include `accessToken`, `account.id`, `user.id`, and `user.email`.",
+      // eslint-disable-next-line obsidianmd/ui/sentence-case -- Preserve ChatGPT brand casing and API field names.
+      text: "Paste a complete ChatGPT session payload. It must include accessToken, account.id, user.id, and user.email, and it must still be valid when saved.",
     });
 
     const sessionHint = contentEl.createEl("p", {
@@ -54,8 +55,8 @@ export class SessionEditorModal extends Modal {
     editorSection.createEl("p", {
       cls: "chats2md-session-modal__editor-desc",
       text: this.options.hasExistingSecret
-        ? "The saved secret is not shown here. Paste a replacement payload to update the account."
-        : "The raw session payload will be stored in Obsidian Secret Storage.",
+        ? "The saved secret is not shown here. Paste a replacement session payload to update this account."
+        : "The raw session payload is stored only in Obsidian secret storage after validation succeeds.",
     });
     const textarea = editorSection.createEl("textarea", {
       cls: "chats2md-settings__textarea",
@@ -81,7 +82,9 @@ export class SessionEditorModal extends Modal {
           )}`
         : CHATGPT_SESSION_JSON_URL,
     });
-    docs.createSpan({ text: " for sensitive plugin credentials." });
+    docs.createSpan({
+      text: " for sensitive plugin credentials. Expired or invalid ChatGPT sessions are rejected before save.",
+    });
 
     new Setting(contentEl)
       .addButton((button) => {

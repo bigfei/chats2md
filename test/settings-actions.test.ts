@@ -162,7 +162,7 @@ test("runCheckAllAccountsAction reports empty state and summarizes results", asy
   assert.equal(healthResults.size, 2);
   assert.deepEqual(notices, [
     "No account sessions configured.",
-    "Account health check complete. 1 healthy, 1 unhealthy.",
+    "Account session health check complete. 1 healthy, 1 unhealthy.",
   ]);
   assert.equal(renders, 1);
 });
@@ -204,8 +204,8 @@ test("runCheckAccountAction reports healthy and unhealthy results", async () => 
   assert.equal(transientResults.size, 1);
   assert.equal(renders, 2);
   assert.deepEqual(notices, [
-    "Account is healthy for user@example.com.",
-    "Health check warning for user@example.com: expired",
+    "Account session is healthy for user@example.com.",
+    "Account session warning for user@example.com: expired",
   ]);
   assert.deepEqual(loggedErrors, [
     {
@@ -277,6 +277,6 @@ test("runSaveSessionAction validates, saves, clears health state, and rerenders"
   );
 
   assert.deepEqual(clearedIds, ["acc-1"]);
-  assert.deepEqual(notices, ["Saved session for user@example.com."]);
+  assert.deepEqual(notices, ["Saved account session for user@example.com."]);
   assert.equal(renders, 1);
 });

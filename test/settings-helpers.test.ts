@@ -9,6 +9,7 @@ import {
   normalizeDefaultLatestConversationCountInput,
   normalizeSyncReportFolderInput,
   parseSettingsNumberInput,
+  saveSettingIfChanged,
   summarizeAccountHealthResults,
 } from "../src/ui/settings-helpers.ts";
 
@@ -27,6 +28,26 @@ test("settings helpers normalize numeric inputs and latest-count values", () => 
   assert.equal(parseSettingsNumberInput("nope", 3), 3);
   assert.equal(normalizeDefaultLatestConversationCountInput(""), null);
   assert.equal(normalizeDefaultLatestConversationCountInput("25"), 25);
+});
+
+test("saveSettingIfChanged skips redundant saves and persists changed values", async () => {
+  const saved: string[] = [];
+
+  assert.equal(
+    await saveSettingIfChanged("Imports/ChatGPT", "Imports/ChatGPT", async (value) => {
+      saved.push(value);
+    }),
+    false,
+  );
+
+  assert.equal(
+    await saveSettingIfChanged("Imports/ChatGPT", "Imports/Archive", async (value) => {
+      saved.push(value);
+    }),
+    true,
+  );
+
+  assert.deepEqual(saved, ["Imports/Archive"]);
 });
 
 test("settings helpers build cleanup notices for keep-latest and clear-all flows", () => {
@@ -61,13 +82,11 @@ test("settings helpers build multiline account descriptions and health summaries
   };
 
   assert.deepEqual(buildAccountDescriptionLines(account, unhealthyResult), [
-    "Status: Enabled",
-    "User ID: user-1",
-    "Account ID: acc-1",
+    "Session: Enabled",
+    "Health: Warning - Session expired. (checked 2026-04-09T01:00:00.000Z)",
     "Expires: Unavailable",
-    "Health check: Unhealthy",
-    "Last check: 2026-04-09T01:00:00.000Z",
-    "Health issue: Session expired.",
+    "Account ID: acc-1",
+    "User ID: user-1",
   ]);
 
   assert.deepEqual(
@@ -78,7 +97,7 @@ test("settings helpers build multiline account descriptions and health summaries
     {
       healthyCount: 1,
       unhealthyCount: 1,
-      notice: "Account health check complete. 1 healthy, 1 unhealthy.",
+      notice: "Account session health check complete. 1 healthy, 1 unhealthy.",
     },
   );
 });
