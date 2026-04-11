@@ -110,6 +110,26 @@ function buildAccountSessionStatusLabel(healthResult?: AccountHealthResult): str
   return healthResult.status === "healthy" ? "Healthy" : "Needs attention";
 }
 
+function createAccountNameFragment(
+  account: StoredSessionAccount,
+  healthResult?: AccountHealthResult,
+  isUnhealthy = false,
+): DocumentFragment {
+  const fragment = document.createDocumentFragment();
+  fragment.append(getStoredAccountDisplayName(account));
+
+  const statusLabel = buildAccountSessionStatusLabel(healthResult);
+  if (statusLabel) {
+    fragment.append(" ");
+    const badgeEl = document.createElement("span");
+    badgeEl.className = `chats2md-settings__account-badge ${isUnhealthy ? "is-warning" : "is-ok"}`;
+    badgeEl.textContent = statusLabel;
+    fragment.append(badgeEl);
+  }
+
+  return fragment;
+}
+
 export class Chats2MdSettingTab extends PluginSettingTab {
   private readonly plugin: Chats2MdPlugin;
   private readonly transientHealthResults = new Map<string, AccountHealthResult>();
@@ -364,7 +384,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       const healthResult = this.transientHealthResults.get(account.accountId);
       const isUnhealthy = healthResult ? isAccountHealthResultUnhealthy(healthResult) : false;
       const setting = new Setting(containerEl)
-        .setName(getStoredAccountDisplayName(account))
+        .setName(createAccountNameFragment(account, healthResult, isUnhealthy))
         .setDesc(this.describeAccount(account, healthResult))
         .setClass("chats2md-settings__account-setting")
         .addToggle((toggle) => {
@@ -412,16 +432,6 @@ export class Chats2MdSettingTab extends PluginSettingTab {
         });
 
       setting.settingEl.addClass("chats2md-settings__account");
-      const headingEl = setting.nameEl.parentElement;
-      if (headingEl) {
-        const statusLabel = buildAccountSessionStatusLabel(healthResult);
-        if (statusLabel) {
-          headingEl.createSpan({
-            cls: `chats2md-settings__account-badge ${isUnhealthy ? "is-warning" : "is-ok"}`,
-            text: statusLabel,
-          });
-        }
-      }
       if (isUnhealthy) {
         this.decorateUnhealthyAccountSetting(setting);
       }

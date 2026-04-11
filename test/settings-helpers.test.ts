@@ -82,7 +82,6 @@ test("settings helpers build multiline account descriptions and health summaries
   };
 
   assert.deepEqual(buildAccountDescriptionLines(account, unhealthyResult), [
-    "Health: Warning - Session expired. (checked 2026-04-09T01:00:00.000Z)",
     "Expires: Unavailable",
     "Account ID: acc-1",
     "User ID: user-1",

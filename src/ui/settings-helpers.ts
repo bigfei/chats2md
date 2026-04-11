@@ -76,17 +76,9 @@ export function buildSyncReportCleanupNotice(
 
 export function buildAccountDescriptionLines(
   account: StoredSessionAccount,
-  healthResult?: AccountHealthResult,
+  _healthResult?: AccountHealthResult,
 ): string[] {
   const lines: string[] = [];
-
-  if (healthResult) {
-    lines.push(
-      healthResult.status === "healthy"
-        ? `Health: Healthy (checked ${healthResult.checkedAt})`
-        : `Health: Warning - ${healthResult.message} (checked ${healthResult.checkedAt})`,
-    );
-  }
 
   lines.push(`Expires: ${account.expiresAt || "Unavailable"}`);
   lines.push(`Account ID: ${account.accountId}`);
