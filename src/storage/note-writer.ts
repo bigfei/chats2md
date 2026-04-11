@@ -232,7 +232,7 @@ function buildConversationDesiredPath(
   return normalizePath(`${folder}/${relativePath}`);
 }
 
-async function findAvailablePath(app: App, desiredPath: string, currentPath?: string): Promise<string> {
+function findAvailablePath(app: App, desiredPath: string, currentPath?: string): string {
   if (currentPath === desiredPath) {
     return desiredPath;
   }
