@@ -86,7 +86,8 @@ export default class Chats2MdPlugin extends Plugin {
     await this.loadSettings();
 
     addIcon(CHATGPT_IMPORT_SYNC_ICON_ID, CHATGPT_IMPORT_SYNC_ICON_SVG);
-    const ribbonAction = this.addRibbonIcon(CHATGPT_IMPORT_SYNC_ICON_ID, "Sync conversations", () => {
+    // eslint-disable-next-line obsidianmd/ui/sentence-case -- E2E locates the ribbon by this exact accessibility label.
+    const ribbonAction = this.addRibbonIcon(CHATGPT_IMPORT_SYNC_ICON_ID, "Sync ChatGPT conversations", () => {
       this.openSyncModal();
     });
     ribbonAction.classList.add("chats2md-ribbon-action-bottom");
