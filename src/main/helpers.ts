@@ -89,8 +89,11 @@ export class SyncRunLogger {
       this.dialogLogger(message);
     }
 
-    const line = `[${new Date().toISOString()}] [${level.toUpperCase()}] ${message}`;
-    this.pendingLines.push(line);
+    const timestamp = new Date().toISOString();
+    const lines = message.split(/\r?\n/);
+    for (const line of lines) {
+      this.pendingLines.push(`[${timestamp}] [${level.toUpperCase()}] ${line}`);
+    }
   }
 
   private queuePendingLines(): void {

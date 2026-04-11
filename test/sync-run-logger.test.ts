@@ -155,6 +155,28 @@ test("SyncRunLogger can create a missing log file on flush", async () => {
   assert.match(vault.files.get(logPath) ?? "", /Created on flush/);
 });
 
+test("SyncRunLogger prefixes each message line with its own timestamp and level", async () => {
+  const vault = new MockVault();
+  const logPath = "Logs/multiline-sync.log";
+  const logger = new SyncRunLogger(
+    {
+      vault,
+    } as never,
+    logPath,
+    () => undefined,
+  );
+
+  logger.warn("First line\nSecond line");
+  await logger.flush();
+
+  const content = vault.files.get(logPath) ?? "";
+  const logLines = content.trim().split("\n");
+
+  assert.equal(logLines.length, 2);
+  assert.match(logLines[0] ?? "", /^\[[^\]]+\] \[WARN\] First line$/);
+  assert.match(logLines[1] ?? "", /^\[[^\]]+\] \[WARN\] Second line$/);
+});
+
 test("cleanupSyncReports removes generated files and can keep the latest 10", async () => {
   const vault = new MockVault();
   vault.addFolder("Imports");
