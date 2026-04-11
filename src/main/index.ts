@@ -86,7 +86,7 @@ export default class Chats2MdPlugin extends Plugin {
     await this.loadSettings();
 
     addIcon(CHATGPT_IMPORT_SYNC_ICON_ID, CHATGPT_IMPORT_SYNC_ICON_SVG);
-    const ribbonAction = this.addRibbonIcon(CHATGPT_IMPORT_SYNC_ICON_ID, "Sync ChatGPT conversations", () => {
+    const ribbonAction = this.addRibbonIcon(CHATGPT_IMPORT_SYNC_ICON_ID, "Sync conversations", () => {
       this.openSyncModal();
     });
     ribbonAction.classList.add("chats2md-ribbon-action-bottom");
@@ -112,7 +112,7 @@ export default class Chats2MdPlugin extends Plugin {
 
     this.syncStatusBarEl = this.addStatusBarItem();
     this.syncStatusBarEl.classList.add("chats2md-sync-statusbar");
-    this.syncStatusBarEl.style.display = "none";
+    this.syncStatusBarEl.classList.add("is-hidden");
     this.syncStatusBarEl.addEventListener("click", () => {
       if (this.activeSyncModal?.isSyncInProgress()) {
         this.activeSyncModal.open();
@@ -255,11 +255,11 @@ export default class Chats2MdPlugin extends Plugin {
     }
 
     if (typeof context === "undefined") {
-      console.info(`[chats2md] ${message}`);
+      console.debug(`[chats2md] ${message}`);
       return;
     }
 
-    console.info(`[chats2md] ${message}`, context);
+    console.debug(`[chats2md] ${message}`, context);
   }
 
   logWarn(message: string, context?: unknown): void {
@@ -465,7 +465,7 @@ export default class Chats2MdPlugin extends Plugin {
     return true;
   }
 
-  private async readConversationJsonSidecar(notePath: string): Promise<unknown | null> {
+  private async readConversationJsonSidecar(notePath: string): Promise<unknown> {
     const sidecarPath = this.getConversationJsonSidecarPath(notePath);
     const sidecar = this.app.vault.getAbstractFileByPath(sidecarPath);
 
@@ -612,7 +612,8 @@ export default class Chats2MdPlugin extends Plugin {
   }
 
   private readFrontmatterString(file: TFile, key: string): string {
-    const value = this.app.metadataCache.getFileCache(file)?.frontmatter?.[key];
+    const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+    const value = frontmatter?.[key];
     return typeof value === "string" ? value.trim() : "";
   }
 
@@ -746,19 +747,19 @@ export default class Chats2MdPlugin extends Plugin {
   }
 
   private setSyncStatusBar(text: string, active = false): void {
-    setSyncStatusBarHelper(this, text, active);
+    setSyncStatusBarHelper(this.createSyncStatusHost(), text, active);
   }
 
   private clearSyncStatusBar(delayMs = 0, force = false): void {
-    clearSyncStatusBarHelper(this, delayMs, force);
+    clearSyncStatusBarHelper(this.createSyncStatusHost(), delayMs, force);
   }
 
   private openSyncModal(): void {
-    openSyncModalHelper(this);
+    openSyncModalHelper(this.createSyncModalHost());
   }
 
   private startAllAccountsSync(): void {
-    startAllAccountsSyncHelper(this);
+    startAllAccountsSyncHelper(this.createSyncModalHost());
   }
 
   private async handleSync(
@@ -767,6 +768,80 @@ export default class Chats2MdPlugin extends Plugin {
     control: SyncExecutionControl,
     modal: SyncChatGptModal,
   ): Promise<void> {
-    await handleSyncHelper(this, values, progressModal, control, modal);
+    await handleSyncHelper(this.createSyncModalHost(), values, progressModal, control, modal);
+  }
+
+  private createSyncStatusHost() {
+    return {
+      getSuppressSyncStatusBarUpdates: () => this.suppressSyncStatusBarUpdates,
+      getSyncStatusClearTimer: () => this.syncStatusClearTimer,
+      setSyncStatusClearTimer: (value: number | null) => {
+        this.syncStatusClearTimer = value;
+      },
+      getSyncStatusBarEl: () => this.syncStatusBarEl,
+      getActiveSyncModal: () => this.activeSyncModal,
+    };
+  }
+
+  private createSyncModalHost() {
+    return {
+      ...this.createSyncStatusHost(),
+      app: this.app,
+      manifest: this.manifest,
+      settings: this.settings,
+      getSyncWorkerActive: () => this.syncWorkerActive,
+      setSyncWorkerActive: (value: boolean) => {
+        this.syncWorkerActive = value;
+      },
+      setSuppressSyncStatusBarUpdates: (value: boolean) => {
+        this.suppressSyncStatusBarUpdates = value;
+      },
+      setActiveSyncModal: (value: SyncChatGptModal | null) => {
+        this.activeSyncModal = value;
+      },
+      saveSettings: () => this.saveSettings(),
+      getAccounts: () => this.getAccounts(),
+      getAllConfiguredAccounts: () => this.getAllConfiguredAccounts(),
+      getSelectedAccounts: (values: SyncModalValues) => this.getSelectedAccounts(values),
+      checkAccountHealth: (account: StoredSessionAccount) => this.checkAccountHealth(account),
+      getRequestConfig: (account: StoredSessionAccount) => this.getRequestConfig(account),
+      getAccountLabel: (account: StoredSessionAccount) => this.getAccountLabel(account),
+      createSyncRunLogger: (progressSink: { log(message: string): void }, syncFolder: string) =>
+        this.createSyncRunLogger(progressSink, syncFolder),
+      saveConversationJsonSidecar: (notePath: string, payload: unknown) =>
+        this.saveConversationJsonSidecar(notePath, payload),
+      moveConversationJsonSidecar: (sourceNotePath: string, targetNotePath: string) =>
+        this.moveConversationJsonSidecar(sourceNotePath, targetNotePath),
+      syncConversationAssets: (
+        requestConfig: ChatGptRequestConfig,
+        conversation: ConversationDetail,
+        baseFolder: string,
+        conversationPathTemplate: string,
+        assetStorageMode: AssetStorageMode,
+        logger: SyncRunLogger | null,
+        accountLabel: string,
+        conversationIndex: number,
+        totalConversations: number,
+        stopSignal?: AbortSignal,
+      ) =>
+        this.syncConversationAssets(
+          requestConfig,
+          conversation,
+          baseFolder,
+          conversationPathTemplate,
+          assetStorageMode,
+          logger,
+          accountLabel,
+          conversationIndex,
+          totalConversations,
+          stopSignal,
+        ),
+      writeSyncReport: (report: SyncRunReport) => this.writeSyncReport(report),
+      buildSyncStatusText: (processed: number, total: number, phase: string) =>
+        this.buildSyncStatusText(processed, total, phase),
+      setSyncStatusBar: (text: string, active?: boolean) => this.setSyncStatusBar(text, active),
+      clearSyncStatusBar: (delayMs?: number, force?: boolean) => this.clearSyncStatusBar(delayMs, force),
+      getSyncTuning: () => this.settings.syncTuning,
+    };
   }
 }

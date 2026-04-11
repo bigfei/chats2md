@@ -4,35 +4,79 @@ import { runFullSync } from "../sync/full-sync";
 import { shouldRestoreActiveSyncModal } from "./sync-modal-state";
 import { SyncChatGptModal, type SyncExecutionControl, type SyncProgressReporter } from "../ui/import-modal";
 import type { SyncModalValues } from "../shared/types";
+import type { ChatGptRequestConfig, Chats2MdSettings, ConversationAssetLinkMap, ConversationDetail, StoredSessionAccount, SyncRunReport, SyncTuningSettings } from "../shared/types";
+import type { SyncRunLogger } from "./helpers";
+import type { AccountHealthResult } from "./account-health";
+import type { SyncStatusHost } from "./sync-status";
 
-function ensureSyncModalCanOpen(host: any): boolean {
+export interface SyncModalHost extends SyncStatusHost {
+  app: import("obsidian").App;
+  manifest: {
+    version: string;
+  };
+  settings: Chats2MdSettings;
+  getSyncWorkerActive(): boolean;
+  setSyncWorkerActive(value: boolean): void;
+  setSuppressSyncStatusBarUpdates(value: boolean): void;
+  setActiveSyncModal(value: SyncChatGptModal | null): void;
+  saveSettings(): Promise<void>;
+  getAccounts(): StoredSessionAccount[];
+  getAllConfiguredAccounts(): StoredSessionAccount[];
+  getSelectedAccounts(values: SyncModalValues): StoredSessionAccount[];
+  checkAccountHealth(account: StoredSessionAccount): Promise<AccountHealthResult>;
+  getRequestConfig(account: StoredSessionAccount): ChatGptRequestConfig;
+  getAccountLabel(account: StoredSessionAccount): string;
+  createSyncRunLogger(progressSink: { log(message: string): void }, syncFolder: string): Promise<SyncRunLogger>;
+  saveConversationJsonSidecar(notePath: string, payload: unknown): Promise<string>;
+  moveConversationJsonSidecar(sourceNotePath: string, targetNotePath: string): Promise<boolean>;
+  syncConversationAssets(
+    requestConfig: ChatGptRequestConfig,
+    conversation: ConversationDetail,
+    baseFolder: string,
+    conversationPathTemplate: string,
+    assetStorageMode: "global_by_conversation" | "with_conversation",
+    logger: SyncRunLogger | null,
+    accountLabel: string,
+    conversationIndex: number,
+    totalConversations: number,
+    stopSignal?: AbortSignal,
+  ): Promise<ConversationAssetLinkMap>;
+  writeSyncReport(report: SyncRunReport): Promise<string | null>;
+  buildSyncStatusText(processed: number, total: number, phase: string): string;
+  setSyncStatusBar(text: string, active?: boolean): void;
+  clearSyncStatusBar(delayMs?: number, force?: boolean): void;
+  getSyncTuning(): SyncTuningSettings;
+}
+
+function ensureSyncModalCanOpen(host: SyncModalHost): boolean {
+  const activeSyncModal = host.getActiveSyncModal();
   if (
     shouldRestoreActiveSyncModal({
-      syncWorkerActive: host.syncWorkerActive,
-      activeModalIsSyncing: Boolean(host.activeSyncModal?.isSyncInProgress()),
-      activeModalCanReopen: Boolean(host.activeSyncModal?.canReopenWhileRunning()),
+      syncWorkerActive: host.getSyncWorkerActive(),
+      activeModalIsSyncing: Boolean(activeSyncModal?.isSyncInProgress()),
+      activeModalCanReopen: Boolean(activeSyncModal?.canReopenWhileRunning()),
     })
   ) {
-    host.suppressSyncStatusBarUpdates = false;
-    host.activeSyncModal.open();
+    host.setSuppressSyncStatusBarUpdates(false);
+    activeSyncModal?.open();
     return false;
   }
 
-  if (host.syncWorkerActive) {
+  if (host.getSyncWorkerActive()) {
     new Notice("A sync job is still stopping in the background. Please wait a moment.");
     return false;
   }
 
-  if (host.activeSyncModal?.isSyncInProgress()) {
-    host.suppressSyncStatusBarUpdates = false;
-    host.activeSyncModal.open();
+  if (activeSyncModal?.isSyncInProgress()) {
+    host.setSuppressSyncStatusBarUpdates(false);
+    activeSyncModal.open();
     return false;
   }
 
   return true;
 }
 
-function createSyncModal(host: any): SyncChatGptModal | null {
+function createSyncModal(host: SyncModalHost): SyncChatGptModal | null {
   const accounts = host.getAccounts();
 
   if (accounts.length === 0) {
@@ -49,20 +93,20 @@ function createSyncModal(host: any): SyncChatGptModal | null {
     onSubmit: async (values, progress, control): Promise<void> => handleSync(host, values, progress, control, modal),
     onSyncDialogHidden: (reason) => {
       if (reason === "stop") {
-        host.suppressSyncStatusBarUpdates = true;
+        host.setSuppressSyncStatusBarUpdates(true);
         host.clearSyncStatusBar(0, true);
         return;
       }
 
-      host.suppressSyncStatusBarUpdates = false;
+      host.setSuppressSyncStatusBarUpdates(false);
     },
   });
 
-  host.activeSyncModal = modal;
+  host.setActiveSyncModal(modal);
   return modal;
 }
 
-export function openSyncModal(host: any): void {
+export function openSyncModal(host: SyncModalHost): void {
   if (!ensureSyncModalCanOpen(host)) {
     return;
   }
@@ -76,7 +120,7 @@ export function openSyncModal(host: any): void {
   modal.open();
 }
 
-export function startAllAccountsSync(host: any): void {
+export function startAllAccountsSync(host: SyncModalHost): void {
   if (!ensureSyncModalCanOpen(host)) {
     return;
   }
@@ -98,7 +142,7 @@ export function startAllAccountsSync(host: any): void {
 }
 
 export async function handleSync(
-  host: any,
+  host: SyncModalHost,
   values: SyncModalValues,
   progressModal: SyncProgressReporter,
   control: SyncExecutionControl,
@@ -109,8 +153,8 @@ export async function handleSync(
   host.settings.skipExistingLocalConversations = values.skipExistingLocalConversations;
   await host.saveSettings();
 
-  host.syncWorkerActive = true;
-  host.suppressSyncStatusBarUpdates = false;
+  host.setSyncWorkerActive(true);
+  host.setSuppressSyncStatusBarUpdates(false);
 
   try {
     await runFullSync(
@@ -168,10 +212,10 @@ export async function handleSync(
       await host.saveSettings();
     }
 
-    host.syncWorkerActive = false;
-    host.suppressSyncStatusBarUpdates = false;
-    if (host.activeSyncModal === modal && !modal.isSyncInProgress()) {
-      host.activeSyncModal = null;
+    host.setSyncWorkerActive(false);
+    host.setSuppressSyncStatusBarUpdates(false);
+    if (host.getActiveSyncModal() === modal && !modal.isSyncInProgress()) {
+      host.setActiveSyncModal(null);
     }
   }
 }

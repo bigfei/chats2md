@@ -10,7 +10,7 @@ interface SessionEditorModalOptions {
   onSave: (raw: string, parsed: ChatGptRequestConfig) => Promise<void>;
 }
 
-const SECRET_STORAGE_DOCS_URL = "https://docs.obsidian.md/plugins/guides/secret-storage";
+const SECRET_STORAGE_DOCS_PATH = "plugins/guides/secret-storage";
 const CHATGPT_SESSION_JSON_URL = "https://chatgpt.com/api/auth/session";
 
 export class SessionEditorModal extends Modal {
@@ -31,7 +31,7 @@ export class SessionEditorModal extends Modal {
 
     contentEl.createEl("p", {
       cls: "chats2md-modal__status",
-      text: "Paste a complete session JSON payload. It should include accessToken, account.id, user.id, and user.email.",
+      text: "Paste a complete session JSON payload. It should include `accessToken`, `account.id`, `user.id`, and `user.email`.",
     });
 
     const sessionHint = contentEl.createEl("p", {
@@ -74,8 +74,12 @@ export class SessionEditorModal extends Modal {
     });
     docs.createSpan({ text: "Use " });
     docs.createEl("a", {
-      text: "Obsidian Secret Storage",
-      href: SECRET_STORAGE_DOCS_URL,
+      text: "Obsidian secret storage",
+      href: this.app.vault.configDir
+        ? `obsidian://open?vault=${encodeURIComponent(this.app.vault.getName())}&file=${encodeURIComponent(
+            `${this.app.vault.configDir}/${SECRET_STORAGE_DOCS_PATH}`,
+          )}`
+        : CHATGPT_SESSION_JSON_URL,
     });
     docs.createSpan({ text: " for sensitive plugin credentials." });
 

@@ -77,7 +77,7 @@ export async function migrateLegacySessionIfNeeded(host: MainSessionAccountHost)
     host.settings.legacySessionJson = "";
     host.setLegacySessionMigrationWarning(null);
     await host.saveSettings();
-    new Notice("Legacy Session JSON was migrated into Secret Storage.");
+    new Notice("Legacy session JSON was migrated into secret storage.");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     host.setLegacySessionMigrationWarning(`Legacy Session JSON migration failed: ${message}`);

@@ -50,6 +50,10 @@ const MIN_TUNING_RATE_LIMIT_THRESHOLD = 1;
 const MAX_TUNING_RATE_LIMIT_THRESHOLD = 20;
 const MIN_TUNING_LATEST_COUNT = 1;
 const MAX_TUNING_LATEST_COUNT = 10000;
+const INVALID_PATH_PART_CHARS = new RegExp(
+  `[<>:"/\\\\|?*${String.fromCharCode(0)}-${String.fromCharCode(31)}]`,
+  "g",
+);
 
 type SyncLogLevel = "info" | "warn" | "error";
 
@@ -210,7 +214,7 @@ export function resolveSyncReportFolder(syncFolder: string, configuredFolder: st
 export function sanitizePathPart(value: string): string {
   const sanitized = value
     .trim()
-    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_")
+    .replace(INVALID_PATH_PART_CHARS, "_")
     .replace(/\s+/g, " ")
     .replace(/^[. ]+|[. ]+$/g, "")
     .slice(0, MAX_ASSET_FILENAME_LENGTH);

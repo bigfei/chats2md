@@ -47,8 +47,22 @@ function readNonEmptyString(value) {
 }
 
 function escapeMarkdownLinkLabel(value) {
-  return value.replace(/[\[\]]/g, "\\$&");
+  return value.replace(/[[\]]/g, "\\$&");
 }
+
+const INVALID_FILE_NAME_CHARACTER_PATTERN = new RegExp(
+  `[\\\\/:*?"<>|${String.fromCharCode(0)}-${String.fromCharCode(31)}]+`,
+  "g",
+);
+
+function replaceInvalidFileNameCharacters(value, replacement) {
+  return value.replace(INVALID_FILE_NAME_CHARACTER_PATTERN, replacement);
+}
+
+const INVALID_CONVERSATION_TITLE_CHARS = new RegExp(
+  `[\\\\/:*?"<>|${String.fromCharCode(0)}-${String.fromCharCode(31)}]+`,
+  "g",
+);
 
 function readMarkdownLinkFromAlt(reference) {
   const alt = readNonEmptyString(reference?.alt);
@@ -387,14 +401,15 @@ export function slugifyConversationTitle(title) {
     return "untitled-conversation";
   }
 
-  const sanitized = normalized
-    .replace(/[\\/:*?"<>|\u0000-\u001F]+/g, "-")
+  const sanitized = normalized.replace(INVALID_CONVERSATION_TITLE_CHARS, "-");
+
+  const fileNameSafe = replaceInvalidFileNameCharacters(sanitized, "-")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-+/, "")
     .replace(/-+$/, "");
 
-  return sanitized || "untitled-conversation";
+  return fileNameSafe || "untitled-conversation";
 }
 
 export function extractConversationListPageInfo(payload, fallbackLimit = 100) {

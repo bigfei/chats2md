@@ -53,7 +53,7 @@ function encodeMarkdownLinkPath(path: string): string {
 }
 
 function escapeMarkdownLabel(value: string): string {
-  return value.replace(/[\[\]]/g, "\\$&");
+  return value.replace(/[[\]]/g, "\\$&");
 }
 
 function referenceKey(kind: ConversationFileReferenceKind, fileId: string): string {
@@ -257,7 +257,8 @@ async function findAvailablePath(app: App, desiredPath: string, currentPath?: st
 }
 
 function readFrontmatterString(app: App, file: TFile, key: string): string {
-  const value = app.metadataCache.getFileCache(file)?.frontmatter?.[key];
+  const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+  const value = frontmatter?.[key];
   return typeof value === "string" ? value : "";
 }
 

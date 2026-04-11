@@ -1,8 +1,12 @@
 import js from "@eslint/js";
 import globals from "globals";
+import obsidianmd from "eslint-plugin-obsidianmd";
 import eslintConfigPrettier from "eslint-config-prettier";
 import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
+import { fileURLToPath } from "node:url";
+
+const tsconfigRootDir = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig(
   globalIgnores([
@@ -43,6 +47,25 @@ export default defineConfig(
         },
       ],
       "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
+  {
+    files: ["src/**/*.{ts,js}"],
+    plugins: {
+      obsidianmd,
+    },
+    languageOptions: {
+      parserOptions: {
+        project: "./tsconfig.eslint.json",
+        tsconfigRootDir,
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+    rules: {
+      ...obsidianmd.configs.recommended,
     },
   },
   {

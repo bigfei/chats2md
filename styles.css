@@ -169,6 +169,18 @@
   cursor: pointer;
 }
 
+.chats2md-sync-statusbar.is-hidden {
+  display: none;
+}
+
+.chats2md-note-sync-action.is-hidden {
+  display: none;
+}
+
+.chats2md-setting.is-hidden {
+  display: none;
+}
+
 .workspace-ribbon .side-dock-ribbon-action.chats2md-ribbon-action-bottom {
   order: 999;
   margin-top: auto;

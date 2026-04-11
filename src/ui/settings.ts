@@ -1,4 +1,4 @@
-import { App, Notice, PluginSettingTab, Setting } from "obsidian";
+import { App, Modal, Notice, PluginSettingTab, Setting } from "obsidian";
 
 import {
   DEFAULT_SYNC_REPORT_FOLDER_TEMPLATE,
@@ -53,6 +53,53 @@ function buildMultilineDescription(lines: string[]): DocumentFragment {
   return fragment;
 }
 
+class ConfirmActionModal extends Modal {
+  private readonly message: string;
+  private readonly onResolve: (confirmed: boolean) => void;
+
+  constructor(app: App, message: string, onResolve: (confirmed: boolean) => void) {
+    super(app);
+    this.message = message;
+    this.onResolve = onResolve;
+  }
+
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("chats2md-modal");
+
+    this.setTitle("Confirm action");
+    contentEl.createEl("p", {
+      cls: "chats2md-modal__status",
+      text: this.message,
+    });
+
+    new Setting(contentEl)
+      .addButton((button) => {
+        button
+          .setWarning()
+          .setButtonText("Confirm")
+          .onClick(() => {
+            this.resolve(true);
+          });
+      })
+      .addButton((button) => {
+        button.setButtonText("Cancel").onClick(() => {
+          this.resolve(false);
+        });
+      });
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+
+  private resolve(confirmed: boolean): void {
+    this.onResolve(confirmed);
+    this.close();
+  }
+}
+
 export class Chats2MdSettingTab extends PluginSettingTab {
   private readonly plugin: Chats2MdPlugin;
   private readonly transientHealthResults = new Map<string, AccountHealthResult>();
@@ -70,6 +117,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       .setName("Default sync folder")
       .setDesc("Conversation logs are synced into this vault folder by default.")
       .addText((component) => {
+        // eslint-disable-next-line obsidianmd/ui/sentence-case -- Preserve ChatGPT brand casing in the default example path.
         component.setPlaceholder("Imports/ChatGPT");
         component.setValue(this.plugin.settings.defaultFolder);
         new FolderSuggest(this.app, component.inputEl);
@@ -143,7 +191,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Generate sync report")
-      .setDesc("Write a markdown report after each full sync run and cached-JSON rebuild.")
+      .setDesc("Write a Markdown report after each full sync run and cached-JSON rebuild.")
       .addToggle((toggle) => {
         toggle.setValue(this.plugin.settings.generateSyncReport).onChange(async (value) => {
           this.plugin.settings.generateSyncReport = value;
@@ -167,16 +215,18 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
       new Setting(containerEl)
         .setName("Clean sync reports and logs")
-        .setDesc("Remove generated sync report markdown and sync log files from the configured report folder.")
+        .setDesc("Remove generated sync report Markdown and sync log files from the configured report folder.")
         .addButton((button) => {
-          button.setButtonText("Keep latest 10").onClick(async () => {
-            await runSyncReportCleanupAction({
-              confirm: (message) => window.confirm(message),
+          button.setButtonText("Keep latest 10").onClick((): void => {
+            void runSyncReportCleanupAction({
+              confirm: (message) => this.confirmAction(message),
               cleanupSyncReports: (options) =>
                 this.plugin.cleanupSyncReports(this.plugin.settings.defaultFolder, options),
               keepLatest: 10,
               notice: (message) => new Notice(message),
-              setDisabled: (disabled) => button.setDisabled(disabled),
+              setDisabled: (disabled) => {
+                button.setDisabled(disabled);
+              },
             });
           });
         })
@@ -184,12 +234,14 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           button
             .setWarning()
             .setButtonText("Clear all")
-            .onClick(async () => {
-              await runSyncReportCleanupAction({
-                confirm: (message) => window.confirm(message),
+            .onClick((): void => {
+              void runSyncReportCleanupAction({
+                confirm: (message) => this.confirmAction(message),
                 cleanupSyncReports: () => this.plugin.cleanupSyncReports(this.plugin.settings.defaultFolder),
                 notice: (message) => new Notice(message),
-                setDisabled: (disabled) => button.setDisabled(disabled),
+                setDisabled: (disabled) => {
+                  button.setDisabled(disabled);
+                },
               });
             });
         });
@@ -210,7 +262,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
-      .setName("Rebuild markdown from cached JSON")
+      .setName("Rebuild Markdown from cached JSON")
       .setDesc(
         "Rebuild existing synced notes from local sidecar JSON without calling /conversation/{id}. Missing sidecars are skipped.",
       )
@@ -241,7 +293,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Manage sessions")
-      .setDesc("Add a session JSON payload per account. Payloads are stored in Obsidian Secret Storage.")
+      .setDesc("Add a session JSON payload per account. Payloads are stored in Obsidian secret storage.")
       .addButton((button) => {
         button
           .setButtonText("Add account")
@@ -299,9 +351,9 @@ export class Chats2MdSettingTab extends PluginSettingTab {
           button
             .setWarning()
             .setButtonText("Delete")
-            .onClick(async () => {
-              await runDeleteAccountSessionAction(account, {
-                confirm: (message) => window.confirm(message),
+            .onClick(() => {
+              void runDeleteAccountSessionAction(account, {
+                confirm: (message) => this.confirmAction(message),
                 removeSessionAccount: (accountId) => this.plugin.removeSessionAccount(accountId),
                 clearTransientHealthResult: (accountId) => this.transientHealthResults.delete(accountId),
                 notice: (message) => new Notice(message),
@@ -357,7 +409,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
 
     detailsEl.createEl("summary", {
       cls: "chats2md-settings__advanced-summary",
-      text: "Advanced Sync Tuning",
+      text: "Advanced sync tuning",
     });
 
     detailsEl.createEl("p", {
@@ -386,7 +438,7 @@ export class Chats2MdSettingTab extends PluginSettingTab {
     new Setting(sectionEl)
       .setName("Default newest conversations count")
       .setDesc(
-        "Default: blank = all discovered conversations. Prefills the Newest conversations field in the sync subset modal.",
+        "Default: blank = all discovered conversations. Prefills the newest conversations field in the sync subset modal.",
       )
       .addText((component) => {
         component.inputEl.type = "number";
@@ -470,6 +522,12 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       notice: (message) => new Notice(message),
       rerender: () => this.display(),
       logError: (message, context) => this.plugin.logError(message, context),
+    });
+  }
+
+  private confirmAction(message: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      new ConfirmActionModal(this.app, message, resolve).open();
     });
   }
 }

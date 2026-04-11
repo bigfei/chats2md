@@ -45,7 +45,7 @@ export interface MainRebuildHost {
   resolveAccountForConversation(frontmatter: ConversationFrontmatterInfo): StoredSessionAccount;
   getAccountLabel(account: StoredSessionAccount): string;
   getRequestConfig(account: StoredSessionAccount): ChatGptRequestConfig;
-  readConversationJsonSidecar(notePath: string): Promise<unknown | null>;
+  readConversationJsonSidecar(notePath: string): Promise<unknown>;
   syncConversationAssets(
     requestConfig: ChatGptRequestConfig,
     conversation: ConversationDetail,
@@ -77,7 +77,7 @@ export async function runRebuildNotesFromCachedJson(host: MainRebuildHost): Prom
   const notes = Array.from(new Set(noteIndex.values()));
 
   if (notes.length === 0) {
-    new Notice("No synced ChatGPT notes were found.");
+    new Notice("No synced conversations were found.");
     return;
   }
 

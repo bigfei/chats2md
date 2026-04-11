@@ -59,14 +59,14 @@ export class ForceSyncUiController {
   }
 
   private updateMarkdownSyncActionVisibility(view: MarkdownView, actionEl: HTMLElement): void {
-    actionEl.style.display = this.callbacks.isEligibleFile(view.file) ? "" : "none";
+    actionEl.classList.toggle("is-hidden", !this.callbacks.isEligibleFile(view.file));
   }
 
   private async forceSyncConversationFromView(view: MarkdownView): Promise<void> {
     const file = view.file;
 
     if (!(file instanceof TFile)) {
-      new Notice("Open a markdown note before forcing sync.");
+      new Notice("Open a Markdown note before forcing sync.");
       return;
     }
 

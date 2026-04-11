@@ -8,6 +8,10 @@ import {
 
 import type { ChatGptRequestConfig, StoredSessionAccount } from "../shared/types";
 
+export interface ConfirmationHandler {
+  (message: string): Promise<boolean>;
+}
+
 export async function applyConversationTemplatePresetSelection(
   value: string,
   dependencies: {
@@ -28,7 +32,7 @@ export async function applyConversationTemplatePresetSelection(
 }
 
 export async function runSyncReportCleanupAction(dependencies: {
-  confirm: (message: string) => boolean;
+  confirm: ConfirmationHandler;
   cleanupSyncReports: (options?: { keepLatest: number }) => Promise<{ removedPaths: string[]; keptPaths: string[] }>;
   keepLatest?: number;
   notice: (message: string) => void;
@@ -39,7 +43,7 @@ export async function runSyncReportCleanupAction(dependencies: {
       ? "Delete all generated sync report and sync log files from the configured report folder?"
       : "Delete older generated sync reports/logs and keep only the latest 10 files?";
 
-  if (!dependencies.confirm(confirmationMessage)) {
+  if (!(await dependencies.confirm(confirmationMessage))) {
     return;
   }
 
@@ -58,7 +62,7 @@ export async function runSyncReportCleanupAction(dependencies: {
 export async function runDeleteAccountSessionAction(
   account: StoredSessionAccount,
   dependencies: {
-    confirm: (message: string) => boolean;
+    confirm: ConfirmationHandler;
     removeSessionAccount: (accountId: string) => Promise<void>;
     clearTransientHealthResult: (accountId: string) => void;
     notice: (message: string) => void;
@@ -66,7 +70,7 @@ export async function runDeleteAccountSessionAction(
   },
 ): Promise<void> {
   const label = getStoredAccountDisplayName(account);
-  if (!dependencies.confirm(`Delete account session for ${label}?`)) {
+  if (!(await dependencies.confirm(`Delete account session for ${label}?`))) {
     return;
   }
 

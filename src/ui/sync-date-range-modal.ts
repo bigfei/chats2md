@@ -241,7 +241,7 @@ class SyncDateRangeModal extends Modal {
     const fullEndMs = parseIsoDateInput(this.fullEndDate);
 
     if (startMs === null || endMs === null || fullStartMs === null || fullEndMs === null) {
-      new Notice("Date range must use YYYY-MM-DD.");
+      new Notice("Date range must use `YYYY-MM-DD`.");
       return;
     }
 
@@ -296,7 +296,8 @@ class SyncDateRangeModal extends Modal {
       return;
     }
 
-    setting.settingEl.style.display = isVisible ? "" : "none";
+    setting.settingEl.classList.toggle("chats2md-setting", true);
+    setting.settingEl.classList.toggle("is-hidden", !isVisible);
   }
 
   private resolve(selection: ConversationSyncDateRangeSelection, shouldClose = true): void {

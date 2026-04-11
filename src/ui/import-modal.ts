@@ -248,7 +248,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     contentEl.empty();
     contentEl.addClass("chats2md-modal");
 
-    this.setTitle("Sync ChatGPT conversations");
+    this.setTitle("Sync conversations");
 
     contentEl.createEl("p", {
       cls: "chats2md-modal__status",
@@ -433,7 +433,7 @@ export class SyncChatGptModal extends Modal implements SyncProgressReporter, Syn
     contentEl.addClass("chats2md-modal");
     contentEl.addClass("chats2md-progress-modal");
 
-    this.setTitle("Sync ChatGPT conversations");
+    this.setTitle("Sync conversations");
 
     this.statusEl = contentEl.createEl("p", {
       cls: "chats2md-modal__status",

@@ -21,9 +21,9 @@ function normalizeTemplate(template: string): string {
 function readPlaceholderValue(name: string, context: ConversationPathTemplateContext): string {
   switch (name) {
     case "date":
-      return getDateBucketFromTimestamp(context.createdAt);
+      return String(getDateBucketFromTimestamp(context.createdAt));
     case "slug":
-      return slugifyConversationTitle(context.title);
+      return String(slugifyConversationTitle(context.title));
     case "email":
       return context.email.trim() || "unknown-email";
     case "account_id":

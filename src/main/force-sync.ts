@@ -44,7 +44,7 @@ export interface ForceSyncHostContext {
   resolveAccountForConversation(frontmatter: ConversationFrontmatterInfo): StoredSessionAccount;
   getRequestConfig(account: StoredSessionAccount): ChatGptRequestConfig;
   getAccountLabel(account: StoredSessionAccount): string;
-  readConversationJsonSidecar(notePath: string): Promise<unknown | null>;
+  readConversationJsonSidecar(notePath: string): Promise<unknown>;
   saveConversationJsonSidecar(notePath: string, payload: unknown): Promise<string>;
   moveConversationJsonSidecar(sourceNotePath: string, targetNotePath: string): Promise<boolean>;
   syncConversationAssets(

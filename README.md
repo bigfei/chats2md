@@ -6,7 +6,9 @@
 
 - A ChatGPT account and a valid session JSON payload are required.
 - The plugin makes network requests to `https://chatgpt.com` for conversation-list fetches, conversation-detail fetches, account validation, and asset downloads.
-- Session payloads are stored in Obsidian Secret Storage, not in plugin `data.json`.
+- Session payloads are stored in Obsidian secret storage, not in plugin `data.json`.
+- The session payload is expected to come from `https://chatgpt.com/api/auth/session`. The plugin reads it locally to extract the ChatGPT auth material it needs for requests to `chatgpt.com`, including `accessToken`, `account.id`, `user.id`, `user.email`, and optional cookie/header data.
+- The plugin does not send that session payload to any service other than ChatGPT itself. It is used only for local validation, account identification inside the vault, and authenticated requests back to `chatgpt.com`.
 - Deleting an account removes its metadata from plugin settings and clears the stored secret payload by overwriting it with an empty value. Obsidian 1.11.4 does not expose a secret-delete API.
 - Optional JSON sidecars store raw ChatGPT conversation detail payloads as local vault files next to notes.
 - Optional sync logs and sync reports are written into your vault.
@@ -17,12 +19,13 @@
 
 - Adds a `Sync all accounts` command.
 - Adds a `Rebuild from JSON` command.
-- Adds a ribbon action to open the sync flow.
+- Adds a `Sync conversations` ribbon action to open the sync flow.
 - Adds a per-note `Force sync from ChatGPT` action for synced ChatGPT notes.
 
 ## Sync behavior
 
 1. Configure one or more ChatGPT session JSON payloads in plugin settings.
+   The plugin expects the payload from `https://chatgpt.com/api/auth/session`, stores it in Obsidian secret storage, and derives the fields needed to authenticate ChatGPT API requests.
 2. Start sync from the ribbon icon or command palette.
 3. Choose whether to sync all configured accounts or a single account.
 4. The plugin fetches the full conversation list for each selected account.
@@ -40,7 +43,7 @@ Synced notes are authoritative outputs from ChatGPT data. Local edits to synced 
 
 - Default sync folder: `Imports/ChatGPT`
 - Default note path template: `{date}/{slug}`
-- Advanced Sync Tuning settings are available in the plugin settings tab under a collapsed section at the end.
+- Advanced sync tuning settings are available in the plugin settings tab under a collapsed section at the end.
 - Supported path placeholders:
   - `{date}`: conversation created date (`YYYY-MM-DD`)
   - `{slug}`: sanitized conversation title
@@ -69,6 +72,8 @@ Synced notes are authoritative outputs from ChatGPT data. Local edits to synced 
 ## Rebuild from JSON
 
 `Rebuild from JSON` rebuilds existing synced notes from cached local JSON sidecars without calling the ChatGPT conversation-detail endpoint.
+
+In plugin settings, the related action is labeled `Rebuild Markdown from cached JSON`.
 
 - Notes without a JSON sidecar are skipped.
 - Asset references are re-resolved using the configured asset storage mode.
