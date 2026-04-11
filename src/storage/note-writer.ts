@@ -395,7 +395,7 @@ export async function ensureConversationNotePath(
   );
   const targetFolder = getFolderPathFromFilePath(desiredByTemplate);
   await ensureFolderExists(app, targetFolder);
-  const desiredPath = await findAvailablePath(app, desiredByTemplate, existing.path);
+  const desiredPath = findAvailablePath(app, desiredByTemplate, existing.path);
 
   if (desiredPath === existing.path) {
     return {
@@ -447,7 +447,7 @@ export async function upsertConversationNote(
   const existing = findIndexedConversationNote(noteIndex, account.accountId, conversation.id);
 
   if (!existing) {
-    const desiredPath = await findAvailablePath(app, desiredByTemplate);
+    const desiredPath = findAvailablePath(app, desiredByTemplate);
     const importedAt = new Date().toISOString();
     const createdFile = await app.vault.create(
       desiredPath,
@@ -475,7 +475,7 @@ export async function upsertConversationNote(
     noteIndex.set(noteKey, existing);
   }
 
-  const desiredPath = await findAvailablePath(app, desiredByTemplate, existing.path);
+  const desiredPath = findAvailablePath(app, desiredByTemplate, existing.path);
   let moved = false;
   let previousFilePath: string | undefined;
 
