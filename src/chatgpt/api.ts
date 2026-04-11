@@ -25,12 +25,8 @@ let requestUrlLoader: Promise<RequestLikeFn> | null = null;
 
 async function loadRequestUrl(): Promise<RequestLikeFn> {
   if (!requestUrlLoader) {
-    requestUrlLoader = Promise.resolve().then(() => {
+    requestUrlLoader = import("obsidian").then((module) => {
       try {
-        // Obsidian exposes requestUrl at runtime from the desktop app bundle, so this lazy require
-        // avoids loading the module before the plugin is running inside the Obsidian environment.
-        // eslint-disable-next-line @typescript-eslint/no-require-imports -- Runtime-only Obsidian module load.
-        const module = require("obsidian") as { requestUrl?: unknown };
         if (typeof module.requestUrl !== "function") {
           throw new Error("obsidian.requestUrl is unavailable.");
         }
