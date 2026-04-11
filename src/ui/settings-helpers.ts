@@ -78,7 +78,7 @@ export function buildAccountDescriptionLines(
   account: StoredSessionAccount,
   healthResult?: AccountHealthResult,
 ): string[] {
-  const lines = [`Session: ${account.disabled ? "Disabled" : "Enabled"}`];
+  const lines: string[] = [];
 
   if (healthResult) {
     lines.push(

@@ -102,13 +102,9 @@ class ConfirmActionModal extends Modal {
   }
 }
 
-function buildAccountSessionStatusLabel(account: StoredSessionAccount, healthResult?: AccountHealthResult): string {
-  if (account.disabled) {
-    return "Disabled";
-  }
-
+function buildAccountSessionStatusLabel(healthResult?: AccountHealthResult): string | null {
   if (!healthResult) {
-    return "Enabled";
+    return null;
   }
 
   return healthResult.status === "healthy" ? "Healthy" : "Needs attention";
@@ -418,10 +414,13 @@ export class Chats2MdSettingTab extends PluginSettingTab {
       setting.settingEl.addClass("chats2md-settings__account");
       const headingEl = setting.nameEl.parentElement;
       if (headingEl) {
-        headingEl.createSpan({
-          cls: `chats2md-settings__account-badge ${isUnhealthy ? "is-warning" : account.disabled ? "is-disabled" : "is-ok"}`,
-          text: buildAccountSessionStatusLabel(account, healthResult),
-        });
+        const statusLabel = buildAccountSessionStatusLabel(healthResult);
+        if (statusLabel) {
+          headingEl.createSpan({
+            cls: `chats2md-settings__account-badge ${isUnhealthy ? "is-warning" : "is-ok"}`,
+            text: statusLabel,
+          });
+        }
       }
       if (isUnhealthy) {
         this.decorateUnhealthyAccountSetting(setting);
