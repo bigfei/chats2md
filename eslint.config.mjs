@@ -7,6 +7,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import { fileURLToPath } from "node:url";
 
 const tsconfigRootDir = fileURLToPath(new URL(".", import.meta.url));
+const ESLINT_DESCRIPTION_PATTERN = String.raw`^\s*eslint-disable(?:-next-line|-line)?\b.*--\s+\S`;
 
 export default defineConfig(
   globalIgnores([
@@ -50,6 +51,25 @@ export default defineConfig(
     },
   },
   {
+    files: ["src/**/*.ts"],
+    ...tseslint.configs.recommendedTypeChecked[0],
+    languageOptions: {
+      ...tseslint.configs.recommendedTypeChecked[0].languageOptions,
+      parserOptions: {
+        project: "./tsconfig.eslint.json",
+        tsconfigRootDir,
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+    rules: {
+      ...tseslint.configs.recommendedTypeChecked[0].rules,
+      "@typescript-eslint/require-await": "error",
+    },
+  },
+  {
     files: ["src/**/*.{ts,js}"],
     plugins: {
       obsidianmd,
@@ -66,6 +86,51 @@ export default defineConfig(
     },
     rules: {
       ...obsidianmd.configs.recommended,
+    },
+  },
+  {
+    files: ["**/*.{ts,tsx,js,mjs,cjs}"],
+    linterOptions: {
+      reportUnusedDisableDirectives: "error",
+    },
+    plugins: {
+      local: {
+        rules: {
+          "require-eslint-disable-description": {
+            meta: {
+              type: "problem",
+              docs: {
+                description: "Require eslint-disable directives to include an inline reason after --",
+              },
+              schema: [],
+            },
+            create(context) {
+              return {
+                Program() {
+                  for (const comment of context.sourceCode.getAllComments()) {
+                    if (!/eslint-disable(?:-next-line|-line)?\b/.test(comment.value)) {
+                      continue;
+                    }
+
+                    if (new RegExp(ESLINT_DESCRIPTION_PATTERN).test(comment.value)) {
+                      continue;
+                    }
+
+                    context.report({
+                      loc: comment.loc,
+                      message:
+                        "Unexpected undescribed directive comment. Include descriptions to explain why the comment is necessary.",
+                    });
+                  }
+                },
+              };
+            },
+          },
+        },
+      },
+    },
+    rules: {
+      "local/require-eslint-disable-description": "error",
     },
   },
   {
