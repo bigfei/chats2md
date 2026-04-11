@@ -22,11 +22,15 @@ const CONVERSATION_LIST_FETCH_PARALLELISM = 1;
 const CONVERSATION_LIST_PAGE_LIMIT = 100;
 
 let requestUrlLoader: Promise<RequestLikeFn> | null = null;
+declare const require: (id: string) => unknown;
 
 async function loadRequestUrl(): Promise<RequestLikeFn> {
   if (!requestUrlLoader) {
-    requestUrlLoader = import("obsidian").then((module) => {
+    requestUrlLoader = Promise.resolve().then(() => {
       try {
+        // Obsidian exposes requestUrl at runtime from the desktop app bundle, so this lazy require
+        // avoids loading the module before the plugin is running inside the Obsidian environment.
+        const module = require("obsidian") as { requestUrl?: unknown };
         if (typeof module.requestUrl !== "function") {
           throw new Error("obsidian.requestUrl is unavailable.");
         }
