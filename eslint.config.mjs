@@ -66,6 +66,7 @@ export default defineConfig(
     },
     rules: {
       ...tseslint.configs.recommendedTypeChecked[0].rules,
+      "@typescript-eslint/await-thenable": "error",
       "@typescript-eslint/require-await": "error",
     },
   },
