@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { shouldRestoreActiveSyncModal } from "../src/main/sync-modal-state.ts";
+import { shouldRestoreActiveSyncModal } from "../src/sync/modal-state.ts";
 
 test("shouldRestoreActiveSyncModal reopens a hidden sync dialog", () => {
   assert.equal(

@@ -1,4 +1,4 @@
-import { resolveSyncReportFolder } from "./helpers";
+import { resolveSyncReportFolder } from "../main/helpers";
 
 export interface SyncReportCleanupResult {
   removedPaths: string[];

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { SyncRunLogger } from "../src/main/helpers.ts";
-import { cleanupSyncReportFiles } from "../src/main/sync-report-cleanup.ts";
+import { cleanupSyncReportFiles } from "../src/sync/report-cleanup.ts";
 
 class MockFile {
   path: string;

@@ -1,7 +1,7 @@
 import { Notice } from "obsidian";
 
-import { runFullSync } from "../sync/full-sync";
-import { shouldRestoreActiveSyncModal } from "./sync-modal-state";
+import { runFullSync } from "./full-sync";
+import { shouldRestoreActiveSyncModal } from "./modal-state";
 import { SyncChatGptModal, type SyncExecutionControl, type SyncProgressReporter } from "../ui/import-modal";
 import type { SyncModalValues } from "../shared/types";
 import type {
@@ -13,9 +13,9 @@ import type {
   SyncRunReport,
   SyncTuningSettings,
 } from "../shared/types";
-import type { SyncRunLogger } from "./helpers";
-import type { AccountHealthResult } from "./account-health";
-import type { SyncStatusHost } from "./sync-status";
+import type { SyncRunLogger } from "../main/helpers";
+import type { AccountHealthResult } from "../main/account-health";
+import type { SyncStatusHost } from "./status";
 
 export interface SyncModalHost extends SyncStatusHost {
   app: import("obsidian").App;

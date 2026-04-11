@@ -35,15 +35,15 @@ import {
   handleSync as handleSyncHelper,
   openSyncModal as openSyncModalHelper,
   startAllAccountsSync as startAllAccountsSyncHelper,
-} from "./sync-modal";
+} from "../sync/modal";
 import {
   buildSyncStatusText as buildSyncStatusTextHelper,
   clearSyncStatusBar as clearSyncStatusBarHelper,
   setSyncStatusBar as setSyncStatusBarHelper,
-} from "./sync-status";
+} from "../sync/status";
 import { renderSyncRunReport } from "../sync/report";
 import { configureNormalizePath } from "../path/normalization";
-import { cleanupSyncReportFiles } from "./sync-report-cleanup";
+import { cleanupSyncReportFiles } from "../sync/report-cleanup";
 import {
   type AssetStorageMode,
   DEFAULT_SETTINGS,
