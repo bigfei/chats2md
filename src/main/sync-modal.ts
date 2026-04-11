@@ -4,7 +4,15 @@ import { runFullSync } from "../sync/full-sync";
 import { shouldRestoreActiveSyncModal } from "./sync-modal-state";
 import { SyncChatGptModal, type SyncExecutionControl, type SyncProgressReporter } from "../ui/import-modal";
 import type { SyncModalValues } from "../shared/types";
-import type { ChatGptRequestConfig, Chats2MdSettings, ConversationAssetLinkMap, ConversationDetail, StoredSessionAccount, SyncRunReport, SyncTuningSettings } from "../shared/types";
+import type {
+  ChatGptRequestConfig,
+  Chats2MdSettings,
+  ConversationAssetLinkMap,
+  ConversationDetail,
+  StoredSessionAccount,
+  SyncRunReport,
+  SyncTuningSettings,
+} from "../shared/types";
 import type { SyncRunLogger } from "./helpers";
 import type { AccountHealthResult } from "./account-health";
 import type { SyncStatusHost } from "./sync-status";

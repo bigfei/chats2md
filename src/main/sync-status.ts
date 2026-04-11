@@ -74,8 +74,10 @@ export function clearSyncStatusBar(host: SyncStatusHost, delayMs = 0, force = fa
     return;
   }
 
-  host.setSyncStatusClearTimer(window.setTimeout(() => {
-    host.setSyncStatusClearTimer(null);
-    clear();
-  }, delayMs));
+  host.setSyncStatusClearTimer(
+    window.setTimeout(() => {
+      host.setSyncStatusClearTimer(null);
+      clear();
+    }, delayMs),
+  );
 }

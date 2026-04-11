@@ -50,10 +50,7 @@ const MIN_TUNING_RATE_LIMIT_THRESHOLD = 1;
 const MAX_TUNING_RATE_LIMIT_THRESHOLD = 20;
 const MIN_TUNING_LATEST_COUNT = 1;
 const MAX_TUNING_LATEST_COUNT = 10000;
-const INVALID_PATH_PART_CHARS = new RegExp(
-  `[<>:"/\\\\|?*${String.fromCharCode(0)}-${String.fromCharCode(31)}]`,
-  "g",
-);
+const INVALID_PATH_PART_CHARS = new RegExp(`[<>:"/\\\\|?*${String.fromCharCode(0)}-${String.fromCharCode(31)}]`, "g");
 
 type SyncLogLevel = "info" | "warn" | "error";
 
