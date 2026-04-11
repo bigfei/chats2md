@@ -50,23 +50,27 @@ Use this flow when `manifest.json.version` stays the same but the published rele
 
 1. Confirm `manifest.json.version` and `package.json.version` still equal the release version, for example `1.0.0`.
 2. Re-run the local verification suite and rebuild the release assets.
-3. Move the local tag to the target commit:
+3. Delete the existing GitHub release for that version so the replacement stays attached to the recreated tag:
+
+```bash
+gh release delete 1.0.0 --yes
+```
+
+4. Move the local tag to the target commit:
 
 ```bash
 git tag -f 1.0.0
 ```
 
-4. Replace the remote tag:
+5. Replace the remote tag:
 
 ```bash
 git push origin :refs/tags/1.0.0
 git push origin 1.0.0
 ```
 
-5. Wait for the `Release` workflow to run again for `1.0.0`.
-6. Verify the refreshed GitHub release assets before announcing the re-release.
-
-The workflow already handles an existing GitHub release named `1.0.0` by replacing the uploaded assets in place.
+6. Wait for the `Release` workflow to recreate `1.0.0`.
+7. Verify the refreshed GitHub release assets before announcing the re-release.
 
 ## How the automation works
 
