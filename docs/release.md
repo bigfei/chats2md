@@ -1,4 +1,4 @@
-# Releasing Chats2MD
+# Release Guide
 
 This document covers the repeatable steps for publishing `Chats2MD` GitHub releases and submitting or updating the Obsidian community-plugin review.
 
@@ -43,6 +43,30 @@ git push origin <version>
 - `styles.css`
 - `release/chats2md-<version>.zip`
 11. If this is the first release, confirm the repository description, topics, and homepage are set on GitHub.
+
+## Re-releasing the same version
+
+Use this flow when `manifest.json.version` stays the same but the published release needs to point at a newer commit.
+
+1. Confirm `manifest.json.version` and `package.json.version` still equal the release version, for example `1.0.0`.
+2. Re-run the local verification suite and rebuild the release assets.
+3. Move the local tag to the target commit:
+
+```bash
+git tag -f 1.0.0
+```
+
+4. Replace the remote tag:
+
+```bash
+git push origin :refs/tags/1.0.0
+git push origin 1.0.0
+```
+
+5. Wait for the `Release` workflow to run again for `1.0.0`.
+6. Verify the refreshed GitHub release assets before announcing the re-release.
+
+The workflow already handles an existing GitHub release named `1.0.0` by replacing the uploaded assets in place.
 
 ## How the automation works
 
