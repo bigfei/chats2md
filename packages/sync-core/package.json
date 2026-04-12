@@ -1,0 +1,20 @@
+{
+  "name": "@chats2md/sync-core",
+  "version": "0.1.0",
+  "description": "Headless sync orchestration core for API-backed importers.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "../../node_modules/.bin/tsc -p tsconfig.json"
+  }
+}
