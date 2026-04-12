@@ -1,17 +1,12 @@
 {
   "name": "obsidian-chats2md",
-  "private": true,
   "version": "1.0.0",
   "description": "Obsidian plugin for importing full ChatGPT conversation logs into markdown notes.",
   "main": "main.js",
   "type": "module",
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
-    "dev": "npm run build:core && node esbuild.config.mjs",
-    "build:core": "npm run build --workspace @chats2md/sync-core",
-    "build": "npm run build:core && ./node_modules/.bin/tsc -noEmit -skipLibCheck && node esbuild.config.mjs production && node scripts/build-plugin-zip.mjs",
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production && node scripts/build-plugin-zip.mjs",
     "build:zip": "node scripts/build-plugin-zip.mjs",
     "version": "node scripts/version-bump.mjs && git add manifest.json versions.json",
     "setup:sample-vault": "node scripts/setup-sample-vault.mjs",
@@ -20,9 +15,9 @@
     "e2e": "npm run build && npm run e2e:setup && playwright test",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"src/**/*.{ts,js,mjs}\" \"test/**/*.{ts,js,mjs,json}\" \"packages/*/src/**/*.{ts,js,mjs,json}\" \"packages/*/test/**/*.{ts,js,mjs,json}\" \"scripts/**/*.{ts,js,mjs}\" \"esbuild.config.mjs\" \"eslint.config.mjs\" \"README.md\" \"styles.css\" \"manifest.json\" \"package.json\" \"packages/*/package.json\" \"tsconfig.json\" \"packages/*/tsconfig.json\" \"versions.json\"",
-    "format:check": "prettier --check \"src/**/*.{ts,js,mjs}\" \"test/**/*.{ts,js,mjs,json}\" \"packages/*/src/**/*.{ts,js,mjs,json}\" \"packages/*/test/**/*.{ts,js,mjs,json}\" \"scripts/**/*.{ts,js,mjs}\" \"esbuild.config.mjs\" \"eslint.config.mjs\" \"README.md\" \"styles.css\" \"manifest.json\" \"package.json\" \"packages/*/package.json\" \"tsconfig.json\" \"packages/*/tsconfig.json\" \"versions.json\"",
-    "test": "npm run build:core && tsx --test test/*.test.mjs test/*.test.ts packages/*/test/*.test.ts",
+    "format": "prettier --write \"src/**/*.{ts,js,mjs}\" \"test/**/*.{ts,js,mjs,json}\" \"scripts/**/*.{ts,js,mjs}\" \"esbuild.config.mjs\" \"eslint.config.mjs\" \"README.md\" \"styles.css\" \"manifest.json\" \"package.json\" \"tsconfig.json\" \"versions.json\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,mjs}\" \"test/**/*.{ts,js,mjs,json}\" \"scripts/**/*.{ts,js,mjs}\" \"esbuild.config.mjs\" \"eslint.config.mjs\" \"README.md\" \"styles.css\" \"manifest.json\" \"package.json\" \"tsconfig.json\" \"versions.json\"",
+    "test": "tsx --test test/*.test.mjs test/*.test.ts",
     "test:coverage": "c8 --check-coverage --lines 50 --functions 50 --branches 50 --statements 50 tsx --test test/*.test.mjs test/*.test.ts"
   },
   "keywords": [
@@ -52,7 +47,6 @@
     "typescript-eslint": "^8.58.0"
   },
   "dependencies": {
-    "@chats2md/sync-core": "workspace:*",
     "obsidian": "latest"
   }
 }

@@ -1,9 +1,14 @@
 import { isRateLimitedChatGptRequestError } from "../chatgpt/request-core";
-import { retryOperation, shouldRetryOperationError, type RetryProgress } from "@chats2md/sync-core";
-import { isSyncCancelledError } from "./cancellation";
+import { isSyncCancelledError, sleepWithAbort } from "./cancellation";
 import { isConsecutiveRateLimitPauseError } from "./rate-limit-guard";
 
-export type TransientRetryProgress = RetryProgress;
+const DEFAULT_TRANSIENT_RETRY_DELAY_STEP_MS = 750;
+
+export interface TransientRetryProgress {
+  nextAttemptNumber: number;
+  maxAttempts: number;
+  message: string;
+}
 
 export interface RetryTransientOperationOptions {
   maxAttempts: number;
@@ -14,7 +19,19 @@ export interface RetryTransientOperationOptions {
   wrapFinalError?: (error: unknown, attempts: number, maxAttempts: number) => Error;
 }
 
+function normalizeError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
 export function shouldRetryTransientSyncError(error: unknown, signal?: AbortSignal): boolean {
+  if (signal?.aborted) {
+    return false;
+  }
+
+  if (isSyncCancelledError(error)) {
+    return false;
+  }
+
   if (isConsecutiveRateLimitPauseError(error)) {
     return false;
   }
@@ -23,15 +40,45 @@ export function shouldRetryTransientSyncError(error: unknown, signal?: AbortSign
     return false;
   }
 
-  return shouldRetryOperationError(error, signal) && !isSyncCancelledError(error);
+  return true;
 }
 
 export async function retryTransientOperation<T>(
   operation: () => Promise<T>,
   options: RetryTransientOperationOptions,
 ): Promise<T> {
-  return retryOperation(operation, {
-    ...options,
-    shouldRetry: options.shouldRetry ?? shouldRetryTransientSyncError,
-  });
+  let lastError: unknown;
+  const shouldRetry = options.shouldRetry ?? shouldRetryTransientSyncError;
+  const getDelayMs =
+    options.getDelayMs ?? ((attemptNumber: number) => attemptNumber * DEFAULT_TRANSIENT_RETRY_DELAY_STEP_MS);
+
+  for (let attempt = 1; attempt <= options.maxAttempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+
+      if (!shouldRetry(error, options.signal)) {
+        throw normalizeError(error);
+      }
+
+      if (attempt >= options.maxAttempts) {
+        break;
+      }
+
+      const message = error instanceof Error ? error.message : String(error);
+      options.onRetry?.({
+        nextAttemptNumber: attempt + 1,
+        maxAttempts: options.maxAttempts,
+        message,
+      });
+      await sleepWithAbort(getDelayMs(attempt), options.signal);
+    }
+  }
+
+  if (options.wrapFinalError) {
+    throw options.wrapFinalError(lastError, options.maxAttempts, options.maxAttempts);
+  }
+
+  throw normalizeError(lastError);
 }

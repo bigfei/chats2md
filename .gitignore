@@ -2,7 +2,6 @@ __pycache__/
 session.json
 .venv/
 node_modules/
-packages/*/dist/
 main.js
 *.map
 sample-vault/

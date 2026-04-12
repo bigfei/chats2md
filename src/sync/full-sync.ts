@@ -1,9 +1,6 @@
 import { App, Notice } from "obsidian";
-import { createSyncEngine, type SyncQuery } from "@chats2md/sync-core";
 
 import { fetchConversationSummaries } from "../chatgpt/api";
-import { loadObsidianTransport } from "../chatgpt/obsidian-transport";
-import { createChatGptAuthProvider, createChatGptSyncSource } from "../chatgpt/sync-source";
 import { ConversationListPageFetchError } from "../chatgpt/conversation-list-fetch";
 import type { AccountHealthResult } from "../main/account-health";
 import type { SyncExecutionControl, SyncProgressReporter } from "../ui/import-modal";
@@ -12,9 +9,9 @@ import { cleanupMovedConversationFolders } from "../main/folder-cleanup";
 import { formatConversationBrowseDelay, prepareConversationDetailFetch } from "./browse-delay";
 import { isSyncCancelledError } from "./cancellation";
 import { createSyncRunState, filterHealthyAccountsForAllScope, recordSyncFailure } from "./full-sync-helpers";
-import { ensureSyncCanContinue } from "./full-sync-detail-fetch";
+import { ensureSyncCanContinue, fetchConversationDetailWithRetries } from "./full-sync-detail-fetch";
 import { finalizeFullSyncRun } from "./full-sync-finalize";
-import { ConsecutiveRateLimitGuard, isConsecutiveRateLimitPauseError } from "./rate-limit-guard";
+import { ConsecutiveRateLimitGuard } from "./rate-limit-guard";
 import { runWithRateLimitPauseRetry } from "./rate-limit-retry";
 import { hasIndexedConversationNote, indexConversationNotes, upsertConversationNote } from "../storage/note-writer";
 import { applyConversationSubsetSelection, openAccountSubsetSelectionPrompt } from "./account-subset-selection";
@@ -80,7 +77,6 @@ export async function runFullSync(
   let runStatus: SyncRunStatus = "completed";
   let selectedAccounts: StoredSessionAccount[] = [];
   let syncLogger: SyncRunLogger | null = null;
-  let transport = null as Awaited<ReturnType<typeof loadObsidianTransport>> | null;
   const logInfo = (message: string): void => {
     if (syncLogger) {
       syncLogger.info(message);
@@ -143,8 +139,6 @@ export async function runFullSync(
     if (!(await ensureCanContinue())) {
       return;
     }
-
-    transport = await loadObsidianTransport();
 
     selectedAccounts = context.getSelectedAccounts(values);
     if (values.scope === "all") {
@@ -366,15 +360,6 @@ export async function runFullSync(
       }
 
       const discoveredRangeLabel = subsetPromptResult.discoveredRangeLabel;
-      let syncQuery: SyncQuery<ConversationSummary> = {
-        mode: "full",
-        seedSummaries: summaries,
-        record: {
-          retryAttempts: syncTuning.conversationDetailRetryAttempts,
-        },
-        signal: control.getStopSignal(),
-      };
-      let selectedSummaryCount = discoveredCount;
 
       if (subsetPromptResult.status === "selected") {
         const selection = subsetPromptResult.selection;
@@ -383,7 +368,7 @@ export async function runFullSync(
 
         if (selection.mode === "range") {
           try {
-            selectedSummaryCount = applyConversationSubsetSelection(summaries, selection).length;
+            summaries = applyConversationSubsetSelection(summaries, selection);
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             recordSyncFailure(
@@ -410,21 +395,13 @@ export async function runFullSync(
             continue;
           }
 
-          syncQuery = {
-            ...syncQuery,
-            mode: "date-range",
-            dateRange: {
-              start: selection.startDate,
-              end: selection.endDate,
-            },
-          };
           logInfo(
             `[${accountLabel}] Selected created_at range ${selection.startDate} to ${selection.endDate}. ` +
-              `Syncing ${selectedSummaryCount}/${discoveredCount} conversation(s).`,
+              `Syncing ${summaries.length}/${discoveredCount} conversation(s).`,
           );
         } else if (selection.mode === "latest-count") {
           try {
-            selectedSummaryCount = applyConversationSubsetSelection(summaries, selection).length;
+            summaries = applyConversationSubsetSelection(summaries, selection);
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             recordSyncFailure(
@@ -451,13 +428,9 @@ export async function runFullSync(
             continue;
           }
 
-          syncQuery = {
-            ...syncQuery,
-            itemLimit: selection.count,
-          };
           logInfo(
             `[${accountLabel}] Selected latest ${selection.count} conversation(s) by created_at. ` +
-              `Syncing ${selectedSummaryCount}/${discoveredCount} conversation(s).`,
+              `Syncing ${summaries.length}/${discoveredCount} conversation(s).`,
           );
         } else {
           logInfo(
@@ -467,331 +440,283 @@ export async function runFullSync(
         }
       }
 
-      if (selectedSummaryCount === 0) {
+      if (summaries.length === 0) {
         logInfo(`[${accountLabel}] No conversations selected for sync after filtering.`);
         continue;
       }
 
-      if (selectedSummaryCount !== discoveredCount) {
-        logInfo(`[${accountLabel}] Selected ${selectedSummaryCount}/${discoveredCount} conversation(s) for sync.`);
+      if (summaries.length !== discoveredCount) {
+        logInfo(`[${accountLabel}] Selected ${summaries.length}/${discoveredCount} conversation(s) for sync.`);
       }
 
-      totalConversations += selectedSummaryCount;
+      totalConversations += summaries.length;
       context.setSyncStatusBar(
         context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
         true,
       );
 
-      const engine = createSyncEngine({
-        source: createChatGptSyncSource(requestConfig),
-        transport: transport ?? undefined,
-        authProvider: createChatGptAuthProvider(requestConfig),
-        beforeFetchSummary: async ({ summary, index, total }) => {
-          if (!(await ensureCanContinue())) {
-            throw control.getStopSignal()?.reason ?? new Error("Sync stopped by user.");
-          }
-
-          const displayTitle = `${accountLabel}: ${summary.title}`;
-          progressModal.setProgress(displayTitle, index, total, index - 1, counts);
-          logInfo(`[${accountLabel}] (${index}/${total}) Processing "${summary.title}".`);
-
-          const fetchPreparation = await prepareConversationDetailFetch(
-            hasIndexedConversationNote(noteIndex, requestConfig.accountId, summary.id),
-            skipExistingLocalConversations,
-            control,
-            {
-              delayRange: {
-                minDelayMs: syncTuning.conversationDetailBrowseDelayMinMs,
-                maxDelayMs: syncTuning.conversationDetailBrowseDelayMaxMs,
-              },
-              onDelay: (delayMs) => {
-                const delayLabel = formatConversationBrowseDelay(delayMs);
-                progressModal.setStatus(`Waiting ${delayLabel} before opening ${displayTitle}`);
-                logInfo(
-                  `[${accountLabel}] (${index}/${total}) Waiting ${delayLabel} before opening "${summary.title}".`,
-                );
-                context.setSyncStatusBar(
-                  context.buildSyncStatusText(
-                    processedConversations,
-                    totalConversations,
-                    `waiting ${delayLabel} before opening ${accountLabel}`,
-                  ),
-                  true,
-                );
-              },
-            },
-          );
-
-          if (!fetchPreparation.shouldFetch) {
-            return {
-              skip: true,
-              reason: "existing local conversation",
-            };
-          }
-
-          if (!(await ensureCanContinue())) {
-            throw control.getStopSignal()?.reason ?? new Error("Sync stopped by user.");
-          }
-
-          progressModal.setStatus(`Sync ${displayTitle} (${index}/${total})`);
-          context.setSyncStatusBar(
-            context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
-            true,
-          );
-          logInfo(`[${accountLabel}] (${index}/${total}) Calling /conversation/${summary.id}.`);
-
-          return {
-            skip: false,
-          };
-        },
-        onRecord: async ({ summary, record: detail, raw, index, total }) => {
-          if (!(await ensureCanContinue())) {
-            throw control.getStopSignal()?.reason ?? new Error("Sync stopped by user.");
-          }
-
-          const assetLinks = await context.syncConversationAssets(
-            requestConfig,
-            detail,
-            values.folder,
-            values.conversationPathTemplate,
-            values.assetStorageMode,
-            syncLogger,
-            accountLabel,
-            index,
-            total,
-            control.getStopSignal(),
-          );
-
-          const result = await upsertConversationNote(
-            context.app,
-            noteIndex,
-            detail,
-            values.folder,
-            {
-              accountId: requestConfig.accountId,
-              userId: requestConfig.userId,
-              userEmail: requestConfig.userEmail,
-            },
-            context.manifestVersion,
-            values.conversationPathTemplate,
-            values.assetStorageMode,
-            summary.updatedAt,
-            assetLinks,
-          );
-
-          counts[result.action] += 1;
-          const reportEntry: SyncReportConversationEntry | null = shouldCollectReportEntries
-            ? {
-                accountId: requestConfig.accountId,
-                accountLabel,
-                conversationId: detail.id,
-                title: detail.title,
-                conversationUrl: detail.url,
-                notePath: result.filePath,
-              }
-            : null;
-          const reportWarnings: string[] = [];
-
-          if (result.moved && result.previousFilePath) {
-            try {
-              const movedSidecar = await context.moveConversationJsonSidecar(result.previousFilePath, result.filePath);
-              if (movedSidecar) {
-                reportWarnings.push("JSON sidecar moved with note.");
-              }
-            } catch (error) {
-              const warning = error instanceof Error ? error.message : String(error);
-              reportWarnings.push(`JSON sidecar move failed: ${warning}`);
-              logWarn(`[${accountLabel}] (${index}/${total}) Sidecar move warning for "${summary.title}": ${warning}`);
-            }
-
-            try {
-              const removedFolders = await cleanupMovedConversationFolders(
-                context.app,
-                result.previousFilePath,
-                result.filePath,
-                values.assetStorageMode,
-              );
-              removedFolders.forEach((folderPath) =>
-                logInfo(`[${accountLabel}] (${index}/${total}) Removed empty conversation folder: ${folderPath}`),
-              );
-            } catch (error) {
-              const warning = error instanceof Error ? error.message : String(error);
-              reportWarnings.push(`Folder cleanup failed: ${warning}`);
-              logWarn(
-                `[${accountLabel}] (${index}/${total}) Folder cleanup warning for "${summary.title}": ${warning}`,
-              );
-            }
-          }
-
-          if (context.shouldSaveConversationJson()) {
-            try {
-              await context.saveConversationJsonSidecar(result.filePath, raw);
-            } catch (error) {
-              const warning = error instanceof Error ? error.message : String(error);
-              reportWarnings.push(`JSON sidecar save failed: ${warning}`);
-              logWarn(`[${accountLabel}] (${index}/${total}) Sidecar save warning for "${summary.title}": ${warning}`);
-            }
-          }
-
-          if (reportEntry && reportWarnings.length > 0) {
-            reportEntry.message = reportWarnings.join(" ");
-          }
-
-          if (reportEntry && result.action === "created") {
-            createdEntries.push(reportEntry);
-          } else if (reportEntry && result.action === "updated") {
-            updatedEntries.push(reportEntry);
-          }
-
-          if (result.moved) {
-            counts.moved += 1;
-            const moveMessage = reportEntry?.message
-              ? `Moved to match current layout template. ${reportEntry.message}`
-              : "Moved to match current layout template.";
-            if (reportEntry) {
-              movedEntries.push({
-                ...reportEntry,
-                message: moveMessage,
-              });
-            }
-          }
-
-          logInfo(
-            `[${accountLabel}] (${index}/${total}) ${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}: "${summary.title}".`,
-          );
-        },
-        onEvent: (event) => {
-          if (event.type === "summary-retry") {
-            progressModal.setRetry(
-              `${accountLabel}: ${event.summary.title}`,
-              event.index,
-              event.total,
-              event.attemptNumber,
-              event.maxAttempts,
-              event.message,
-            );
-            syncLogger?.warn(
-              `${accountLabel}: ${event.summary.title} detail fetch retry ${event.attemptNumber}/${event.maxAttempts}: ${event.message}`,
-            );
-            return;
-          }
-
-          if (event.type === "summary-skip") {
-            counts.skipped += 1;
-            processedConversations += 1;
-            logInfo(
-              `[${accountLabel}] (${event.index}/${event.total}) Skipped existing local conversation "${event.summary.title}".`,
-            );
-            progressModal.setProgress(
-              `${accountLabel}: ${event.summary.title}`,
-              event.index,
-              event.total,
-              event.index,
-              counts,
-            );
-            context.setSyncStatusBar(
-              context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
-              true,
-            );
-            return;
-          }
-
-          if (event.type === "summary-success") {
-            processedConversations += 1;
-            progressModal.setProgress(
-              `${accountLabel}: ${event.summary.title}`,
-              event.index,
-              event.total,
-              event.index,
-              counts,
-            );
-            context.setSyncStatusBar(
-              context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
-              true,
-            );
-            return;
-          }
-
-          if (event.type === "summary-failure") {
-            processedConversations += 1;
-            recordSyncFailure(
-              syncState,
-              {
-                id: `${account.accountId}/${event.summary.id}`,
-                title: `${accountLabel}: ${event.summary.title}`,
-                message: event.error.message,
-                attempts: event.attempts,
-              },
-              shouldCollectReportEntries
-                ? {
-                    accountId: requestConfig.accountId,
-                    accountLabel,
-                    conversationId: event.summary.id,
-                    title: event.summary.title,
-                    conversationUrl: event.summary.url,
-                    notePath: null,
-                    message: event.error.message,
-                  }
-                : undefined,
-            );
-            logError(
-              `[${accountLabel}] (${event.index}/${event.total}) Failed: "${event.summary.title}" - ${event.error.message}`,
-            );
-            progressModal.setProgress(
-              `${accountLabel}: ${event.summary.title}`,
-              event.index,
-              event.total,
-              event.index,
-              counts,
-            );
-            context.setSyncStatusBar(
-              context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
-              true,
-            );
-          }
-        },
-        onSummaryError: async (error) => {
-          if (isConsecutiveRateLimitPauseError(error)) {
-            const shouldRetry = await pauseForRateLimit(accountLabel, error.message);
-            return shouldRetry ? "retry" : "abort";
-          }
-
-          return "continue";
-        },
-      });
-
-      try {
-        await engine.run(syncQuery);
-      } catch (error) {
-        if (isSyncCancelledError(error) || control.shouldStop()) {
-          runStatus = "stopped";
-          progressModal.fail("Sync stopped by user.", counts);
-          logInfo(`[${accountLabel}] Stopped by user.`);
+      for (let conversationIndex = 0; conversationIndex < summaries.length; conversationIndex += 1) {
+        const summary = summaries[conversationIndex]!;
+        if (!(await ensureCanContinue())) {
           return;
         }
 
-        const message = error instanceof Error ? error.message : String(error);
-        recordSyncFailure(
-          syncState,
-          {
-            id: account.accountId,
-            title: accountLabel,
-            message,
-            attempts: 1,
-          },
-          shouldCollectReportEntries
-            ? {
-                accountId: requestConfig.accountId,
-                accountLabel,
-                conversationId: account.accountId,
-                title: `${accountLabel} sync`,
-                conversationUrl: null,
-                notePath: null,
-                message,
+        const displayTitle = `${accountLabel}: ${summary.title}`;
+
+        progressModal.setProgress(displayTitle, conversationIndex + 1, summaries.length, conversationIndex, counts);
+        logInfo(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Processing "${summary.title}".`);
+
+        try {
+          const handled = await runWithRateLimitPauseRetry(
+            async () => {
+              const fetchPreparation = await prepareConversationDetailFetch(
+                hasIndexedConversationNote(noteIndex, requestConfig.accountId, summary.id),
+                skipExistingLocalConversations,
+                control,
+                {
+                  delayRange: {
+                    minDelayMs: syncTuning.conversationDetailBrowseDelayMinMs,
+                    maxDelayMs: syncTuning.conversationDetailBrowseDelayMaxMs,
+                  },
+                  onDelay: (delayMs) => {
+                    const delayLabel = formatConversationBrowseDelay(delayMs);
+                    progressModal.setStatus(`Waiting ${delayLabel} before opening ${displayTitle}`);
+                    logInfo(
+                      `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Waiting ${delayLabel} before opening "${summary.title}".`,
+                    );
+                    context.setSyncStatusBar(
+                      context.buildSyncStatusText(
+                        processedConversations,
+                        totalConversations,
+                        `waiting ${delayLabel} before opening ${accountLabel}`,
+                      ),
+                      true,
+                    );
+                  },
+                },
+              );
+
+              if (!fetchPreparation.shouldFetch) {
+                counts.skipped += 1;
+                processedConversations += 1;
+                logInfo(
+                  `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Skipped existing local conversation "${summary.title}".`,
+                );
+                progressModal.setProgress(
+                  displayTitle,
+                  conversationIndex + 1,
+                  summaries.length,
+                  conversationIndex + 1,
+                  counts,
+                );
+                context.setSyncStatusBar(
+                  context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
+                  true,
+                );
+                return "skipped" as const;
               }
-            : undefined,
+
+              if (!(await ensureCanContinue())) {
+                return "stopped" as const;
+              }
+
+              progressModal.setStatus(`Sync ${displayTitle} (${conversationIndex + 1}/${summaries.length})`);
+              context.setSyncStatusBar(
+                context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
+                true,
+              );
+              logInfo(
+                `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Calling /conversation/${summary.id}.`,
+              );
+
+              const detailResult = await fetchConversationDetailWithRetries(
+                requestConfig,
+                summary,
+                conversationIndex + 1,
+                summaries.length,
+                progressModal,
+                displayTitle,
+                control,
+                syncLogger,
+                syncTuning.conversationDetailRetryAttempts,
+              );
+              if (!detailResult) {
+                return "stopped" as const;
+              }
+              const detail = detailResult.detail;
+
+              if (!(await ensureCanContinue())) {
+                return "stopped" as const;
+              }
+
+              const assetLinks = await context.syncConversationAssets(
+                requestConfig,
+                detail,
+                values.folder,
+                values.conversationPathTemplate,
+                values.assetStorageMode,
+                syncLogger,
+                accountLabel,
+                conversationIndex + 1,
+                summaries.length,
+                control.getStopSignal(),
+              );
+
+              const result = await upsertConversationNote(
+                context.app,
+                noteIndex,
+                detail,
+                values.folder,
+                {
+                  accountId: requestConfig.accountId,
+                  userId: requestConfig.userId,
+                  userEmail: requestConfig.userEmail,
+                },
+                context.manifestVersion,
+                values.conversationPathTemplate,
+                values.assetStorageMode,
+                summary.updatedAt,
+                assetLinks,
+              );
+
+              counts[result.action] += 1;
+              const reportEntry: SyncReportConversationEntry | null = shouldCollectReportEntries
+                ? {
+                    accountId: requestConfig.accountId,
+                    accountLabel,
+                    conversationId: detail.id,
+                    title: detail.title,
+                    conversationUrl: detail.url,
+                    notePath: result.filePath,
+                  }
+                : null;
+              const reportWarnings: string[] = [];
+
+              if (result.moved && result.previousFilePath) {
+                try {
+                  const movedSidecar = await context.moveConversationJsonSidecar(
+                    result.previousFilePath,
+                    result.filePath,
+                  );
+                  if (movedSidecar) {
+                    reportWarnings.push("JSON sidecar moved with note.");
+                  }
+                } catch (error) {
+                  const warning = error instanceof Error ? error.message : String(error);
+                  reportWarnings.push(`JSON sidecar move failed: ${warning}`);
+                  logWarn(
+                    `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar move warning for "${summary.title}": ${warning}`,
+                  );
+                }
+
+                try {
+                  const removedFolders = await cleanupMovedConversationFolders(
+                    context.app,
+                    result.previousFilePath,
+                    result.filePath,
+                    values.assetStorageMode,
+                  );
+                  removedFolders.forEach((folderPath) =>
+                    logInfo(
+                      `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Removed empty conversation folder: ${folderPath}`,
+                    ),
+                  );
+                } catch (error) {
+                  const warning = error instanceof Error ? error.message : String(error);
+                  reportWarnings.push(`Folder cleanup failed: ${warning}`);
+                  logWarn(
+                    `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Folder cleanup warning for "${summary.title}": ${warning}`,
+                  );
+                }
+              }
+
+              if (context.shouldSaveConversationJson()) {
+                try {
+                  await context.saveConversationJsonSidecar(result.filePath, detailResult.rawPayload);
+                } catch (error) {
+                  const warning = error instanceof Error ? error.message : String(error);
+                  reportWarnings.push(`JSON sidecar save failed: ${warning}`);
+                  logWarn(
+                    `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Sidecar save warning for "${summary.title}": ${warning}`,
+                  );
+                }
+              }
+
+              if (reportEntry && reportWarnings.length > 0) {
+                reportEntry.message = reportWarnings.join(" ");
+              }
+
+              if (reportEntry && result.action === "created") {
+                createdEntries.push(reportEntry);
+              } else if (reportEntry && result.action === "updated") {
+                updatedEntries.push(reportEntry);
+              }
+
+              if (result.moved) {
+                counts.moved += 1;
+                const moveMessage = reportEntry?.message
+                  ? `Moved to match current layout template. ${reportEntry.message}`
+                  : "Moved to match current layout template.";
+                if (reportEntry) {
+                  movedEntries.push({
+                    ...reportEntry,
+                    message: moveMessage,
+                  });
+                }
+              }
+              logInfo(
+                `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) ${formatActionLabel(result.action)}${result.moved ? " + moved" : ""}: "${summary.title}".`,
+              );
+
+              return "processed" as const;
+            },
+            (message) => pauseForRateLimit(accountLabel, message),
+          );
+          if (handled === null || handled === "stopped") {
+            runStatus = "stopped";
+            progressModal.fail("Sync stopped by user.", counts);
+            return;
+          }
+        } catch (error) {
+          if (isSyncCancelledError(error) || control.shouldStop()) {
+            runStatus = "stopped";
+            progressModal.fail("Sync stopped by user.", counts);
+            logInfo(`[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Stopped by user.`);
+            return;
+          }
+          const message = error instanceof Error ? error.message : String(error);
+          recordSyncFailure(
+            syncState,
+            {
+              id: `${account.accountId}/${summary.id}`,
+              title: `${accountLabel}: ${summary.title}`,
+              message,
+              attempts: syncTuning.conversationDetailRetryAttempts,
+            },
+            shouldCollectReportEntries
+              ? {
+                  accountId: requestConfig.accountId,
+                  accountLabel,
+                  conversationId: summary.id,
+                  title: summary.title,
+                  conversationUrl: summary.url,
+                  notePath: null,
+                  message,
+                }
+              : undefined,
+          );
+          logError(
+            `[${accountLabel}] (${conversationIndex + 1}/${summaries.length}) Failed: "${summary.title}" - ${message}`,
+          );
+        }
+
+        processedConversations += 1;
+
+        progressModal.setProgress(displayTitle, conversationIndex + 1, summaries.length, conversationIndex + 1, counts);
+        context.setSyncStatusBar(
+          context.buildSyncStatusText(processedConversations, totalConversations, `syncing ${accountLabel}`),
+          true,
         );
-        logError(`[${accountLabel}] Sync engine failed: ${message}`);
       }
     }
 
